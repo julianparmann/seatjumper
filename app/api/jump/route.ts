@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
           gameId,
           userId: session.user.id,
           quantity,
-          totalPrice: game.spinPricePerBundle * quantity,
+          totalPrice: (game.spinPricePerBundle || 0) * quantity,
           totalValue,
           adjacentSeats: preferAdjacent && ticketsAssigned.every(t => t.groupId === ticketsAssigned[0].groupId),
           bundles: {

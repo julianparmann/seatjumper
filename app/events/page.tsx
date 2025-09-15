@@ -247,9 +247,9 @@ export default function EventsPage() {
                     {/* Bundle Info */}
                     <div className="bg-black/20 rounded-lg p-3 mb-4">
                       <p className="text-yellow-400 text-sm font-semibold mb-1">Bundle Includes:</p>
-                      <p className="text-white text-xs">{game.inventoryCount || 0} Ticket{game.inventoryCount !== 1 ? 's' : ''}</p>
-                      <p className="text-white text-xs">{game.cardBreaksCount || 0} Memorabilia Items</p>
-                      <p className="text-gray-400 text-xs mt-1">Jump Price: ${(game.jumpPrice || game.entryPrice || 0).toFixed(2)}</p>
+                      <p className="text-white text-xs">{('inventoryCount' in game ? (game as any).inventoryCount : 0) || 0} Ticket{(('inventoryCount' in game ? (game as any).inventoryCount : 0) !== 1) ? 's' : ''}</p>
+                      <p className="text-white text-xs">{('cardBreaksCount' in game ? (game as any).cardBreaksCount : 0) || 0} Memorabilia Items</p>
+                      <p className="text-gray-400 text-xs mt-1">Jump Price: ${(('jumpPrice' in game ? (game as any).jumpPrice : (game as any).spinPricePerBundle) || 0).toFixed(2)}</p>
                     </div>
 
                     {/* Entry Price */}

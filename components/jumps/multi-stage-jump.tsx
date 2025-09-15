@@ -185,7 +185,7 @@ export default function MultiStageJump({ onComplete, isJumping, result, sport = 
   ];
 
   useEffect(() => {
-    if (isSpinning && stage === 'stadium') {
+    if (isJumping && stage === 'stadium') {
       // Stadium jumping animation
       const totalJumps = 20 + Math.floor(Math.random() * 10);
       let currentJump = 0;
@@ -213,7 +213,7 @@ export default function MultiStageJump({ onComplete, isJumping, result, sport = 
 
       return () => clearInterval(jumpInterval);
     }
-  }, [isSpinning, stage, result]);
+  }, [isJumping, stage, result]);
 
   const startWheelSpin = () => {
     const spinDuration = 3000;
@@ -309,8 +309,8 @@ export default function MultiStageJump({ onComplete, isJumping, result, sport = 
                       height: `${section.height}%`,
                     }}
                     animate={{
-                      scale: currentSection === index && isSpinning ? 1.1 : 1,
-                      boxShadow: currentSection === index && isSpinning
+                      scale: currentSection === index && isJumping ? 1.1 : 1,
+                      boxShadow: currentSection === index && isJumping
                         ? '0 0 30px rgba(250, 204, 21, 0.8)'
                         : '0 4px 6px rgba(0, 0, 0, 0.1)',
                     }}
@@ -322,7 +322,7 @@ export default function MultiStageJump({ onComplete, isJumping, result, sport = 
                 ))}
 
                 {/* Jumping Character */}
-                {isSpinning && layout.sections[currentSection] && (
+                {isJumping && layout.sections[currentSection] && (
                   <motion.div
                     className="absolute z-20"
                     animate={{
