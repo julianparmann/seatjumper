@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, LogIn, User, Shield, Star } from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -118,37 +118,6 @@ export default function SignInPage() {
                 Sign up
               </Link>
             </p>
-          </div>
-
-          {/* Test Account Quick Login (Development Only) */}
-          <div className="mt-8 pt-8 border-t border-white/20">
-            <p className="text-gray-400 text-sm mb-4 text-center">Quick Test Login</p>
-            <div className="space-y-2">
-              <button
-                onClick={() => quickLogin('user@test.com', 'password123')}
-                disabled={isLoading}
-                className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-              >
-                <User className="w-4 h-4" />
-                Regular User
-              </button>
-              <button
-                onClick={() => quickLogin('admin@test.com', 'admin123')}
-                disabled={isLoading}
-                className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-              >
-                <Shield className="w-4 h-4" />
-                Admin User
-              </button>
-              <button
-                onClick={() => quickLogin('vip@test.com', 'vip123')}
-                disabled={isLoading}
-                className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-              >
-                <Star className="w-4 h-4" />
-                VIP User
-              </button>
-            </div>
           </div>
         </div>
       </div>
