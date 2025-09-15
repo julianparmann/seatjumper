@@ -3,11 +3,12 @@ import { prisma } from '@/lib/db';
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.ticketGroup.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });
@@ -22,13 +23,14 @@ export async function DELETE(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await req.json();
 
+    const { id } = await params;
     const ticketGroup = await prisma.ticketGroup.update({
-      where: { id: params.id },
+      where: { id },
       data: body
     });
 

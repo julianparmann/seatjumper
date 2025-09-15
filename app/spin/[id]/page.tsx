@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import MultiStageSpin from '@/components/spins/multi-stage-spin';
+// import MultiStageSpin from '@/components/spins/multi-stage-spin'; // TODO: Implement component
 import { ArrowLeft, CreditCard, Loader2 } from 'lucide-react';
 
 // Mock data for demo
@@ -83,6 +83,10 @@ export default function SpinPage() {
 
       setResult(mockResult);
       setIsSpinning(true);
+      // Auto-complete since we don't have the animation component yet
+      setTimeout(() => {
+        setSpinComplete(true);
+      }, 1000);
     }, 2000);
   };
 
@@ -174,12 +178,25 @@ export default function SpinPage() {
           ) : (
             // Spinning/Result state with multi-stage animation
             <div className="py-8">
+              {/* TODO: Implement MultiStageSpin component
               <MultiStageSpin
                 isSpinning={isSpinning}
                 result={result}
                 sport={mockSpinData.sport}
                 onComplete={handleSpinComplete}
-              />
+              /> */}
+              <div className="text-center text-white">
+                <h2 className="text-3xl font-bold mb-4">Spin in Progress!</h2>
+                <p className="text-xl">Animation component coming soon...</p>
+                {result && (
+                  <div className="mt-8 p-6 bg-white/10 rounded-xl">
+                    <h3 className="text-2xl font-bold mb-4">Your Results:</h3>
+                    <p>Tickets: Section {result.tickets.section}, Row {result.tickets.row}</p>
+                    <p>Memorabilia: {result.breaks.name}</p>
+                    <p>Total Value: ${result.totalValue}</p>
+                  </div>
+                )}
+              </div>
 
               {/* Continue button after spin */}
               {spinComplete && (

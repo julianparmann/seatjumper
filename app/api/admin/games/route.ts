@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            participants: true,
-            scrapedTickets: true
+            entries: true,
+            ticketGroups: true,
+            cardBreaks: true
           }
         }
       },
@@ -52,11 +53,8 @@ export async function POST(request: NextRequest) {
         venue: body.venue,
         city: body.city,
         state: body.state,
-        tickpickUrl: body.tickpickUrl,
         sport: body.sport,
-        cutoffTime: new Date(body.cutoffTime),
-        minPlayers: body.minPlayers || 10,
-        maxPlayers: body.maxPlayers || 100,
+        maxEntries: body.maxEntries || 100,
         isActive: false // Start as inactive
       }
     });

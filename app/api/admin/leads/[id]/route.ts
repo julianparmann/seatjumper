@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -31,8 +31,9 @@ export async function PATCH(
     }
 
     // Update lead status
+    const { id } = await params;
     const lead = await prisma.lead.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status,
         updatedAt: new Date()

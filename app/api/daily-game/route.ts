@@ -9,33 +9,30 @@ export async function GET(request: NextRequest) {
     const activeGame = await prisma.dailyGame.findFirst({
       where: {
         isActive: true,
-        cutoffTime: {
-          gt: new Date() // Cutoff time hasn't passed yet
+        eventDate: {
+          gt: new Date() // Event date hasn't passed yet
         }
       },
       include: {
         _count: {
           select: {
-            participants: true,
-            scrapedTickets: {
-              where: {
-                available: true
-              }
-            }
+            entries: true,
+            ticketGroups: true,
+            cardBreaks: true
           }
         },
-        scrapedTickets: {
+        ticketGroups: {
           where: {
-            available: true
+            status: 'AVAILABLE'
           },
           select: {
-            tier: true,
-            price: true,
+            pricePerSeat: true,
             section: true,
-            row: true
+            row: true,
+            quantity: true
           },
           orderBy: {
-            price: 'asc'
+            pricePerSeat: 'asc'
           }
         }
       }
@@ -45,30 +42,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ game: null });
     }
 
-    // Get tier distribution for display
-    const tierPrices = {
-      field: activeGame.scrapedTickets.filter(t => t.tier === 'field')[0]?.price || 0,
-      lower: activeGame.scrapedTickets.filter(t => t.tier === 'lower')[0]?.price || 0,
-      club: activeGame.scrapedTickets.filter(t => t.tier === 'club')[0]?.price || 0,
-      upper: activeGame.scrapedTickets.filter(t => t.tier === 'upper')[0]?.price || 0,
-      nosebleed: activeGame.scrapedTickets.filter(t => t.tier === 'nosebleed')[0]?.price || 0,
-    };
+    // Get price range from ticket groups
+    const prices = activeGame.ticketGroups.map(t => t.pricePerSeat);
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
 
-    // Check if user is already a participant
+    // Check if user is authenticated
     const session = await getServerSession(authOptions);
-    let isParticipant = false;
-
-    if (session?.user?.id) {
-      const participant = await prisma.gameParticipant.findUnique({
-        where: {
-          gameId_userId: {
-            gameId: activeGame.id,
-            userId: session.user.id
-          }
-        }
-      });
-      isParticipant = !!participant;
-    }
+    const isAuthenticated = !!session?.user?.id;
 
     return NextResponse.json({
       game: {
@@ -79,13 +60,14 @@ export async function GET(request: NextRequest) {
         city: activeGame.city,
         state: activeGame.state,
         sport: activeGame.sport,
-        cutoffTime: activeGame.cutoffTime,
-        minPlayers: activeGame.minPlayers,
-        maxPlayers: activeGame.maxPlayers,
-        participantCount: activeGame._count.participants,
-        availableTickets: activeGame._count.scrapedTickets,
-        tierPrices,
-        isParticipant
+        maxEntries: activeGame.maxEntries,
+        currentEntries: activeGame.currentEntries,
+        entryCount: activeGame._count.entries,
+        availableTickets: activeGame._count.ticketGroups,
+        availableBreaks: activeGame._count.cardBreaks,
+        minPrice,
+        maxPrice,
+        isAuthenticated
       }
     });
   } catch (error) {
@@ -98,6 +80,8 @@ export async function GET(request: NextRequest) {
 }
 
 // Join the daily game
+// TODO: Implement this when GameEntry model is added
+/*
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -163,3 +147,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+*/

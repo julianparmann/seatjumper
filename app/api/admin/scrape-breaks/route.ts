@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
               }
             },
             data: {
-              status: 'SOLD_OUT',
+              status: 'SOLD',
               scrapedAt: new Date()
             }
           });
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
                   data: {
                     breakValue: team.price,
                     spotPrice: team.price,
-                    status: team.available ? 'AVAILABLE' : 'SOLD_OUT',
+                    status: team.available ? 'AVAILABLE' : 'SOLD',
                     scrapedAt: new Date()
                   }
                 });

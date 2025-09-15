@@ -28,8 +28,11 @@ export async function POST(
 
     console.log(`Starting scrape for game: ${game.eventName}`);
 
+    // Generate TickPick URL from game data
+    const tickpickUrl = `https://www.tickpick.com/${game.sport.toLowerCase()}/${game.eventName.toLowerCase().replace(/\s+/g, '-')}-tickets/`;
+
     // Run the scraper
-    const tickets = await scrapeGame(gameId, game.tickpickUrl, game.sport);
+    const tickets = await scrapeGame(gameId, tickpickUrl, game.sport);
 
     // Log admin action
     await prisma.adminAuditLog.create({
@@ -40,7 +43,7 @@ export async function POST(
         resourceId: gameId,
         details: {
           ticketCount: tickets.length,
-          url: game.tickpickUrl
+          url: tickpickUrl
         }
       }
     });
