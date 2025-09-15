@@ -158,7 +158,7 @@ export class TickPickScraper {
         const pageContent = await this.page!.content();
 
         // Look for JSON-LD structured data
-        const jsonLdMatch = pageContent.match(/<script type="application\/ld\+json">(.*?)<\/script>/s);
+        const jsonLdMatch = pageContent.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
         if (jsonLdMatch) {
           try {
             const jsonData = JSON.parse(jsonLdMatch[1]);

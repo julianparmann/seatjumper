@@ -188,9 +188,13 @@ export class TickPickBuyer {
 
       if (!element) {
         // Strategy 2: Look for text content
-        element = await this.page.locator(
+        const locator = this.page.locator(
           `text=/Section ${details.section}.*Row ${details.row}/i`
-        ).first();
+        );
+        const count = await locator.count();
+        if (count > 0) {
+          element = await locator.first().elementHandle();
+        }
       }
 
       if (!element) {
