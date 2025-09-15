@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Sport } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,12 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get('q') || undefined;
     const city = searchParams.get('city') || undefined;
     const state = searchParams.get('state') || undefined;
-    const sport = searchParams.get('sport') || undefined;
+    const sportParam = searchParams.get('sport') || undefined;
+
+    // Validate and cast sport parameter to enum
+    const sport = sportParam && Object.values(Sport).includes(sportParam as Sport)
+      ? (sportParam as Sport)
+      : undefined;
 
     // Get active games from database
     const games = await prisma.dailyGame.findMany({
@@ -24,7 +30,7 @@ export async function GET(request: NextRequest) {
         }),
         ...(city && { city: { contains: city, mode: 'insensitive' } }),
         ...(state && { state: { contains: state, mode: 'insensitive' } }),
-        ...(sport && { sport: { equals: sport } }),
+        ...(sport && { sport }),
       },
       include: {
         ticketGroups: true,
