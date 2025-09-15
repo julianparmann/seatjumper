@@ -79,6 +79,96 @@ export default function MultiStageSpin({ onComplete, isSpinning, result, sport =
         { id: 'nose-n', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 5, width: 70, height: 8 },
         { id: 'nose-s', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 87, width: 70, height: 8 },
       ]
+    },
+    NBA: {
+      shape: 'oval',
+      sections: [
+        // Court level (innermost)
+        { id: 'court-n', label: 'Courtside North', tier: 'field', x: 50, y: 35, width: 30, height: 8 },
+        { id: 'court-s', label: 'Courtside South', tier: 'field', x: 50, y: 57, width: 30, height: 8 },
+        { id: 'court-e', label: 'Courtside East', tier: 'field', x: 75, y: 40, width: 8, height: 20 },
+        { id: 'court-w', label: 'Courtside West', tier: 'field', x: 17, y: 40, width: 8, height: 20 },
+
+        // Lower bowl
+        { id: 'lower-ne', label: 'Lower 100s', tier: 'lower', x: 65, y: 25, width: 25, height: 15 },
+        { id: 'lower-nw', label: 'Lower 100s', tier: 'lower', x: 10, y: 25, width: 25, height: 15 },
+        { id: 'lower-se', label: 'Lower 100s', tier: 'lower', x: 65, y: 60, width: 25, height: 15 },
+        { id: 'lower-sw', label: 'Lower 100s', tier: 'lower', x: 10, y: 60, width: 25, height: 15 },
+
+        // Club level
+        { id: 'club-n', label: 'Club 200s', tier: 'club', x: 50, y: 15, width: 60, height: 10 },
+        { id: 'club-s', label: 'Club 200s', tier: 'club', x: 50, y: 75, width: 60, height: 10 },
+
+        // Upper deck
+        { id: 'upper-ne', label: 'Upper 300s', tier: 'upper', x: 70, y: 10, width: 25, height: 12 },
+        { id: 'upper-nw', label: 'Upper 300s', tier: 'upper', x: 5, y: 10, width: 25, height: 12 },
+        { id: 'upper-se', label: 'Upper 300s', tier: 'upper', x: 70, y: 78, width: 25, height: 12 },
+        { id: 'upper-sw', label: 'Upper 300s', tier: 'upper', x: 5, y: 78, width: 25, height: 12 },
+
+        // Nosebleeds
+        { id: 'nose-n', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 5, width: 70, height: 8 },
+        { id: 'nose-s', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 87, width: 70, height: 8 },
+      ]
+    },
+    MLB: {
+      shape: 'oval',
+      sections: [
+        // Field level (innermost)
+        { id: 'field-n', label: 'Field Box', tier: 'field', x: 50, y: 35, width: 30, height: 8 },
+        { id: 'field-s', label: 'Field Box', tier: 'field', x: 50, y: 57, width: 30, height: 8 },
+        { id: 'field-e', label: 'Field Box', tier: 'field', x: 75, y: 40, width: 8, height: 20 },
+        { id: 'field-w', label: 'Field Box', tier: 'field', x: 17, y: 40, width: 8, height: 20 },
+
+        // Lower bowl
+        { id: 'lower-ne', label: 'Infield 100s', tier: 'lower', x: 65, y: 25, width: 25, height: 15 },
+        { id: 'lower-nw', label: 'Infield 100s', tier: 'lower', x: 10, y: 25, width: 25, height: 15 },
+        { id: 'lower-se', label: 'Outfield 100s', tier: 'lower', x: 65, y: 60, width: 25, height: 15 },
+        { id: 'lower-sw', label: 'Outfield 100s', tier: 'lower', x: 10, y: 60, width: 25, height: 15 },
+
+        // Club level
+        { id: 'club-n', label: 'Club 200s', tier: 'club', x: 50, y: 15, width: 60, height: 10 },
+        { id: 'club-s', label: 'Club 200s', tier: 'club', x: 50, y: 75, width: 60, height: 10 },
+
+        // Upper deck
+        { id: 'upper-ne', label: 'Upper 300s', tier: 'upper', x: 70, y: 10, width: 25, height: 12 },
+        { id: 'upper-nw', label: 'Upper 300s', tier: 'upper', x: 5, y: 10, width: 25, height: 12 },
+        { id: 'upper-se', label: 'Upper 300s', tier: 'upper', x: 70, y: 78, width: 25, height: 12 },
+        { id: 'upper-sw', label: 'Upper 300s', tier: 'upper', x: 5, y: 78, width: 25, height: 12 },
+
+        // Nosebleeds
+        { id: 'nose-n', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 5, width: 70, height: 8 },
+        { id: 'nose-s', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 87, width: 70, height: 8 },
+      ]
+    },
+    NHL: {
+      shape: 'oval',
+      sections: [
+        // Ice level (innermost)
+        { id: 'glass-n', label: 'Glass Seats', tier: 'field', x: 50, y: 35, width: 30, height: 8 },
+        { id: 'glass-s', label: 'Glass Seats', tier: 'field', x: 50, y: 57, width: 30, height: 8 },
+        { id: 'glass-e', label: 'Glass Seats', tier: 'field', x: 75, y: 40, width: 8, height: 20 },
+        { id: 'glass-w', label: 'Glass Seats', tier: 'field', x: 17, y: 40, width: 8, height: 20 },
+
+        // Lower bowl
+        { id: 'lower-ne', label: 'Lower 100s', tier: 'lower', x: 65, y: 25, width: 25, height: 15 },
+        { id: 'lower-nw', label: 'Lower 100s', tier: 'lower', x: 10, y: 25, width: 25, height: 15 },
+        { id: 'lower-se', label: 'Lower 100s', tier: 'lower', x: 65, y: 60, width: 25, height: 15 },
+        { id: 'lower-sw', label: 'Lower 100s', tier: 'lower', x: 10, y: 60, width: 25, height: 15 },
+
+        // Club level
+        { id: 'club-n', label: 'Club 200s', tier: 'club', x: 50, y: 15, width: 60, height: 10 },
+        { id: 'club-s', label: 'Club 200s', tier: 'club', x: 50, y: 75, width: 60, height: 10 },
+
+        // Upper deck
+        { id: 'upper-ne', label: 'Upper 300s', tier: 'upper', x: 70, y: 10, width: 25, height: 12 },
+        { id: 'upper-nw', label: 'Upper 300s', tier: 'upper', x: 5, y: 10, width: 25, height: 12 },
+        { id: 'upper-se', label: 'Upper 300s', tier: 'upper', x: 70, y: 78, width: 25, height: 12 },
+        { id: 'upper-sw', label: 'Upper 300s', tier: 'upper', x: 5, y: 78, width: 25, height: 12 },
+
+        // Nosebleeds
+        { id: 'nose-n', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 5, width: 70, height: 8 },
+        { id: 'nose-s', label: 'Upper 400s', tier: 'nosebleed', x: 50, y: 87, width: 70, height: 8 },
+      ]
     }
   };
 
