@@ -1,0 +1,456 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String?   // For credentials auth
+  name              String?
+  image             String?
+  emailVerified     DateTime?
+  phone             String?
+  isAdmin           Boolean   @default(false)
+  stripeCustomerId  String?   @unique
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  accounts          Account[]
+  sessions          Session[]
+  profile           UserProfile?
+  addresses         Address[]
+  spins             Spin[]
+  orders            Order[]
+  adminLogs         AdminAuditLog[]
+  gameParticipants  GameParticipant[]
+  purchaseAttempts  PurchaseAttempt[]
+  gameEntries       GameEntry[]
+  wonGames          DailyGame[]      @relation("GameWinner")
+}
+
+model UserProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  dateOfBirth       DateTime?
+  preferredSport    Sport?
+  notifyEmail       Boolean   @default(true)
+  notifySms         Boolean   @default(false)
+  marketingEmails   Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id                String    @id @default(cuid())
+  userId            String
+  type              AddressType @default(SHIPPING)
+  isDefault         Boolean   @default(false)
+  fullName          String
+  addressLine1      String
+  addressLine2      String?
+  city              String
+  state             String
+  zipCode           String
+  country           String    @default("US")
+  phone             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ordersAsShipping  Order[]   @relation("ShippingAddress")
+  ordersAsBilling   Order[]   @relation("BillingAddress")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id               String    @id @default(cuid())
+  ticketEvolutionId String   @unique
+  name             String
+  sport            Sport
+  venue            String
+  city             String
+  state            String?
+  datetime         DateTime
+  minPrice         Float?
+  maxPrice         Float?
+  averagePrice     Float?
+  inventoryCount   Int?
+  isActive         Boolean   @default(true)
+  lastUpdated      DateTime  @default(now())
+
+  // Relations
+  spins            Spin[]
+}
+
+model Break {
+  id               String    @id @default(cuid())
+  externalId       String?   @unique
+  sport            Sport
+  productName      String
+  breakDate        DateTime
+  price            Float
+  spotsAvailable   Int?
+  spotsTotal       Int?
+  breaker          String    @default("Layton Sports Cards")
+  streamUrl        String?
+  isActive         Boolean   @default(true)
+  lastUpdated      DateTime  @default(now())
+
+  // Relations
+  spins            Spin[]
+}
+
+model Spin {
+  id               String    @id @default(cuid())
+  userId           String
+  eventId          String
+  breakId          String
+  status           SpinStatus @default(PENDING)
+
+  // Pricing
+  ticketQuantity   Int
+  breakQuantity    Int
+  totalCost        Float
+
+  // Results
+  ticketsWon       Json?     // Store ticket details as JSON
+  breaksWon        Json?     // Store break details as JSON
+
+  // User preferences
+  riskProfile      Json?     // Store risk preferences as JSON
+
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  // Relations
+  user             User      @relation(fields: [userId], references: [id])
+  event            Event     @relation(fields: [eventId], references: [id])
+  break            Break     @relation(fields: [breakId], references: [id])
+  order            Order?
+}
+
+model Order {
+  id                 String    @id @default(cuid())
+  userId             String
+  spinId             String    @unique
+  orderNumber        String    @unique @default(cuid())
+
+  // Payment
+  stripePaymentId    String?
+  paymentStatus      PaymentStatus @default(PENDING)
+  amount             Float
+
+  // Fulfillment
+  ticketOrderId      String?   // Ticket Evolution order ID
+  breakOrderId       String?   // Layton order ID
+  fulfillmentStatus  FulfillmentStatus @default(PENDING)
+
+  // Addresses
+  shippingAddressId  String?
+  billingAddressId   String?
+
+  // Tracking
+  trackingNumber     String?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+
+  // Customer notes
+  notes              String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  user               User      @relation(fields: [userId], references: [id])
+  spin               Spin      @relation(fields: [spinId], references: [id])
+  shippingAddress    Address?  @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress     Address?  @relation("BillingAddress", fields: [billingAddressId], references: [id])
+}
+
+model AdminSettings {
+  id                String    @id @default(cuid())
+  key               String    @unique
+  value             Json
+  description       String?
+  updatedBy         String?
+  updatedAt         DateTime  @updatedAt
+}
+
+model AdminAuditLog {
+  id                String    @id @default(cuid())
+  userId            String
+  action            String
+  resource          String
+  resourceId        String?
+  details           Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id])
+}
+
+// Daily Game Management
+model DailyGame {
+  id                String    @id @default(cuid())
+
+  // Event Details
+  eventName         String
+  eventDate         DateTime
+  venue             String
+  city              String
+  state             String
+  sport             Sport
+
+  // Game Configuration
+  isActive          Boolean   @default(false)
+  maxEntries        Int       @default(100)
+  currentEntries    Int       @default(0)
+
+  // Pricing (calculated from tickets + cards)
+  totalValue        Float     // Sum of all ticket costs + card pack value
+  entryPrice        Float     // 35% of total value
+
+  // Card Pack Details
+  cardPackName      String    // e.g., "2023 Prizm Football Blaster"
+  cardPackValue     Float     // Retail value of card pack
+  cardPackImageUrl  String?
+
+  // Status
+  status            GameStatus @default(DRAFT)
+  winnerId          String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  tickets           ManualTicket[]
+  entries           GameEntry[]
+  winner            User?     @relation("GameWinner", fields: [winnerId], references: [id])
+}
+
+model ManualTicket {
+  id                String    @id @default(cuid())
+  gameId            String
+
+  // Ticket Details
+  section           String
+  row               String
+  seatNumbers       String    // e.g., "1-2" or "5,6,7,8"
+  quantity          Int
+
+  // Costs
+  purchaseCost      Float     // What we paid for the ticket
+  marketValue       Float     // Current market value
+
+  // Additional Info
+  ticketType        String?   // e.g., "Mobile Transfer", "Hard Ticket"
+  notes             String?
+
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  game              DailyGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model GameEntry {
+  id                String    @id @default(cuid())
+  gameId            String
+  userId            String
+
+  // Entry Details
+  entryNumber       Int       // For drawing winner
+  paymentIntentId   String?
+  paidAt            DateTime?
+
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  game              DailyGame @relation(fields: [gameId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, entryNumber])
+}
+
+// Enums
+enum Sport {
+  NFL
+  NBA
+  MLB
+  NHL
+  SOCCER
+  UFC
+  F1
+  OTHER
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  BOTH
+}
+
+enum SpinStatus {
+  PENDING
+  SPINNING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  PROCESSING
+  TICKETS_PURCHASED
+  BREAKS_PURCHASED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  FAILED
+}
+
+enum GameStatus {
+  DRAFT
+  ACTIVE
+  SOLD_OUT
+  COMPLETED
+  CANCELLED
+}
+
+// New models for MVP system
+model DailyGame {
+  id             String    @id @default(cuid())
+  eventName      String
+  eventDate      DateTime
+  venue          String
+  city           String
+  state          String
+  tickpickUrl    String
+  sport          Sport
+  isActive       Boolean   @default(false)
+  cutoffTime     DateTime
+  minPlayers     Int       @default(10)
+  maxPlayers     Int       @default(100)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  scrapedTickets ScrapedTicket[]
+  participants   GameParticipant[]
+
+  @@index([isActive])
+  @@index([eventDate])
+}
+
+model ScrapedTicket {
+  id            String    @id @default(cuid())
+  gameId        String
+  section       String
+  row           String
+  seats         String[]
+  quantity      Int
+  price         Float
+  tier          String    // field, lower, club, upper, nosebleed
+  listingId     String?   // TickPick's internal ID if available
+  available     Boolean   @default(true)
+  lastSeenAt    DateTime  @default(now())
+  scrapedAt     DateTime  @default(now())
+
+  game DailyGame @relation(fields: [gameId], references: [id])
+  purchaseAttempts PurchaseAttempt[]
+
+  @@index([gameId, available])
+  @@index([tier])
+}
+
+model GameParticipant {
+  id          String    @id @default(cuid())
+  gameId      String
+  userId      String
+  ticketQty   Int       @default(2)
+  breakQty    Int       @default(1)
+  paidAmount  Float
+  spinResult  Json?     // Store the spin outcome
+  status      String    @default("pending") // pending, spinning, won, lost
+  createdAt   DateTime  @default(now())
+
+  game DailyGame @relation(fields: [gameId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, userId])
+  @@index([gameId])
+  @@index([userId])
+}
+
+model PurchaseAttempt {
+  id               String    @id @default(cuid())
+  ticketId         String
+  userId           String
+  status           String    // pending, success, failed
+  confirmationCode String?
+  errorMessage     String?
+  purchasePrice    Float?
+  ticketFile       String?   // Path to downloaded ticket PDF
+  attemptedAt      DateTime  @default(now())
+  completedAt      DateTime?
+
+  ticket ScrapedTicket @relation(fields: [ticketId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([status])
+}
+
+model TickPickCredential {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  encryptedPwd String    // Encrypted password
+  isActive     Boolean   @default(true)
+  lastUsed     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

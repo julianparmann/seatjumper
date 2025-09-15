@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Trophy, Ticket, Package, Star, Zap, User, MousePointer } from 'lucide-react';
 
-interface MultiStageSpinProps {
-  onComplete?: (result: SpinResult) => void;
-  isSpinning: boolean;
-  result?: SpinResult | null;
+interface MultiStageJumpProps {
+  onComplete?: (result: JumpResult) => void;
+  isJumping: boolean;
+  result?: JumpResult | null;
   sport?: 'NFL' | 'NBA' | 'MLB' | 'NHL';
 }
 
-interface SpinResult {
+interface JumpResult {
   tickets: {
     section: string;
     row: string;
@@ -28,7 +28,7 @@ interface SpinResult {
 
 type Stage = 'stadium' | 'wheel' | 'scratch' | 'peel' | 'complete';
 
-export default function MultiStageSpin({ onComplete, isSpinning, result, sport = 'NFL' }: MultiStageSpinProps) {
+export default function MultiStageJump({ onComplete, isJumping, result, sport = 'NFL' }: MultiStageJumpProps) {
   const [stage, setStage] = useState<Stage>('stadium');
   const [jumperPosition, setJumperPosition] = useState(0);
   const [currentSection, setCurrentSection] = useState(0);

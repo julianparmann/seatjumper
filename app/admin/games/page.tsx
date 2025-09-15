@@ -1,9 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Link, Users, DollarSign, RefreshCw, Plus, Edit, Trash2, Play, Pause } from 'lucide-react';
+import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
+import LaytonImporter from '@/components/admin/LaytonImporter';
+import MemorabiliaScraper from '@/components/admin/MemorabiliaScraper';
+
+interface TicketGroup {
+  id: string;
+  section: string;
+  row: string;
+  quantity: number;
+  pricePerSeat: number;
+  status: string;
+  notes?: string;
+}
 
 interface DailyGame {
   id: string;
@@ -12,456 +23,725 @@ interface DailyGame {
   venue: string;
   city: string;
   state: string;
-  tickpickUrl: string;
   sport: string;
-  isActive: boolean;
-  cutoffTime: string;
-  minPlayers: number;
-  maxPlayers: number;
-  _count?: {
-    participants: number;
-    scrapedTickets: number;
-  };
+  status: string;
+  avgTicketPrice: number | null;
+  avgBreakValue: number | null;
+  spinPricePerBundle: number | null;
+  currentEntries: number;
+  maxEntries: number;
+  ticketGroups: TicketGroup[];
+  cardBreaks: any[];
 }
 
 export default function AdminGamesPage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [games, setGames] = useState<DailyGame[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingGame, setEditingGame] = useState<DailyGame | null>(null);
-  const [scraping, setScraping] = useState<string | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+  const [expandedGame, setExpandedGame] = useState<string | null>(null);
+  const [editingGame, setEditingGame] = useState<string | null>(null);
+  const [editedGames, setEditedGames] = useState<{ [key: string]: DailyGame }>({});
+  const [newTicketGroups, setNewTicketGroups] = useState<{ [key: string]: Partial<TicketGroup> }>({});
 
   useEffect(() => {
-    if (session && !session.user?.isAdmin) {
-      router.push('/');
-    } else if (session?.user?.isAdmin) {
-      fetchGames();
-    }
-  }, [session]);
+    fetchGames();
+  }, []);
 
   const fetchGames = async () => {
     try {
-      const response = await fetch('/api/admin/games');
-      const data = await response.json();
-      setGames(data.games || []);
+      const res = await fetch('/api/admin/inventory');
+      if (res.ok) {
+        const data = await res.json();
+        setGames(data);
+      }
     } catch (error) {
-      console.error('Error fetching games:', error);
+      console.error('Failed to fetch games:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleScrape = async (gameId: string) => {
-    setScraping(gameId);
-    try {
-      const response = await fetch(`/api/admin/games/${gameId}/scrape`, {
-        method: 'POST'
-      });
+  const toggleGameStatus = async (gameId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'DRAFT' : 'ACTIVE';
 
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Scraped ${data.ticketCount} tickets successfully!`);
-        fetchGames(); // Refresh to show new ticket count
-      } else {
-        alert('Scraping failed. Check console for details.');
-      }
-    } catch (error) {
-      console.error('Scraping error:', error);
-      alert('Error scraping tickets');
-    } finally {
-      setScraping(null);
-    }
-  };
-
-  const handleToggleActive = async (gameId: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/admin/games/${gameId}`, {
+      const res = await fetch(`/api/admin/games/${gameId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !currentStatus })
+        body: JSON.stringify({ status: newStatus })
       });
 
-      if (response.ok) {
+      if (res.ok) {
         fetchGames();
       }
     } catch (error) {
-      console.error('Error toggling game status:', error);
+      console.error('Failed to update game status:', error);
     }
   };
 
-  const handleDelete = async (gameId: string) => {
-    if (!confirm('Are you sure you want to delete this game?')) return;
+  const saveGameChanges = async (gameId: string) => {
+    const editedGame = editedGames[gameId];
+    if (!editedGame) return;
 
     try {
-      const response = await fetch(`/api/admin/games/${gameId}`, {
+      const res = await fetch(`/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editedGame)
+      });
+
+      if (res.ok) {
+        alert('Game updated successfully');
+        setEditingGame(null);
+        fetchGames();
+      } else {
+        const error = await res.json();
+        alert('Failed to update game: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to update game:', error);
+      alert('Error updating game');
+    }
+  };
+
+  const addTicketGroup = async (gameId: string) => {
+    const newGroup = newTicketGroups[gameId];
+    if (!newGroup || !newGroup.section || !newGroup.row) {
+      alert('Please fill in section and row');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/ticket-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newGroup,
+          gameId,
+          quantity: newGroup.quantity || 1,
+          pricePerSeat: newGroup.pricePerSeat || 0,
+          status: 'AVAILABLE'
+        })
+      });
+
+      if (res.ok) {
+        setNewTicketGroups({ ...newTicketGroups, [gameId]: {} });
+        fetchGames();
+      } else {
+        alert('Failed to add ticket group');
+      }
+    } catch (error) {
+      console.error('Error adding ticket group:', error);
+      alert('Error adding ticket group');
+    }
+  };
+
+  const deleteTicketGroup = async (groupId: string) => {
+    if (!confirm('Are you sure you want to delete this ticket group?')) return;
+
+    try {
+      const res = await fetch(`/api/admin/ticket-groups/${groupId}`, {
         method: 'DELETE'
       });
 
-      if (response.ok) {
+      if (res.ok) {
         fetchGames();
+      } else {
+        alert('Failed to delete ticket group');
       }
     } catch (error) {
-      console.error('Error deleting game:', error);
+      console.error('Error deleting ticket group:', error);
+      alert('Error deleting ticket group');
+    }
+  };
+
+  const deleteBreaksBySource = async (gameId: string, sourceUrl: string) => {
+    if (!confirm(`Are you sure you want to delete all breaks from this source? This will remove all teams imported from this URL.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/delete-breaks-by-source', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, sourceUrl })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Successfully deleted ${data.deleted} breaks`);
+        fetchGames();
+      } else {
+        const error = await res.json();
+        alert('Failed to delete breaks: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete breaks:', error);
+      alert('Failed to delete breaks');
+    }
+  };
+
+  const deleteGame = async (gameId: string) => {
+    if (!confirm('Are you sure you want to delete this game? This will remove all associated ticket groups, card breaks, entries, and spin results.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/games/${gameId}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        alert('Game deleted successfully');
+        fetchGames();
+        setExpandedGame(null);
+        setEditingGame(null);
+      } else {
+        const error = await res.json();
+        alert('Failed to delete game: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete game:', error);
+      alert('Failed to delete game');
+    }
+  };
+
+  const recalculatePrices = async () => {
+    setRecalculating(true);
+    try {
+      const res = await fetch('/api/admin/recalculate-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Successfully updated prices for ${data.gamesUpdated} games`);
+        fetchGames(); // Refresh the games list
+      } else {
+        const error = await res.json();
+        alert('Failed to recalculate prices: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to recalculate prices:', error);
+      alert('Error recalculating prices');
+    } finally {
+      setRecalculating(false);
     }
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
       hour: 'numeric',
       minute: '2-digit'
     });
   };
 
-  if (!session?.user?.isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <p className="text-white text-xl">Admin access required</p>
-      </div>
-    );
-  }
+  // Calculate total available tickets
+  const getTotalTickets = (game: DailyGame) => {
+    return game.ticketGroups.reduce((sum, group) => {
+      return sum + (group.quantity || 0);
+    }, 0);
+  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <h1 className="text-4xl font-bold text-white">Daily Game Management</h1>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-300 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Game
-          </button>
-        </div>
-
-        {/* Games List */}
-        <div className="space-y-4">
-          {games.map((game) => (
-            <div
-              key={game.id}
-              className={`bg-white/10 backdrop-blur-md rounded-xl p-6 ${
-                game.isActive ? 'border-2 border-yellow-400' : ''
-              }`}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2">{game.eventName}</h3>
-                  <div className="flex items-center gap-4 text-gray-300">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {formatDate(game.eventDate)}
-                    </span>
-                    <span>{game.venue}</span>
-                    <span>{game.city}, {game.state}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleToggleActive(game.id, game.isActive)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                      game.isActive
-                        ? 'bg-green-500 text-white hover:bg-green-600'
-                        : 'bg-gray-500 text-white hover:bg-gray-600'
-                    }`}
-                  >
-                    {game.isActive ? (
-                      <>
-                        <Pause className="w-4 h-4" />
-                        Active
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4" />
-                        Inactive
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setEditingGame(game)}
-                    className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(game.id)}
-                    className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-black/30 rounded-lg p-3">
-                  <p className="text-gray-400 text-sm mb-1">Sport</p>
-                  <p className="text-white font-semibold">{game.sport}</p>
-                </div>
-                <div className="bg-black/30 rounded-lg p-3">
-                  <p className="text-gray-400 text-sm mb-1">Participants</p>
-                  <p className="text-white font-semibold flex items-center gap-1">
-                    <Users className="w-4 h-4" />
-                    {game._count?.participants || 0} / {game.maxPlayers}
-                  </p>
-                </div>
-                <div className="bg-black/30 rounded-lg p-3">
-                  <p className="text-gray-400 text-sm mb-1">Scraped Tickets</p>
-                  <p className="text-white font-semibold">{game._count?.scrapedTickets || 0}</p>
-                </div>
-                <div className="bg-black/30 rounded-lg p-3">
-                  <p className="text-gray-400 text-sm mb-1">Cutoff Time</p>
-                  <p className="text-white font-semibold">{formatDate(game.cutoffTime)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <a
-                  href={game.tickpickUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                >
-                  <Link className="w-4 h-4" />
-                  View on TickPick
-                </a>
-                <button
-                  onClick={() => handleScrape(game.id)}
-                  disabled={scraping === game.id}
-                  className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <RefreshCw className={`w-4 h-4 ${scraping === game.id ? 'animate-spin' : ''}`} />
-                  {scraping === game.id ? 'Scraping...' : 'Scrape Tickets'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {games.length === 0 && !loading && (
-          <div className="text-center py-16">
-            <p className="text-2xl text-gray-400 mb-4">No games configured</p>
-            <p className="text-gray-500">Add your first game to get started</p>
-          </div>
-        )}
-
-        {/* Add/Edit Modal */}
-        {(showAddModal || editingGame) && (
-          <GameModal
-            game={editingGame}
-            onClose={() => {
-              setShowAddModal(false);
-              setEditingGame(null);
-            }}
-            onSave={() => {
-              fetchGames();
-              setShowAddModal(false);
-              setEditingGame(null);
-            }}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Game Add/Edit Modal Component
-function GameModal({
-  game,
-  onClose,
-  onSave
-}: {
-  game?: DailyGame | null;
-  onClose: () => void;
-  onSave: () => void;
-}) {
-  const [formData, setFormData] = useState({
-    eventName: game?.eventName || '',
-    eventDate: game?.eventDate ? new Date(game.eventDate).toISOString().slice(0, 16) : '',
-    venue: game?.venue || '',
-    city: game?.city || '',
-    state: game?.state || '',
-    tickpickUrl: game?.tickpickUrl || '',
-    sport: game?.sport || 'NFL',
-    cutoffTime: game?.cutoffTime ? new Date(game.cutoffTime).toISOString().slice(0, 16) : '',
-    minPlayers: game?.minPlayers || 10,
-    maxPlayers: game?.maxPlayers || 100
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const url = game ? `/api/admin/games/${game.id}` : '/api/admin/games';
-    const method = game ? 'PATCH' : 'POST';
-
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        onSave();
-      } else {
-        alert('Error saving game');
-      }
-    } catch (error) {
-      console.error('Error saving game:', error);
-      alert('Error saving game');
-    }
+  // Calculate available bundles
+  const getAvailableBundles = (game: DailyGame) => {
+    const totalTickets = getTotalTickets(game);
+    const totalBreaks = game.cardBreaks.filter((cb: any) => cb.status === 'AVAILABLE').length;
+    return Math.min(totalTickets, totalBreaks);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-6">
-          {game ? 'Edit Game' : 'Add New Game'}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-300 mb-2">Event Name</label>
-            <input
-              type="text"
-              value={formData.eventName}
-              onChange={(e) => setFormData({ ...formData, eventName: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-              required
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-300 mb-2">Event Date</label>
-              <input
-                type="datetime-local"
-                value={formData.eventDate}
-                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-gray-300 mb-2">Cutoff Time</label>
-              <input
-                type="datetime-local"
-                value={formData.cutoffTime}
-                onChange={(e) => setFormData({ ...formData, cutoffTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-2">Venue</label>
-            <input
-              type="text"
-              value={formData.venue}
-              onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-              required
-            />
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-gray-300 mb-2">City</label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-gray-300 mb-2">State</label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                maxLength={2}
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-2">TickPick URL</label>
-            <input
-              type="url"
-              value={formData.tickpickUrl}
-              onChange={(e) => setFormData({ ...formData, tickpickUrl: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-              placeholder="https://www.tickpick.com/..."
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-2">Sport</label>
-            <select
-              value={formData.sport}
-              onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-            >
-              <option value="NFL">NFL</option>
-              <option value="NBA">NBA</option>
-              <option value="MLB">MLB</option>
-              <option value="NHL">NHL</option>
-              <option value="SOCCER">Soccer</option>
-              <option value="UFC">UFC</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-300 mb-2">Min Players</label>
-              <input
-                type="number"
-                value={formData.minPlayers}
-                onChange={(e) => setFormData({ ...formData, minPlayers: parseInt(e.target.value) })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                min={1}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-gray-300 mb-2">Max Players</label>
-              <input
-                type="number"
-                value={formData.maxPlayers}
-                onChange={(e) => setFormData({ ...formData, maxPlayers: parseInt(e.target.value) })}
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg"
-                min={1}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-4 mt-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-white">Game Management</h1>
+          <div className="flex gap-3">
             <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              onClick={recalculatePrices}
+              disabled={recalculating}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50"
             >
-              Cancel
+              <RefreshCw className={`w-5 h-5 ${recalculating ? 'animate-spin' : ''}`} />
+              {recalculating ? 'Recalculating...' : 'Recalculate All Prices'}
             </button>
             <button
-              type="submit"
-              className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-300"
+              onClick={() => router.push('/admin/inventory')}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
             >
-              {game ? 'Update' : 'Create'} Game
+              Create New Game
             </button>
           </div>
-        </form>
+        </div>
+
+        {loading ? (
+          <div className="text-white text-center">Loading games...</div>
+        ) : (
+          <div className="grid gap-6">
+            {games.map((game) => {
+              const isExpanded = expandedGame === game.id;
+              const isEditing = editingGame === game.id;
+              const editedGame = editedGames[game.id] || game;
+              const newTicketGroup = newTicketGroups[game.id] || {};
+
+              return (
+                <div key={game.id} className="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedGame.eventName}
+                          onChange={(e) => setEditedGames({
+                            ...editedGames,
+                            [game.id]: { ...editedGame, eventName: e.target.value }
+                          })}
+                          className="text-2xl font-bold bg-white/20 rounded px-2 py-1 text-white mb-2 w-full"
+                        />
+                      ) : (
+                        <h2 className="text-2xl font-bold text-white mb-2">{game.eventName}</h2>
+                      )}
+                      <div className="flex gap-4 text-gray-300 text-sm">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(game.eventDate)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {game.venue}, {game.city}, {game.state}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        game.status === 'ACTIVE' ? 'bg-green-500 text-white' :
+                        game.status === 'COMPLETED' ? 'bg-gray-500 text-white' :
+                        game.status === 'SOLD_OUT' ? 'bg-red-500 text-white' :
+                        'bg-yellow-500 text-black'
+                      }`}>
+                        {game.status}
+                      </span>
+                      <span className="px-3 py-1 rounded-full bg-blue-500 text-white text-sm font-semibold">
+                        {game.sport}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-4 mb-4">
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1">Avg Ticket Price</p>
+                      <p className="text-white text-xl font-bold">
+                        ${game.avgTicketPrice?.toFixed(2) || '0.00'}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1">Avg Break Value</p>
+                      <p className="text-white text-xl font-bold">
+                        ${game.avgBreakValue?.toFixed(2) || '0.00'}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1">Spin Price</p>
+                      <p className="text-yellow-400 text-xl font-bold">
+                        ${game.spinPricePerBundle?.toFixed(2) || '0.00'}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1">Entries</p>
+                      <p className="text-white text-xl font-bold">{game.currentEntries}/{game.maxEntries}</p>
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1">Available Bundles</p>
+                      <p className="text-white text-xl font-bold">{getAvailableBundles(game)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                        <Ticket className="w-3 h-3" /> Ticket Groups
+                      </p>
+                      <div className="text-white text-sm mt-1">
+                        <p>{game.ticketGroups.length} groups • {getTotalTickets(game)} total tickets</p>
+                        {game.ticketGroups.slice(0, 2).map((group: any, idx: number) => (
+                          <p key={idx} className="text-xs text-gray-300">
+                            Sec {group.section}, Row {group.row}: {group.quantity || 0} seats @ ${group.pricePerSeat}
+                          </p>
+                        ))}
+                        {game.ticketGroups.length > 2 && (
+                          <p className="text-xs text-gray-400">+{game.ticketGroups.length - 2} more groups</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <p className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                        <Package className="w-3 h-3" /> Memorabilia
+                      </p>
+                      <div className="text-white text-sm mt-1">
+                        <p>{game.cardBreaks.length} total items</p>
+                        <p className="text-xs text-gray-300">
+                          {game.cardBreaks.filter((cb: any) => cb.status === 'AVAILABLE').length} available
+                        </p>
+                        {game.avgBreakValue && (
+                          <p className="text-xs text-gray-300">
+                            Avg: ${game.avgBreakValue.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => deleteGame(game.id)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 font-semibold"
+                      title="Delete this game"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setExpandedGame(isExpanded ? null : game.id)}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 font-semibold"
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {isExpanded ? 'Hide' : 'Show'} Details
+                    </button>
+                    {!isEditing ? (
+                      <button
+                        onClick={() => {
+                          setEditingGame(game.id);
+                          setEditedGames({ ...editedGames, [game.id]: game });
+                          setExpandedGame(game.id);
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 font-semibold"
+                      >
+                        <Edit className="w-4 h-4" /> Edit Inventory
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => saveGameChanges(game.id)}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 font-semibold"
+                        >
+                          <Save className="w-4 h-4" /> Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingGame(null);
+                            setEditedGames({ ...editedGames, [game.id]: game });
+                          }}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg flex items-center gap-2 font-semibold"
+                        >
+                          <X className="w-4 h-4" /> Cancel
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => toggleGameStatus(game.id, game.status)}
+                      className={`px-4 py-2 rounded-lg flex items-center gap-2 font-semibold ${
+                        game.status === 'ACTIVE'
+                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                      disabled={game.status === 'COMPLETED' || game.status === 'SOLD_OUT'}
+                    >
+                      {game.status === 'ACTIVE' ? (
+                        <><Pause className="w-4 h-4" /> Deactivate</>
+                      ) : (
+                        <><Play className="w-4 h-4" /> Activate</>
+                      )}
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-6 space-y-6">
+                      {/* Ticket Groups Section */}
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Ticket className="w-5 h-5" /> Ticket Groups
+                          </h3>
+                          {isEditing && (
+                            <button
+                              onClick={() => setNewTicketGroups({
+                                ...newTicketGroups,
+                                [game.id]: { section: '', row: '', quantity: 1, pricePerSeat: 0 }
+                              })}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                            >
+                              <Plus className="w-4 h-4" /> Add Group
+                            </button>
+                          )}
+                        </div>
+
+                        {/* New Ticket Group Form */}
+                        {isEditing && newTicketGroup.section !== undefined && (
+                          <div className="bg-white/5 rounded p-3 mb-3">
+                            <div className="grid grid-cols-5 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Section"
+                                value={newTicketGroup.section || ''}
+                                onChange={(e) => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { ...newTicketGroup, section: e.target.value }
+                                })}
+                                className="p-2 bg-white/20 rounded text-white text-sm"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Row"
+                                value={newTicketGroup.row || ''}
+                                onChange={(e) => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { ...newTicketGroup, row: e.target.value }
+                                })}
+                                className="p-2 bg-white/20 rounded text-white text-sm"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Qty"
+                                min="1"
+                                max="4"
+                                value={newTicketGroup.quantity || 1}
+                                onChange={(e) => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { ...newTicketGroup, quantity: parseInt(e.target.value) || 1 }
+                                })}
+                                className="p-2 bg-white/20 rounded text-white text-sm"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Price/seat"
+                                value={newTicketGroup.pricePerSeat || ''}
+                                onChange={(e) => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { ...newTicketGroup, pricePerSeat: parseFloat(e.target.value) || 0 }
+                                })}
+                                className="p-2 bg-white/20 rounded text-white text-sm"
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => addTicketGroup(game.id)}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-sm flex-1"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setNewTicketGroups({ ...newTicketGroups, [game.id]: {} })}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm flex-1"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Existing Ticket Groups */}
+                        {editedGame.ticketGroups.map((group: TicketGroup, idx: number) => (
+                          <div key={group.id} className="bg-white/5 rounded p-3 mb-2">
+                            {isEditing ? (
+                              <div className="grid grid-cols-5 gap-2">
+                                <input
+                                  type="text"
+                                  value={group.section}
+                                  onChange={(e) => {
+                                    const updatedGroups = [...editedGame.ticketGroups];
+                                    updatedGroups[idx] = { ...group, section: e.target.value };
+                                    setEditedGames({
+                                      ...editedGames,
+                                      [game.id]: { ...editedGame, ticketGroups: updatedGroups }
+                                    });
+                                  }}
+                                  className="p-2 bg-white/20 rounded text-white text-sm"
+                                />
+                                <input
+                                  type="text"
+                                  value={group.row}
+                                  onChange={(e) => {
+                                    const updatedGroups = [...editedGame.ticketGroups];
+                                    updatedGroups[idx] = { ...group, row: e.target.value };
+                                    setEditedGames({
+                                      ...editedGames,
+                                      [game.id]: { ...editedGame, ticketGroups: updatedGroups }
+                                    });
+                                  }}
+                                  className="p-2 bg-white/20 rounded text-white text-sm"
+                                />
+                                <input
+                                  type="number"
+                                  value={group.quantity}
+                                  onChange={(e) => {
+                                    const updatedGroups = [...editedGame.ticketGroups];
+                                    updatedGroups[idx] = { ...group, quantity: parseInt(e.target.value) || 1 };
+                                    setEditedGames({
+                                      ...editedGames,
+                                      [game.id]: { ...editedGame, ticketGroups: updatedGroups }
+                                    });
+                                  }}
+                                  className="p-2 bg-white/20 rounded text-white text-sm"
+                                />
+                                <input
+                                  type="number"
+                                  value={group.pricePerSeat}
+                                  onChange={(e) => {
+                                    const updatedGroups = [...editedGame.ticketGroups];
+                                    updatedGroups[idx] = { ...group, pricePerSeat: parseFloat(e.target.value) || 0 };
+                                    setEditedGames({
+                                      ...editedGames,
+                                      [game.id]: { ...editedGame, ticketGroups: updatedGroups }
+                                    });
+                                  }}
+                                  className="p-2 bg-white/20 rounded text-white text-sm"
+                                />
+                                <button
+                                  onClick={() => deleteTicketGroup(group.id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
+                                >
+                                  <Trash2 className="w-4 h-4 mx-auto" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-between items-center text-white">
+                                <span>Section {group.section}, Row {group.row}</span>
+                                <span>{group.quantity} seats @ ${group.pricePerSeat}/ea</span>
+                                <span className="text-gray-400">Total: ${(group.quantity * group.pricePerSeat).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {editedGame.ticketGroups.length === 0 && (
+                          <p className="text-gray-400 text-center py-2">No ticket groups yet</p>
+                        )}
+                      </div>
+
+                      {/* Memorabilia Section */}
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                          <Package className="w-5 h-5" /> Memorabilia
+                        </h3>
+
+                        {/* Group breaks by source URL */}
+                        {(() => {
+                          const breaksByUrl = editedGame.cardBreaks?.reduce((acc: any, breakItem: any) => {
+                            const url = breakItem.sourceUrl || 'Unknown Source';
+                            if (!acc[url]) acc[url] = [];
+                            acc[url].push(breakItem);
+                            return acc;
+                          }, {}) || {};
+
+                          const urlGroups = Object.entries(breaksByUrl);
+
+                          if (urlGroups.length === 0) {
+                            return <p className="text-gray-400 text-center py-2">No memorabilia yet</p>;
+                          }
+
+                          return (
+                            <>
+                              <div className="max-h-96 overflow-y-auto space-y-4">
+                                {urlGroups.map(([url, breaks]: [string, any]) => (
+                                  <div key={url} className="bg-white/5 rounded-lg p-3">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="text-xs text-gray-400 truncate flex-1" title={url}>
+                                        Source: {url.split('/').pop() || url}
+                                      </div>
+                                      <button
+                                        onClick={() => deleteBreaksBySource(game.id, url)}
+                                        className="ml-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1"
+                                        title="Delete all items from this source"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                        Delete Source
+                                      </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {breaks.map((breakItem: any) => (
+                                        <div key={breakItem.id} className="bg-black/20 rounded p-2">
+                                          <div className="flex justify-between items-center">
+                                            <div className="text-white flex-1">
+                                              <div className="text-sm font-medium">{breakItem.teamName || breakItem.breakName}</div>
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                {breakItem.breaker} • {breakItem.breakType}
+                                              </div>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="text-white font-bold">${breakItem.breakValue || breakItem.spotPrice}</div>
+                                              <div className={`text-xs px-2 py-1 rounded mt-1 ${
+                                                breakItem.status === 'AVAILABLE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                              }`}>
+                                                {breakItem.status}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <div className="text-xs text-gray-400 mt-2 flex justify-between">
+                                        <span>Teams: {breaks.length}</span>
+                                        <span>Available: {breaks.filter((b: any) => b.status === 'AVAILABLE').length}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 pt-3 border-t border-white/20 text-sm text-gray-300">
+                                <div className="flex justify-between">
+                                  <span>Total Items:</span>
+                                  <span className="text-white font-medium">{editedGame.cardBreaks?.length || 0}</span>
+                                </div>
+                                <div className="flex justify-between mt-1">
+                                  <span>Available:</span>
+                                  <span className="text-green-400 font-medium">
+                                    {editedGame.cardBreaks?.filter((b: any) => b.status === 'AVAILABLE').length || 0}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Import Tools */}
+                      {isEditing && (
+                        <div className="grid lg:grid-cols-2 gap-6">
+                          {/* Layton Importer */}
+                          <LaytonImporter
+                            gameId={game.id}
+                            onImportComplete={() => fetchGames()}
+                          />
+
+                          {/* Memorabilia Scraper */}
+                          <MemorabiliaScraper
+                            gameId={game.id}
+                            onImportComplete={() => fetchGames()}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && games.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-gray-400 text-xl mb-4">No games created yet</p>
+            <button
+              onClick={() => router.push('/admin/inventory')}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold"
+            >
+              Create Your First Game
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

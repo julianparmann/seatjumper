@@ -30,8 +30,27 @@ interface Event {
   inventoryCount: number;
 }
 
+interface DailyGame {
+  id: string;
+  eventName: string;
+  eventDate: Date;
+  venue: string;
+  city: string;
+  state: string;
+  sport: Sport | string;
+  totalValue: number;
+  entryPrice: number;
+  cardPackName: string;
+  cardPackValue: number;
+  status: string;
+  currentEntries: number;
+  maxEntries: number;
+  tickets: any[];
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [dailyGames, setDailyGames] = useState<DailyGame[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState<Sport | 'ALL'>('ALL');
   const [loading, setLoading] = useState(true);
@@ -39,7 +58,32 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchEvents();
+    fetchDailyGames();
   }, []);
+
+  const fetchDailyGames = async () => {
+    try {
+      const response = await fetch('/api/admin/inventory');
+      if (response.ok) {
+        const data = await response.json();
+        const gamesWithDates = data
+          .filter((game: any) => game.status === 'ACTIVE')
+          .map((game: any) => ({
+            ...game,
+            eventDate: new Date(game.eventDate),
+            // Map the data to expected fields
+            entryPrice: game.spinPricePerBundle || 0,
+            totalValue: game.avgTicketPrice || 0,
+            inventoryCount: game.ticketGroups?.reduce((sum: number, group: any) => sum + group.quantity, 0) || 0,
+            cardBreaksCount: game.cardBreaks?.length || 0,
+            jumpPrice: game.spinPricePerBundle || 0
+          }));
+        setDailyGames(gamesWithDates);
+      }
+    } catch (err) {
+      console.error('Error fetching daily games:', err);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -47,17 +91,24 @@ export default function EventsPage() {
       setError(null);
 
       const response = await fetch('/api/events');
+
+      // Log the response for debugging
+      console.log('Events API response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch events');
+        const errorText = await response.text();
+        console.error('Events API error:', errorText);
+        throw new Error(`Failed to fetch events: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Events data received:', data);
 
       // Convert datetime strings to Date objects
-      const eventsWithDates = data.events.map((event: any) => ({
+      const eventsWithDates = data.events?.map((event: any) => ({
         ...event,
         datetime: new Date(event.datetime),
-      }));
+      })) || [];
 
       setEvents(eventsWithDates);
     } catch (err) {
@@ -78,7 +129,7 @@ export default function EventsPage() {
     return matchesSearch && matchesSport;
   });
 
-  const calculateSpinPrice = (averagePrice: number) => {
+  const calculateJumpPrice = (averagePrice: number) => {
     // Simple calculation for display - actual calculation happens on backend
     return Math.round(averagePrice * 0.35);
   };
@@ -102,7 +153,7 @@ export default function EventsPage() {
             Browse <span className="text-yellow-400">Events</span>
           </h1>
           <p className="text-xl text-gray-300">
-            Find your next game and spin for tickets + breaks!
+            Find your next game and jump for tickets + memorabilia!
           </p>
         </div>
 
@@ -146,26 +197,95 @@ export default function EventsPage() {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error State - Show as warning instead of blocking everything */}
         {error && !loading && (
-          <div className="bg-red-500/20 border border-red-500 rounded-xl p-6 text-center">
-            <p className="text-red-300 mb-4">{error}</p>
-            <button
-              onClick={fetchEvents}
-              className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Try Again
-            </button>
+          <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl p-4 mb-6">
+            <p className="text-yellow-300 text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Daily Games Section */}
+        {dailyGames.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-6">
+              Today's <span className="text-yellow-400">Featured Games</span>
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {dailyGames.map((game) => (
+                <Link
+                  key={game.id}
+                  href={`/play/${game.id}`}
+                  className="group bg-gradient-to-br from-yellow-500/20 to-purple-600/20 backdrop-blur-md rounded-xl overflow-hidden hover:from-yellow-500/30 hover:to-purple-600/30 transition-all hover:scale-105 border-2 border-yellow-400/50"
+                >
+                  {/* Sport Badge */}
+                  <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white font-bold text-sm">{game.sport}</span>
+                      <span className="text-white text-xs bg-black/20 px-2 py-1 rounded">
+                        {game.currentEntries}/{game.maxEntries} Entries
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Event Details */}
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-yellow-400 transition-colors">
+                      {game.eventName}
+                    </h3>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-sm">{game.venue}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">{formatDate(game.eventDate)}</span>
+                      </div>
+                    </div>
+
+                    {/* Bundle Info */}
+                    <div className="bg-black/20 rounded-lg p-3 mb-4">
+                      <p className="text-yellow-400 text-sm font-semibold mb-1">Bundle Includes:</p>
+                      <p className="text-white text-xs">{game.inventoryCount || 0} Ticket{game.inventoryCount !== 1 ? 's' : ''}</p>
+                      <p className="text-white text-xs">{game.cardBreaksCount || 0} Memorabilia Items</p>
+                      <p className="text-gray-400 text-xs mt-1">Jump Price: ${(game.jumpPrice || game.entryPrice || 0).toFixed(2)}</p>
+                    </div>
+
+                    {/* Entry Price */}
+                    <div className="border-t border-white/20 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400 text-sm">Entry Price:</span>
+                        <span className="text-yellow-400 font-bold text-2xl">
+                          ${game.entryPrice}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="mt-4 flex items-center justify-center">
+                      <button className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-6 rounded-lg group-hover:scale-105 transition-transform">
+                        PLAY NOW
+                      </button>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Events Grid */}
-        {!loading && !error && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
+        {!loading && filteredEvents.length > 0 && (
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-6">
+              Upcoming <span className="text-blue-400">Events</span>
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
             <Link
               key={event.id}
-              href={`/events/${event.id}`}
+              href={`/play/${event.id}`}
               className="group bg-white/10 backdrop-blur-md rounded-xl overflow-hidden hover:bg-white/20 transition-all hover:scale-105"
             >
               {/* Sport Badge */}
@@ -199,9 +319,9 @@ export default function EventsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Spin Price:</span>
+                    <span className="text-gray-400 text-sm">Jump Price:</span>
                     <span className="text-yellow-400 font-bold text-xl">
-                      From ${calculateSpinPrice(event.averagePrice)}
+                      From ${calculateJumpPrice(event.averagePrice)}
                     </span>
                   </div>
                 </div>
@@ -216,11 +336,12 @@ export default function EventsPage() {
               </div>
             </Link>
           ))}
+            </div>
           </div>
         )}
 
         {/* Empty State */}
-        {!loading && !error && filteredEvents.length === 0 && (
+        {!loading && !error && filteredEvents.length === 0 && dailyGames.length === 0 && (
           <div className="text-center py-16">
             <p className="text-2xl text-gray-400 mb-4">No events found</p>
             <p className="text-gray-500">Try adjusting your search or filters</p>

@@ -1,105 +1,186 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export async function PATCH(
-  request: NextRequest,
+export async function GET(
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user?.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { id: gameId } = await params;
-
-    const updateData: any = {};
-
-    // Only update fields that were provided
-    if (body.eventName !== undefined) updateData.eventName = body.eventName;
-    if (body.eventDate !== undefined) updateData.eventDate = new Date(body.eventDate);
-    if (body.venue !== undefined) updateData.venue = body.venue;
-    if (body.city !== undefined) updateData.city = body.city;
-    if (body.state !== undefined) updateData.state = body.state;
-    if (body.tickpickUrl !== undefined) updateData.tickpickUrl = body.tickpickUrl;
-    if (body.sport !== undefined) updateData.sport = body.sport;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
-    if (body.cutoffTime !== undefined) updateData.cutoffTime = new Date(body.cutoffTime);
-    if (body.minPlayers !== undefined) updateData.minPlayers = body.minPlayers;
-    if (body.maxPlayers !== undefined) updateData.maxPlayers = body.maxPlayers;
-
-    const game = await prisma.dailyGame.update({
-      where: { id: gameId },
-      data: updateData
-    });
-
-    // Log admin action
-    await prisma.adminAuditLog.create({
-      data: {
-        userId: session.user.id,
-        action: 'UPDATE_GAME',
-        resource: 'DailyGame',
-        resourceId: gameId,
-        details: body
+    const { id } = await params;
+    const game = await prisma.dailyGame.findUnique({
+      where: { id },
+      include: {
+        ticketGroups: true,
+        cardBreaks: true,
+        entries: true,
+        spinResults: true
       }
     });
 
-    return NextResponse.json({ game });
-  } catch (error) {
+    if (!game) {
+      return NextResponse.json(
+        { error: 'Game not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(game);
+  } catch (error: any) {
+    console.error('Error fetching game:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch game', details: error?.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const { ticketGroups, ...gameData } = body;
+
+    // Update game details
+    const updatedGame = await prisma.dailyGame.update({
+      where: { id },
+      data: {
+        eventName: gameData.eventName,
+        eventDate: gameData.eventDate ? new Date(gameData.eventDate) : undefined,
+        venue: gameData.venue,
+        city: gameData.city,
+        state: gameData.state,
+        sport: gameData.sport,
+        status: gameData.status
+      }
+    });
+
+    // Update ticket groups if provided
+    if (ticketGroups && Array.isArray(ticketGroups)) {
+      for (const group of ticketGroups) {
+        if (group.id) {
+          // Update existing ticket group
+          await prisma.ticketGroup.update({
+            where: { id: group.id },
+            data: {
+              section: group.section,
+              row: group.row,
+              quantity: group.quantity,
+              pricePerSeat: group.pricePerSeat,
+              status: group.status,
+              notes: group.notes
+            }
+          });
+        }
+      }
+    }
+
+    // Recalculate average ticket price
+    const allTicketGroups = await prisma.ticketGroup.findMany({
+      where: { gameId: id }
+    });
+
+    let avgTicketPrice = 0;
+    if (allTicketGroups.length > 0) {
+      const totalValue = allTicketGroups.reduce((sum, group) => {
+        return sum + (group.pricePerSeat * group.quantity);
+      }, 0);
+      const totalTickets = allTicketGroups.reduce((sum, group) => {
+        return sum + group.quantity;
+      }, 0);
+      avgTicketPrice = totalTickets > 0 ? totalValue / totalTickets : 0;
+    }
+
+    // Update spin price with 35% margin
+    const spinPricePerBundle = avgTicketPrice * 1.35;
+
+    // Update game with new prices
+    const finalGame = await prisma.dailyGame.update({
+      where: { id },
+      data: {
+        avgTicketPrice,
+        spinPricePerBundle
+      },
+      include: {
+        ticketGroups: true,
+        cardBreaks: true
+      }
+    });
+
+    return NextResponse.json(finalGame);
+  } catch (error: any) {
     console.error('Error updating game:', error);
     return NextResponse.json(
-      { error: 'Failed to update game' },
+      { error: 'Failed to update game', details: error?.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+
+    const game = await prisma.dailyGame.update({
+      where: { id },
+      data: body
+    });
+
+    return NextResponse.json(game);
+  } catch (error: any) {
+    console.error('Error updating game status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update game status', details: error?.message },
       { status: 500 }
     );
   }
 }
 
 export async function DELETE(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const { id } = await params;
+    // Delete all related data first (cascade delete)
+    await prisma.$transaction(async (tx) => {
+      // Delete all card breaks for this game
+      await tx.cardBreak.deleteMany({
+        where: { gameId: id }
+      });
 
-    if (!session || !session.user?.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+      // Delete all ticket groups for this game
+      await tx.ticketGroup.deleteMany({
+        where: { gameId: id }
+      });
 
-    const { id: gameId } = await params;
+      // Delete all entries for this game
+      await tx.gameEntry.deleteMany({
+        where: { gameId: id }
+      });
 
-    // Delete related data first
-    await prisma.scrapedTicket.deleteMany({
-      where: { gameId }
+      // Delete all spin results for this game
+      await tx.spinResult.deleteMany({
+        where: { gameId: id }
+      });
+
+      // Finally delete the game itself
+      await tx.dailyGame.delete({
+        where: { id }
+      });
     });
 
-    await prisma.gameParticipant.deleteMany({
-      where: { gameId }
-    });
-
-    // Delete the game
-    await prisma.dailyGame.delete({
-      where: { id: gameId }
-    });
-
-    // Log admin action
-    await prisma.adminAuditLog.create({
-      data: {
-        userId: session.user.id,
-        action: 'DELETE_GAME',
-        resource: 'DailyGame',
-        resourceId: gameId
-      }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
+    return NextResponse.json({ success: true, message: 'Game deleted successfully' });
+  } catch (error: any) {
     console.error('Error deleting game:', error);
     return NextResponse.json(
-      { error: 'Failed to delete game' },
+      { error: 'Failed to delete game', details: error?.message },
       { status: 500 }
     );
   }

@@ -6,7 +6,12 @@ export default withAuth(
     // Admin route protection
     if (req.nextUrl.pathname.startsWith("/admin")) {
       const token = req.nextauth.token;
+      console.log('Admin route accessed:', req.nextUrl.pathname);
+      console.log('Token:', token);
+      console.log('Is Admin?:', (token as any)?.isAdmin);
+
       if (!token || !(token as any).isAdmin) {
+        console.log('Redirecting to signin - not admin');
         return NextResponse.redirect(new URL("/auth/signin", req.url));
       }
     }

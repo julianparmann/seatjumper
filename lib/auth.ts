@@ -93,12 +93,53 @@ export const authOptions: NextAuthOptions = {
       : []),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Create user in database if signing in with OAuth
+      if (account?.provider === 'google') {
+        const email = user.email;
+        if (!email) return false;
+
+        try {
+          // Upsert user in database
+          const dbUser = await prisma.user.upsert({
+            where: { email },
+            update: {
+              name: user.name,
+              image: user.image,
+            },
+            create: {
+              email,
+              name: user.name,
+              image: user.image,
+              isAdmin: email === 'julianparmann@gmail.com', // Make you admin automatically
+            },
+          });
+
+          // Update user object with database ID
+          user.id = dbUser.id;
+          (user as any).isAdmin = dbUser.isAdmin;
+        } catch (error) {
+          console.error('Error creating/updating user:', error);
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.isAdmin = (user as any).isAdmin || false;
+      } else if (token.email) {
+        // Fetch user from database to get isAdmin status
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email as string },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.isAdmin = dbUser.isAdmin;
+        }
       }
       return token;
     },
