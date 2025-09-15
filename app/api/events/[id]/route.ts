@@ -63,8 +63,9 @@ export async function GET(
 
     // Return mock data if API fails (for development)
     if (process.env.NODE_ENV === 'development') {
+      const { id } = await params;
       return NextResponse.json({
-        id: params.id,
+        id: id,
         name: 'Las Vegas Raiders vs Chicago Bears',
         sport: 'NFL',
         venue: 'Allegiant Stadium',
