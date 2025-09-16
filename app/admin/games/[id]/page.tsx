@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LaytonImporter from '@/components/admin/LaytonImporter';
-import MemorabiliaScraper from '@/components/admin/MemorabiliaScraper';
+import UnifiedScraper from '@/components/admin/UnifiedScraper';
 import { Calendar, MapPin, Ticket, Package, ArrowLeft } from 'lucide-react';
 
 export default function GameDetailPage() {
@@ -173,14 +173,14 @@ export default function GameDetailPage() {
 
         {/* Import Tools */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Layton Importer */}
+          {/* Layton Importer with Auto Refresh */}
           <LaytonImporter
             gameId={gameId}
             onImportComplete={handleImportComplete}
           />
 
-          {/* Memorabilia Scraper */}
-          <MemorabiliaScraper
+          {/* Unified Memorabilia Scraper */}
+          <UnifiedScraper
             gameId={gameId}
             onImportComplete={handleImportComplete}
           />

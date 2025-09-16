@@ -198,6 +198,7 @@ model DailyGame {
   city               String
   state              String
   sport              Sport
+  stadiumId          String?
   isActive           Boolean       @default(false)
   maxEntries         Int           @default(100)
   currentEntries     Int           @default(0)
@@ -207,6 +208,7 @@ model DailyGame {
   avgBreakValue      Float?
   avgTicketPrice     Float?
   spinPricePerBundle Float?
+  stadium            Stadium?      @relation(fields: [stadiumId], references: [id])
   cardBreaks         CardBreak[]
   entries            GameEntry[]
   spinResults        SpinResult[]
@@ -299,6 +301,22 @@ model Lead {
   status    LeadStatus @default(PENDING)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+model Stadium {
+  id                String      @id @default(cuid())
+  name              String      @unique
+  displayName       String
+  city              String
+  state             String
+  imagePath         String
+  imageWidth        Int
+  imageHeight       Int
+  sectionConfig     Json        // Stores precise coordinate mapping for sections
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  games             DailyGame[]
 }
 
 enum Sport {

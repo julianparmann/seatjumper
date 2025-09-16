@@ -1,4 +1,4 @@
-Standard Workflow
+## Standard Workflow
 1. First think through the problem, read the codebase for relevant files, and write a plan to todo.md.
 2. The plan should have a list of todo items that you can check off as you complete them
 3. Before you begin working, check in with me and I will verify the plan.

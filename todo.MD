@@ -29,7 +29,19 @@
 - [ ] Handle payment success/failure
 
 ### Phase 4: Complete Game Flow
-- [ ] Fix stadium jumper animation
+- [x] Fix stadium jumper animation - COMPLETED
+  - [x] Create Allegiant Stadium layout data
+  - [x] Build SVG-based stadium visualization
+  - [x] Implement light trail animation
+  - [x] Integrate with existing jump flow
+  - [x] Test animation with sample data
+
+  **Implementation Summary:**
+  - Created `/data/stadiums/allegiant.ts` with accurate section mappings
+  - Built `AllegiantStadiumAnimation` component with SVG visualization
+  - Added light trail effect that jumps between sections
+  - Integrated animation to trigger after API response
+  - Animation shows for ~3-4 seconds before displaying final result
 - [ ] Fix card pack wheel spin
 - [ ] Implement winner selection logic
 - [ ] Store game results in database

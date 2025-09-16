@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
         ticketGroups: true,
         cardBreaks: true,
         entries: true,
-        spinResults: true
+        spinResults: true,
+        stadium: true
       },
       orderBy: {
         eventDate: 'desc'
@@ -69,9 +70,13 @@ export async function POST(req: NextRequest) {
       city,
       state,
       sport,
+      stadiumId,
       ticketGroups,
       avgTicketPrice,
-      spinPricePerBundle
+      spinPricePerBundle,
+      memorabiliaImage,
+      memorabiliaName,
+      memorabiliaPrice
     } = body;
 
     // Create the game
@@ -83,6 +88,7 @@ export async function POST(req: NextRequest) {
         city: city || 'TBD',
         state: state || 'TBD',
         sport: sport || 'NFL',
+        stadiumId: stadiumId || null,
         avgTicketPrice: parseFloat(avgTicketPrice) || 0,
         avgBreakValue: null,
         spinPricePerBundle: parseFloat(spinPricePerBundle) || 0,
@@ -113,6 +119,29 @@ export async function POST(req: NextRequest) {
             console.error('Error creating ticket group:', groupError);
           }
         }
+      }
+    }
+
+    // Create memorabilia card break if provided
+    if (memorabiliaImage && memorabiliaName) {
+      try {
+        await prisma.cardBreak.create({
+          data: {
+            gameId: newGame.id,
+            breakName: memorabiliaName,
+            breakValue: memorabiliaPrice || 0,
+            breakDateTime: new Date(),
+            breaker: 'Admin Import',
+            status: 'AVAILABLE',
+            itemType: 'memorabilia',
+            imageUrl: memorabiliaImage,
+            description: memorabiliaName,
+            category: 'card'
+          }
+        });
+        console.log('Created memorabilia card break:', memorabiliaName);
+      } catch (memorabiliaError: any) {
+        console.error('Error creating memorabilia card break:', memorabiliaError);
       }
     }
 

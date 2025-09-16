@@ -13,7 +13,8 @@ export async function GET(
         ticketGroups: true,
         cardBreaks: true,
         entries: true,
-        spinResults: true
+        spinResults: true,
+        stadium: true
       }
     });
 

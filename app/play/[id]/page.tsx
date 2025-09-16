@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Calendar, MapPin, Ticket, Package, Loader2, DollarSign, LogIn } from 'lucide-react';
-// import MultiStageJump from '@/components/jumps/multi-stage-jump'; // Component needs to be created
+import AllegiantStadiumAnimation from '@/components/jumps/AllegiantStadiumAnimation';
 import Link from 'next/link';
 
 interface TicketGroup {
@@ -17,9 +17,13 @@ interface TicketGroup {
 
 interface CardBreak {
   id: string;
-  teamName: string;
-  breakValue: number;
+  teamName?: string;
+  breakValue?: number;
   status: string;
+  imageUrl?: string;
+  description?: string;
+  category?: string;
+  itemType?: string;
 }
 
 interface Game {
@@ -83,6 +87,9 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     return Math.min(availableTickets, Math.floor(availableBreaks / 1));
   };
 
+  const [showAnimation, setShowAnimation] = useState(false);
+  const [animationResult, setAnimationResult] = useState<any>(null);
+
   const checkAdjacentSeats = (quantity: number) => {
     if (!game || quantity === 1) {
       setAdjacentWarning(null);
@@ -145,17 +152,32 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
 
       if (res.ok) {
         const result = await res.json();
-        setJumpResult(result);
+
+        // Store result but don't show it yet
+        setAnimationResult(result);
+
+        // Show animation first
+        setShowAnimation(true);
+
+        // Animation will call onAnimationComplete when done
       } else {
         const error = await res.json();
         alert(error.message || 'Failed to jump. Please try again.');
+        setJumping(false);
       }
     } catch (error) {
       console.error('Jump error:', error);
       alert('An error occurred. Please try again.');
-    } finally {
       setJumping(false);
     }
+  };
+
+  const onAnimationComplete = () => {
+    // Show the actual result after animation
+    setJumpResult(animationResult);
+    setShowAnimation(false);
+    setJumping(false);
+    setAnimationResult(null);
   };
 
   if (loading) {
@@ -243,6 +265,20 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
               </div>
             </div>
           </div>
+
+          {/* Animation */}
+          {showAnimation && animationResult && (
+            <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+              <AllegiantStadiumAnimation
+                targetSection={animationResult.bundles ? animationResult.bundles[0].ticket.section : animationResult.ticket.section}
+                targetRow={animationResult.bundles ? animationResult.bundles[0].ticket.row : animationResult.ticket.row}
+                targetSeats={animationResult.bundles ? animationResult.bundles[0].ticket.seats : animationResult.ticket.seats}
+                cardBreak={animationResult.bundles ? animationResult.bundles[0].breaks?.[0] : animationResult.breaks?.[0]}
+                onComplete={onAnimationComplete}
+                isAnimating={showAnimation}
+              />
+            </div>
+          )}
 
           {/* Action Area */}
           {availableBundles > 0 ? (

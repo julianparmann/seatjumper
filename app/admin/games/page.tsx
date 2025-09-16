@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
-import LaytonImporter from '@/components/admin/LaytonImporter';
-import MemorabiliaScraper from '@/components/admin/MemorabiliaScraper';
+import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import UnifiedScraper from '@/components/admin/UnifiedScraper';
+import ManualItemEntry from '@/components/admin/ManualItemEntry';
 
 interface TicketGroup {
   id: string;
@@ -153,6 +153,52 @@ export default function AdminGamesPage() {
     } catch (error) {
       console.error('Error deleting ticket group:', error);
       alert('Error deleting ticket group');
+    }
+  };
+
+  const duplicateBreakItem = async (gameId: string, breakItem: any) => {
+    try {
+      const res = await fetch('/api/admin/duplicate-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId,
+          breakItem
+        })
+      });
+
+      if (res.ok) {
+        fetchGames();
+        alert('Item duplicated successfully');
+      } else {
+        const error = await res.json();
+        alert('Failed to duplicate item: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to duplicate item:', error);
+      alert('Failed to duplicate item');
+    }
+  };
+
+  const deleteBreakItem = async (gameId: string, breakItemId: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/games/${gameId}/breaks/${breakItemId}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        fetchGames();
+      } else {
+        const error = await res.json();
+        alert('Failed to delete item: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      alert('Failed to delete item');
     }
   };
 
@@ -670,6 +716,13 @@ export default function AdminGamesPage() {
                                               <div className="text-xs text-gray-400 mt-1">
                                                 {breakItem.breaker} • {breakItem.breakType}
                                               </div>
+                                              {breakItem.imageUrl && (
+                                                <img
+                                                  src={breakItem.imageUrl}
+                                                  alt={breakItem.breakName}
+                                                  className="w-12 h-12 object-cover rounded mt-1"
+                                                />
+                                              )}
                                             </div>
                                             <div className="text-right">
                                               <div className="text-white font-bold">${breakItem.breakValue || breakItem.spotPrice}</div>
@@ -677,6 +730,22 @@ export default function AdminGamesPage() {
                                                 breakItem.status === 'AVAILABLE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                                               }`}>
                                                 {breakItem.status}
+                                              </div>
+                                              <div className="flex gap-1 mt-2 justify-end">
+                                                <button
+                                                  onClick={() => duplicateBreakItem(game.id, breakItem)}
+                                                  className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-xs"
+                                                  title="Duplicate this item"
+                                                >
+                                                  <Copy className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                  onClick={() => deleteBreakItem(game.id, breakItem.id)}
+                                                  className="bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs"
+                                                  title="Delete this item"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                </button>
                                               </div>
                                             </div>
                                           </div>
@@ -709,15 +778,14 @@ export default function AdminGamesPage() {
 
                       {/* Import Tools */}
                       {isEditing && (
-                        <div className="grid lg:grid-cols-2 gap-6">
-                          {/* Layton Importer */}
-                          <LaytonImporter
+                        <div className="mt-6 grid lg:grid-cols-2 gap-6">
+                          {/* Manual Item Entry */}
+                          <ManualItemEntry
                             gameId={game.id}
-                            onImportComplete={() => fetchGames()}
+                            onItemAdded={() => fetchGames()}
                           />
-
-                          {/* Memorabilia Scraper */}
-                          <MemorabiliaScraper
+                          {/* Unified Memorabilia Scraper */}
+                          <UnifiedScraper
                             gameId={game.id}
                             onImportComplete={() => fetchGames()}
                           />
