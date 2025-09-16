@@ -15,6 +15,7 @@ import {
   Shield,
   Mail
 } from 'lucide-react';
+import UserActionsDropdown from '@/components/admin/UserActionsDropdown';
 
 interface UserData {
   id: string;
@@ -87,6 +88,10 @@ export default function UsersPage() {
 
   const navigateToUser = (userId: string) => {
     router.push(`/admin/users/${userId}`);
+  };
+
+  const handleUserUpdate = () => {
+    fetchUsers();
   };
 
   return (
@@ -293,15 +298,10 @@ export default function UsersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigateToUser(user.id);
-                      }}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <UserActionsDropdown
+                      user={user}
+                      onUserUpdate={handleUserUpdate}
+                    />
                   </td>
                 </tr>
               ))
