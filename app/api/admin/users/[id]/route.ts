@@ -132,10 +132,18 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Delete user (CASCADE will handle related records)
-    await prisma.user.delete({
-      where: { id: targetUserId }
-    });
+    // Delete related records first (for models without cascade)
+    await prisma.$transaction([
+      // Delete records that don't have cascade
+      prisma.adminAuditLog.deleteMany({ where: { userId: targetUserId } }),
+      prisma.gameEntry.deleteMany({ where: { userId: targetUserId } }),
+      prisma.spinResult.deleteMany({ where: { userId: targetUserId } }),
+      prisma.spin.deleteMany({ where: { userId: targetUserId } }),
+      prisma.order.deleteMany({ where: { userId: targetUserId } }),
+
+      // Finally delete the user (other relations with cascade will auto-delete)
+      prisma.user.delete({ where: { id: targetUserId } })
+    ]);
 
     // Log admin action
     await prisma.adminAuditLog.create({
