@@ -130,11 +130,8 @@ export async function POST(req: NextRequest) {
       const shuffledBreaks = [...game.cardBreaks].sort(() => Math.random() - 0.5);
 
       for (let i = 0; i < quantity; i++) {
-        // Each bundle gets 1-3 breaks
-        const numBreaks = Math.min(
-          Math.floor(availableBreaks / quantity),
-          Math.floor(Math.random() * 3) + 1
-        );
+        // Each bundle gets exactly 1 memorabilia item
+        const numBreaks = 1;
 
         const bundleBreaks = shuffledBreaks.splice(0, numBreaks);
         breaksAssigned.push(...bundleBreaks);

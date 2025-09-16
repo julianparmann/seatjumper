@@ -10,8 +10,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const isAdmin = (session?.user as any)?.isAdmin;
 
-  // Don't show navbar on auth pages
-  if (pathname.startsWith('/auth')) {
+  // Don't show navbar on auth pages or homepage
+  if (pathname.startsWith('/auth') || pathname === '/') {
     return null;
   }
 

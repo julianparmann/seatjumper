@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          isAdmin: user.isAdmin,
+          isAdmin: user.isAdmin || user.email === 'julianparmann@gmail.com',
         };
       }
     }),
