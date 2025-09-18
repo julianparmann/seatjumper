@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import UnifiedScraper from '@/components/admin/UnifiedScraper';
 import ManualItemEntry from '@/components/admin/ManualItemEntry';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 interface TicketGroup {
   id: string;
@@ -14,6 +15,28 @@ interface TicketGroup {
   pricePerSeat: number;
   status: string;
   notes?: string;
+  seatViewUrl?: string;
+}
+
+interface TicketLevel {
+  id: string;
+  level: string;
+  levelName: string;
+  quantity: number;
+  pricePerSeat: number;
+  viewImageUrl?: string;
+  sections: string[];
+  isSelectable: boolean;
+}
+
+interface SpecialPrize {
+  id: string;
+  name: string;
+  description: string;
+  value: number;
+  quantity: number;
+  imageUrl?: string;
+  prizeType: string;
 }
 
 interface DailyGame {
@@ -31,6 +54,8 @@ interface DailyGame {
   currentEntries: number;
   maxEntries: number;
   ticketGroups: TicketGroup[];
+  ticketLevels?: TicketLevel[];
+  specialPrizes?: SpecialPrize[];
   cardBreaks: any[];
 }
 
@@ -43,6 +68,9 @@ export default function AdminGamesPage() {
   const [editingGame, setEditingGame] = useState<string | null>(null);
   const [editedGames, setEditedGames] = useState<{ [key: string]: DailyGame }>({});
   const [newTicketGroups, setNewTicketGroups] = useState<{ [key: string]: Partial<TicketGroup> }>({});
+  const [memorabiliaQuantities, setMemorabiliaQuantities] = useState<{ [key: string]: number }>({});
+  const [newMemorabiliaItems, setNewMemorabiliaItems] = useState<{ [gameId: string]: any[] }>({});
+  const [showAddMemorabiliaForm, setShowAddMemorabiliaForm] = useState<{ [gameId: string]: boolean }>({});
 
   useEffect(() => {
     fetchGames();
@@ -121,6 +149,7 @@ export default function AdminGamesPage() {
           gameId,
           quantity: newGroup.quantity || 1,
           pricePerSeat: newGroup.pricePerSeat || 0,
+          seatViewUrl: newGroup.seatViewUrl || null,
           status: 'AVAILABLE'
         })
       });
@@ -199,6 +228,72 @@ export default function AdminGamesPage() {
     } catch (error) {
       console.error('Failed to delete item:', error);
       alert('Failed to delete item');
+    }
+  };
+
+  const updateMemorabiliaQuantity = async (gameId: string, group: any, targetQuantity: number) => {
+    if (targetQuantity < 1 || targetQuantity === group.quantity) return;
+
+    try {
+      const difference = targetQuantity - group.quantity;
+
+      if (difference > 0) {
+        // Need to add items
+        const itemToDuplicate = group.items.find((i: any) => i.status === 'AVAILABLE') || group.items[0];
+
+        // Create multiple duplicates at once
+        const duplicatePromises = [];
+        for (let i = 0; i < difference; i++) {
+          duplicatePromises.push(
+            fetch('/api/admin/duplicate-item', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gameId,
+                breakItem: itemToDuplicate
+              })
+            })
+          );
+        }
+        await Promise.all(duplicatePromises);
+        fetchGames();
+      } else {
+        // Need to remove items
+        const itemsToRemove = Math.abs(difference);
+        const availableItems = group.items.filter((i: any) => i.status === 'AVAILABLE');
+        const itemsToDelete = availableItems.slice(0, itemsToRemove);
+
+        // Delete multiple items at once
+        const deletePromises = itemsToDelete.map((item: any) =>
+          fetch(`/api/admin/games/${gameId}/breaks/${item.id}`, {
+            method: 'DELETE'
+          })
+        );
+        await Promise.all(deletePromises);
+        fetchGames();
+      }
+    } catch (error) {
+      console.error('Failed to update quantity:', error);
+    }
+  };
+
+  const deleteMemorabiliaGroup = async (gameId: string, group: any) => {
+    if (!confirm(`Are you sure you want to delete all ${group.quantity} items of "${group.breakName || group.teamName}"?`)) {
+      return;
+    }
+
+    try {
+      // Delete all items in the group without individual confirmations
+      const deletePromises = group.items.map((item: any) =>
+        fetch(`/api/admin/games/${gameId}/breaks/${item.id}`, {
+          method: 'DELETE'
+        })
+      );
+
+      await Promise.all(deletePromises);
+      fetchGames();
+    } catch (error) {
+      console.error('Failed to delete memorabilia group:', error);
     }
   };
 
@@ -289,9 +384,14 @@ export default function AdminGamesPage() {
 
   // Calculate total available tickets
   const getTotalTickets = (game: DailyGame) => {
-    return game.ticketGroups.reduce((sum, group) => {
-      return sum + (group.quantity || 0);
-    }, 0);
+    // Sum tickets from levels
+    const levelTickets = (game.ticketLevels || []).reduce((sum, level) => sum + level.quantity, 0);
+    // Sum tickets from special prizes that are ticket type
+    const specialTickets = (game.specialPrizes || []).filter(p => p.prizeType === 'TICKET')
+      .reduce((sum, prize) => sum + prize.quantity, 0);
+    // Legacy ticketGroups support
+    const groupTickets = game.ticketGroups.reduce((sum, group) => sum + (group.quantity || 0), 0);
+    return levelTickets + specialTickets + groupTickets;
   };
 
   // Calculate available bundles
@@ -299,6 +399,11 @@ export default function AdminGamesPage() {
     const totalTickets = getTotalTickets(game);
     const totalBreaks = game.cardBreaks.filter((cb: any) => cb.status === 'AVAILABLE').length;
     return Math.min(totalTickets, totalBreaks);
+  };
+
+  // Helper to get total prizes
+  const getTotalPrizes = (game: DailyGame) => {
+    return (game.specialPrizes || []).reduce((sum, prize) => sum + prize.quantity, 0);
   };
 
   return (
@@ -409,18 +514,49 @@ export default function AdminGamesPage() {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-white/5 rounded p-3">
                       <p className="text-gray-400 text-xs mb-1 flex items-center gap-1">
-                        <Ticket className="w-3 h-3" /> Ticket Groups
+                        <Ticket className="w-3 h-3" /> Inventory
                       </p>
                       <div className="text-white text-sm mt-1">
-                        <p>{game.ticketGroups.length} groups • {getTotalTickets(game)} total tickets</p>
-                        {game.ticketGroups.slice(0, 2).map((group: any, idx: number) => (
-                          <p key={idx} className="text-xs text-gray-300">
-                            Sec {group.section}, Row {group.row}: {group.quantity || 0} seats @ ${group.pricePerSeat}
-                          </p>
-                        ))}
-                        {game.ticketGroups.length > 2 && (
-                          <p className="text-xs text-gray-400">+{game.ticketGroups.length - 2} more groups</p>
-                        )}
+                        {/* Show ticket levels */}
+                        {game.ticketLevels && game.ticketLevels.length > 0 ? (
+                          <>
+                            <p className="font-semibold">Ticket Levels:</p>
+                            {game.ticketLevels.map((level: TicketLevel) => (
+                              <p key={level.id} className="text-xs text-gray-300 ml-2">
+                                {level.levelName}: {level.quantity} tickets @ ${level.pricePerSeat}
+                              </p>
+                            ))}
+                          </>
+                        ) : null}
+
+                        {/* Show special prizes */}
+                        {game.specialPrizes && game.specialPrizes.length > 0 ? (
+                          <>
+                            <p className="font-semibold mt-2">Special Prizes:</p>
+                            {game.specialPrizes.slice(0, 3).map((prize: SpecialPrize) => (
+                              <p key={prize.id} className="text-xs text-gray-300 ml-2">
+                                {prize.name}: {prize.quantity}x @ ${prize.value}
+                              </p>
+                            ))}
+                            {game.specialPrizes.length > 3 && (
+                              <p className="text-xs text-gray-400 ml-2">+{game.specialPrizes.length - 3} more</p>
+                            )}
+                          </>
+                        ) : null}
+
+                        {/* Legacy ticket groups */}
+                        {game.ticketGroups && game.ticketGroups.length > 0 ? (
+                          <>
+                            <p className="font-semibold mt-2">Legacy Tickets:</p>
+                            <p className="text-xs text-gray-300 ml-2">
+                              {game.ticketGroups.length} groups • {game.ticketGroups.reduce((sum, g) => sum + (g.quantity || 0), 0)} tickets
+                            </p>
+                          </>
+                        ) : null}
+
+                        <p className="font-bold mt-2 text-yellow-400">
+                          Total: {getTotalTickets(game)} items
+                        </p>
                       </div>
                     </div>
                     <div className="bg-white/5 rounded p-3">
@@ -506,29 +642,264 @@ export default function AdminGamesPage() {
 
                   {isExpanded && (
                     <div className="mt-6 space-y-6">
-                      {/* Ticket Groups Section */}
-                      <div className="bg-white/5 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Ticket className="w-5 h-5" /> Ticket Groups
-                          </h3>
-                          {isEditing && (
-                            <button
-                              onClick={() => setNewTicketGroups({
-                                ...newTicketGroups,
-                                [game.id]: { section: '', row: '', quantity: 1, pricePerSeat: 0 }
-                              })}
-                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-                            >
-                              <Plus className="w-4 h-4" /> Add Group
-                            </button>
-                          )}
+                      {/* Ticket Levels Section */}
+                      {game.ticketLevels && game.ticketLevels.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                              <Ticket className="w-5 h-5" /> Ticket Levels
+                            </h3>
+                          </div>
+                          {editedGame.ticketLevels?.map((level: TicketLevel, idx: number) => (
+                            <div key={level.id} className="bg-white/5 rounded p-3 mb-2">
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-5 gap-2">
+                                    <input
+                                      type="text"
+                                      value={level.levelName}
+                                      onChange={(e) => {
+                                        const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                        updatedLevels[idx] = { ...level, levelName: e.target.value };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Level Name"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={level.level}
+                                      onChange={(e) => {
+                                        const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                        updatedLevels[idx] = { ...level, level: e.target.value };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Level"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={level.quantity}
+                                      onChange={(e) => {
+                                        const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                        updatedLevels[idx] = { ...level, quantity: parseInt(e.target.value) || 0 };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Quantity"
+                                    />
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={level.pricePerSeat}
+                                      onChange={(e) => {
+                                        const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                        updatedLevels[idx] = { ...level, pricePerSeat: parseFloat(e.target.value) || 0 };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Price/Seat"
+                                    />
+                                    <ImageUpload
+                                      value={level.viewImageUrl || ''}
+                                      onChange={(url) => {
+                                        const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                        updatedLevels[idx] = { ...level, viewImageUrl: url };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      placeholder="Upload"
+                                      folder="level-views"
+                                    />
+                                  </div>
+                                  {level.viewImageUrl && (
+                                    <div className="mt-2">
+                                      <img src={level.viewImageUrl} alt="Level view" className="h-20 rounded" />
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <span className="text-white font-semibold">{level.levelName}</span>
+                                      <span className="text-gray-400 ml-2">(Level {level.level})</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-white">{level.quantity} tickets</span>
+                                      <span className="text-gray-400 ml-2">@ ${level.pricePerSeat}/ea</span>
+                                    </div>
+                                  </div>
+                                  {level.viewImageUrl && (
+                                    <div className="mt-2">
+                                      <img src={level.viewImageUrl} alt="Level view" className="h-20 rounded" />
+                                    </div>
+                                  )}
+                                  {level.sections && level.sections.length > 0 && (
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      Sections: {level.sections.slice(0, 5).join(', ')}
+                                      {level.sections.length > 5 && ` +${level.sections.length - 5} more`}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          ))}
                         </div>
+                      )}
+
+                      {/* Special Prizes Section */}
+                      {game.specialPrizes && game.specialPrizes.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                              <Ticket className="w-5 h-5" /> Special Prizes
+                            </h3>
+                          </div>
+                          {editedGame.specialPrizes?.map((prize: SpecialPrize, idx: number) => (
+                            <div key={prize.id} className="bg-white/5 rounded p-3 mb-2">
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-5 gap-2">
+                                    <input
+                                      type="text"
+                                      value={prize.name}
+                                      onChange={(e) => {
+                                        const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                        updatedPrizes[idx] = { ...prize, name: e.target.value };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Name"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={prize.description}
+                                      onChange={(e) => {
+                                        const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                        updatedPrizes[idx] = { ...prize, description: e.target.value };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Description"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={prize.quantity}
+                                      onChange={(e) => {
+                                        const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                        updatedPrizes[idx] = { ...prize, quantity: parseInt(e.target.value) || 0 };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Quantity"
+                                    />
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={prize.value}
+                                      onChange={(e) => {
+                                        const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                        updatedPrizes[idx] = { ...prize, value: parseFloat(e.target.value) || 0 };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      className="p-2 bg-white/20 rounded text-white text-sm"
+                                      placeholder="Value"
+                                    />
+                                    <ImageUpload
+                                      value={prize.imageUrl || ''}
+                                      onChange={(url) => {
+                                        const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                        updatedPrizes[idx] = { ...prize, imageUrl: url };
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      placeholder="Upload"
+                                      folder="special-prizes"
+                                    />
+                                  </div>
+                                  {prize.imageUrl && (
+                                    <div className="mt-2">
+                                      <img src={prize.imageUrl} alt={prize.name} className="h-20 rounded" />
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <span className="text-white font-semibold">{prize.name}</span>
+                                      <div className="text-xs text-gray-400">{prize.description}</div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-white">{prize.quantity}x</span>
+                                      <span className="text-yellow-400 ml-2 font-bold">${prize.value}</span>
+                                    </div>
+                                  </div>
+                                  {prize.imageUrl && (
+                                    <div className="mt-2">
+                                      <img src={prize.imageUrl} alt={prize.name} className="h-20 rounded" />
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Legacy Ticket Groups Section */}
+                      {game.ticketGroups && game.ticketGroups.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                              <Ticket className="w-5 h-5" /> Legacy Ticket Groups
+                            </h3>
+                            {isEditing && (
+                              <button
+                                onClick={() => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { section: '', row: '', quantity: 1, pricePerSeat: 0 }
+                                })}
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                              >
+                                <Plus className="w-4 h-4" /> Add Group
+                              </button>
+                            )}
+                          </div>
 
                         {/* New Ticket Group Form */}
                         {isEditing && newTicketGroup.section !== undefined && (
                           <div className="bg-white/5 rounded p-3 mb-3">
-                            <div className="grid grid-cols-5 gap-2">
+                            <div className="grid grid-cols-6 gap-2">
                               <input
                                 type="text"
                                 placeholder="Section"
@@ -571,6 +942,15 @@ export default function AdminGamesPage() {
                                 })}
                                 className="p-2 bg-white/20 rounded text-white text-sm"
                               />
+                              <ImageUpload
+                                value={newTicketGroup.seatViewUrl || ''}
+                                onChange={(url) => setNewTicketGroups({
+                                  ...newTicketGroups,
+                                  [game.id]: { ...newTicketGroup, seatViewUrl: url }
+                                })}
+                                placeholder="Upload"
+                                folder="seat-views"
+                              />
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => addTicketGroup(game.id)}
@@ -593,7 +973,7 @@ export default function AdminGamesPage() {
                         {editedGame.ticketGroups.map((group: TicketGroup, idx: number) => (
                           <div key={group.id} className="bg-white/5 rounded p-3 mb-2">
                             {isEditing ? (
-                              <div className="grid grid-cols-5 gap-2">
+                              <div className="grid grid-cols-6 gap-2">
                                 <input
                                   type="text"
                                   value={group.section}
@@ -646,6 +1026,19 @@ export default function AdminGamesPage() {
                                   }}
                                   className="p-2 bg-white/20 rounded text-white text-sm"
                                 />
+                                <ImageUpload
+                                  value={group.seatViewUrl || ''}
+                                  onChange={(url) => {
+                                    const updatedGroups = [...editedGame.ticketGroups];
+                                    updatedGroups[idx] = { ...group, seatViewUrl: url };
+                                    setEditedGames({
+                                      ...editedGames,
+                                      [game.id]: { ...editedGame, ticketGroups: updatedGroups }
+                                    });
+                                  }}
+                                  placeholder="Upload"
+                                  folder="seat-views"
+                                />
                                 <button
                                   onClick={() => deleteTicketGroup(group.id)}
                                   className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
@@ -654,10 +1047,17 @@ export default function AdminGamesPage() {
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex justify-between items-center text-white">
-                                <span>Section {group.section}, Row {group.row}</span>
-                                <span>{group.quantity} seats @ ${group.pricePerSeat}/ea</span>
-                                <span className="text-gray-400">Total: ${(group.quantity * group.pricePerSeat).toFixed(2)}</span>
+                              <div className="text-white">
+                                <div className="flex justify-between items-center">
+                                  <span>Section {group.section}, Row {group.row}</span>
+                                  <span>{group.quantity} seats @ ${group.pricePerSeat}/ea</span>
+                                  <span className="text-gray-400">Total: ${(group.quantity * group.pricePerSeat).toFixed(2)}</span>
+                                </div>
+                                {group.seatViewUrl && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Seat View: <a href={group.seatViewUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View Image</a>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -666,98 +1066,368 @@ export default function AdminGamesPage() {
                         {editedGame.ticketGroups.length === 0 && (
                           <p className="text-gray-400 text-center py-2">No ticket groups yet</p>
                         )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Memorabilia Section */}
                       <div className="bg-white/5 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                          <Package className="w-5 h-5" /> Memorabilia
-                        </h3>
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Package className="w-5 h-5" /> Memorabilia
+                          </h3>
+                          {isEditing && (
+                            <button
+                              onClick={() => {
+                                setShowAddMemorabiliaForm({ ...showAddMemorabiliaForm, [game.id]: true });
+                                if (!newMemorabiliaItems[game.id]) {
+                                  setNewMemorabiliaItems({
+                                    ...newMemorabiliaItems,
+                                    [game.id]: [{
+                                      id: Date.now().toString(),
+                                      name: '',
+                                      description: '',
+                                      value: 0,
+                                      quantity: 1,
+                                      imageUrl: ''
+                                    }]
+                                  });
+                                }
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                            >
+                              <Plus className="w-4 h-4" /> Add Items
+                            </button>
+                          )}
+                        </div>
 
-                        {/* Group breaks by source URL */}
+                        {/* Add new memorabilia form */}
+                        {isEditing && showAddMemorabiliaForm[game.id] && (
+                          <div className="bg-white/10 rounded-lg p-4 mb-4">
+                            <h4 className="text-white font-semibold mb-3">Add New Memorabilia</h4>
+                            {(newMemorabiliaItems[game.id] || []).map((item, index) => (
+                              <div key={item.id} className="bg-white/5 rounded p-3 mb-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <input
+                                    type="text"
+                                    placeholder="Item Name"
+                                    value={item.name}
+                                    onChange={(e) => {
+                                      const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                      updated[index] = { ...updated[index], name: e.target.value };
+                                      setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                    }}
+                                    className="p-2 bg-white/20 rounded text-white text-sm"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Description"
+                                    value={item.description}
+                                    onChange={(e) => {
+                                      const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                      updated[index] = { ...updated[index], description: e.target.value };
+                                      setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                    }}
+                                    className="p-2 bg-white/20 rounded text-white text-sm"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 mt-3">
+                                  <input
+                                    type="number"
+                                    placeholder="Value ($)"
+                                    value={item.value || ''}
+                                    onChange={(e) => {
+                                      const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                      updated[index] = { ...updated[index], value: parseFloat(e.target.value) || 0 };
+                                      setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                    }}
+                                    className="p-2 bg-white/20 rounded text-white text-sm"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="Quantity"
+                                    min="1"
+                                    value={item.quantity || 1}
+                                    onChange={(e) => {
+                                      const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                      updated[index] = { ...updated[index], quantity: parseInt(e.target.value) || 1 };
+                                      setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                    }}
+                                    className="p-2 bg-white/20 rounded text-white text-sm"
+                                  />
+                                  <ImageUpload
+                                    value={item.imageUrl}
+                                    onChange={(url) => {
+                                      const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                      updated[index] = { ...updated[index], imageUrl: url };
+                                      setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                    }}
+                                    placeholder="Upload Image"
+                                    folder="memorabilia"
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const updated = (newMemorabiliaItems[game.id] || []).filter((_, i) => i !== index);
+                                    setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                  }}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm mt-2"
+                                >
+                                  Remove Item
+                                </button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => {
+                                  const items = newMemorabiliaItems[game.id] || [];
+                                  setNewMemorabiliaItems({
+                                    ...newMemorabiliaItems,
+                                    [game.id]: [...items, {
+                                      id: Date.now().toString(),
+                                      name: '',
+                                      description: '',
+                                      value: 0,
+                                      quantity: 1,
+                                      imageUrl: ''
+                                    }]
+                                  });
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                              >
+                                Add Another Item
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const items = newMemorabiliaItems[game.id] || [];
+                                  let successCount = 0;
+                                  let errorCount = 0;
+
+                                  for (const item of items) {
+                                    if (!item.name || item.quantity < 1) continue;
+
+                                    // Create individual card breaks for each quantity
+                                    for (let i = 0; i < item.quantity; i++) {
+                                      try {
+                                        const res = await fetch('/api/admin/add-memorabilia', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            gameId: game.id,
+                                            breakName: item.name,
+                                            breakValue: item.value,
+                                            description: item.description || item.name,
+                                            imageUrl: item.imageUrl,
+                                            itemType: 'memorabilia',
+                                            quantity: 1
+                                          })
+                                        });
+                                        if (res.ok) {
+                                          successCount++;
+                                        } else {
+                                          errorCount++;
+                                          console.error('Failed to add memorabilia item');
+                                        }
+                                      } catch (error) {
+                                        errorCount++;
+                                        console.error('Failed to add memorabilia:', error);
+                                      }
+                                    }
+                                  }
+
+                                  // Show feedback
+                                  if (successCount > 0) {
+                                    alert(`Successfully added ${successCount} memorabilia item${successCount > 1 ? 's' : ''}`);
+                                  }
+                                  if (errorCount > 0) {
+                                    alert(`Failed to add ${errorCount} item${errorCount > 1 ? 's' : ''}. Please try again.`);
+                                  }
+
+                                  // Clear the form and refresh if any items were added
+                                  if (successCount > 0) {
+                                    setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: [] });
+                                    setShowAddMemorabiliaForm({ ...showAddMemorabiliaForm, [game.id]: false });
+                                    fetchGames();
+                                  }
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
+                              >
+                                Save All Items
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowAddMemorabiliaForm({ ...showAddMemorabiliaForm, [game.id]: false });
+                                  setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: [] });
+                                }}
+                                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Group breaks by unique item (name + value) */}
                         {(() => {
-                          const breaksByUrl = editedGame.cardBreaks?.reduce((acc: any, breakItem: any) => {
-                            const url = breakItem.sourceUrl || 'Unknown Source';
-                            if (!acc[url]) acc[url] = [];
-                            acc[url].push(breakItem);
+                          // Group by unique memorabilia items
+                          const uniqueItems = editedGame.cardBreaks?.reduce((acc: any, breakItem: any) => {
+                            // Normalize the name by removing "(copy)" suffix for grouping
+                            const normalizedName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                            const key = `${normalizedName}_${breakItem.breakValue}_${breakItem.imageUrl}`;
+                            if (!acc[key]) {
+                              acc[key] = {
+                                ...breakItem,
+                                breakName: normalizedName, // Use normalized name for display
+                                items: [],
+                                quantity: 0
+                              };
+                            }
+                            acc[key].items.push(breakItem);
+                            acc[key].quantity++;
                             return acc;
                           }, {}) || {};
 
-                          const urlGroups = Object.entries(breaksByUrl);
+                          const itemGroups = Object.values(uniqueItems);
 
-                          if (urlGroups.length === 0) {
+                          if (itemGroups.length === 0) {
                             return <p className="text-gray-400 text-center py-2">No memorabilia yet</p>;
                           }
 
                           return (
                             <>
                               <div className="max-h-96 overflow-y-auto space-y-4">
-                                {urlGroups.map(([url, breaks]: [string, any]) => (
-                                  <div key={url} className="bg-white/5 rounded-lg p-3">
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div className="text-xs text-gray-400 truncate flex-1" title={url}>
-                                        Source: {url.split('/').pop() || url}
-                                      </div>
-                                      <button
-                                        onClick={() => deleteBreaksBySource(game.id, url)}
-                                        className="ml-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1"
-                                        title="Delete all items from this source"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                        Delete Source
-                                      </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                      {breaks.map((breakItem: any) => (
-                                        <div key={breakItem.id} className="bg-black/20 rounded p-2">
-                                          <div className="flex justify-between items-center">
-                                            <div className="text-white flex-1">
-                                              <div className="text-sm font-medium">{breakItem.teamName || breakItem.breakName}</div>
-                                              <div className="text-xs text-gray-400 mt-1">
-                                                {breakItem.breaker} • {breakItem.breakType}
-                                              </div>
-                                              {breakItem.imageUrl && (
-                                                <img
-                                                  src={breakItem.imageUrl}
-                                                  alt={breakItem.breakName}
-                                                  className="w-12 h-12 object-cover rounded mt-1"
-                                                />
-                                              )}
+                                {itemGroups.map((group: any) => {
+                                  // Use the normalized name for the groupKey to ensure consistency
+                                  const normalizedName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                  const groupKey = `${game.id}_${normalizedName}_${group.breakValue}`;
+                                  const currentQuantity = memorabiliaQuantities[groupKey] ?? group.quantity;
+
+                                  return (
+                                    <div key={`${group.breakName}_${group.breakValue}`} className="bg-white/5 rounded-lg p-3">
+                                      <div className="flex justify-between items-start">
+                                        <div className="text-white flex-1">
+                                          <div className="text-sm font-medium">{group.teamName || group.breakName}</div>
+                                          <div className="text-xs text-gray-400 mt-1">
+                                            {group.breaker} • {group.itemType || group.breakType}
+                                          </div>
+                                          {/* Image display/edit */}
+                                          {isEditing ? (
+                                            <div className="mt-2">
+                                              <ImageUpload
+                                                value={group.imageUrl || ''}
+                                                onChange={async (newImageUrl) => {
+                                                  // Update all items in this group with the new image
+                                                  for (const item of group.items) {
+                                                    try {
+                                                      await fetch(`/api/admin/update-memorabilia-image`, {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                          breakId: item.id,
+                                                          imageUrl: newImageUrl
+                                                        })
+                                                      });
+                                                    } catch (error) {
+                                                      console.error('Failed to update image:', error);
+                                                    }
+                                                  }
+                                                  // Refresh to show the update
+                                                  fetchGames();
+                                                }}
+                                                placeholder="Update Image"
+                                                folder="memorabilia"
+                                              />
                                             </div>
-                                            <div className="text-right">
-                                              <div className="text-white font-bold">${breakItem.breakValue || breakItem.spotPrice}</div>
-                                              <div className={`text-xs px-2 py-1 rounded mt-1 ${
-                                                breakItem.status === 'AVAILABLE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                                              }`}>
-                                                {breakItem.status}
-                                              </div>
-                                              <div className="flex gap-1 mt-2 justify-end">
-                                                <button
-                                                  onClick={() => duplicateBreakItem(game.id, breakItem)}
-                                                  className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-xs"
-                                                  title="Duplicate this item"
-                                                >
-                                                  <Copy className="w-3 h-3" />
-                                                </button>
-                                                <button
-                                                  onClick={() => deleteBreakItem(game.id, breakItem.id)}
-                                                  className="bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs"
-                                                  title="Delete this item"
-                                                >
-                                                  <Trash2 className="w-3 h-3" />
-                                                </button>
-                                              </div>
-                                            </div>
+                                          ) : (
+                                            group.imageUrl && (
+                                              <img
+                                                src={group.imageUrl}
+                                                alt={group.breakName}
+                                                className="w-16 h-16 object-cover rounded mt-2"
+                                              />
+                                            )
+                                          )}
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="text-white font-bold">${group.breakValue || group.spotPrice}</div>
+
+                                          {/* Quantity controls */}
+                                          <div className="flex items-center gap-2 mt-2">
+                                            <span className="text-xs text-gray-400">Qty:</span>
+                                            <button
+                                              onClick={() => {
+                                                const newQty = currentQuantity - 1;
+                                                if (newQty >= 1) {
+                                                  setMemorabiliaQuantities(prev => ({ ...prev, [groupKey]: newQty }));
+                                                  updateMemorabiliaQuantity(game.id, group, newQty);
+                                                }
+                                              }}
+                                              className="bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded text-xs font-bold"
+                                              disabled={currentQuantity <= 1}
+                                            >
+                                              -
+                                            </button>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              value={currentQuantity}
+                                              onChange={(e) => {
+                                                const newValue = parseInt(e.target.value) || 1;
+                                                setMemorabiliaQuantities(prev => ({ ...prev, [groupKey]: newValue }));
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  e.preventDefault();
+                                                  const qty = parseInt((e.target as HTMLInputElement).value) || 1;
+                                                  if (qty > 0 && qty !== group.quantity) {
+                                                    updateMemorabiliaQuantity(game.id, group, qty);
+                                                  }
+                                                }
+                                              }}
+                                              className="w-12 text-center bg-white/10 text-white rounded px-1 py-0.5"
+                                            />
+                                            <button
+                                              onClick={() => {
+                                                const newQty = currentQuantity + 1;
+                                                setMemorabiliaQuantities(prev => ({ ...prev, [groupKey]: newQty }));
+                                                updateMemorabiliaQuantity(game.id, group, newQty);
+                                              }}
+                                              className="bg-green-600 hover:bg-green-700 text-white w-6 h-6 rounded text-xs font-bold"
+                                            >
+                                              +
+                                            </button>
+                                            {currentQuantity !== group.quantity && (
+                                              <button
+                                                onClick={() => {
+                                                  if (currentQuantity > 0) {
+                                                    updateMemorabiliaQuantity(game.id, group, currentQuantity);
+                                                  }
+                                                }}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                                              >
+                                                Save
+                                              </button>
+                                            )}
+                                          </div>
+
+                                          <div className="text-xs text-gray-400 mt-2">
+                                            Available: {group.items.filter((i: any) => i.status === 'AVAILABLE').length}
+                                          </div>
+
+                                          <div className="flex gap-1 mt-2 justify-end">
+                                            <button
+                                              onClick={() => deleteMemorabiliaGroup(game.id, group)}
+                                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1"
+                                              title="Delete all of this item"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                              Delete All
+                                            </button>
                                           </div>
                                         </div>
-                                      ))}
-                                      <div className="text-xs text-gray-400 mt-2 flex justify-between">
-                                        <span>Teams: {breaks.length}</span>
-                                        <span>Available: {breaks.filter((b: any) => b.status === 'AVAILABLE').length}</span>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                               <div className="mt-3 pt-3 border-t border-white/20 text-sm text-gray-300">
                                 <div className="flex justify-between">

@@ -74,9 +74,16 @@ interface UserProfile {
     city: string;
     state: string;
     quantity: number;
+    jumpPrice: number;
     totalPrice: number;
     totalValue: number;
     createdAt: string;
+    ticketsTransferred: boolean;
+    ticketsTransferredAt: string | null;
+    memorabiliaShipped: boolean;
+    memorabiliaShippedAt: string | null;
+    trackingNumber: string | null;
+    shippingCarrier: string | null;
     bundles: any[];
   }>;
   security: {
@@ -152,6 +159,19 @@ export default function AdminUserProfilePage() {
       hour: 'numeric',
       minute: '2-digit'
     });
+  };
+
+  const getTrackingUrl = (carrier: string | null, trackingNumber: string | null) => {
+    if (!carrier || !trackingNumber) return null;
+
+    const carriers: { [key: string]: string } = {
+      'USPS': `https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=${trackingNumber}`,
+      'UPS': `https://www.ups.com/track?tracknum=${trackingNumber}`,
+      'FedEx': `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`,
+      'DHL': `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`
+    };
+
+    return carriers[carrier] || null;
   };
 
   const getStatusColor = (status: string) => {
@@ -375,19 +395,72 @@ export default function AdminUserProfilePage() {
                   <div key={jump.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-gray-900">{jump.eventName}</h4>
-                      <span className="text-sm text-gray-500">{formatDate(jump.createdAt)}</span>
+                      <span className="text-sm text-gray-500">{formatDateTime(jump.createdAt)}</span>
                     </div>
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-sm text-gray-600 mb-3">
                       <p>{jump.venue}, {jump.city}, {jump.state}</p>
                       <p>Event Date: {formatDate(jump.eventDate)}</p>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <span className="text-sm">{jump.quantity} bundle{jump.quantity > 1 ? 's' : ''}</span>
                       <div className="text-right">
-                        <p className="text-sm font-medium">Paid: ${jump.totalPrice.toFixed(2)}</p>
-                        <p className={`text-sm ${jump.totalValue > jump.totalPrice ? 'text-green-600' : 'text-gray-600'}`}>
+                        <p className="text-sm font-medium">Jump Price: ${jump.jumpPrice.toFixed(2)}</p>
+                        <p className={`text-sm ${jump.totalValue > jump.jumpPrice ? 'text-green-600' : 'text-gray-600'}`}>
                           Value: ${jump.totalValue.toFixed(2)}
                         </p>
+                      </div>
+                    </div>
+                    {/* Fulfillment Status */}
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium">Tickets:</span>
+                        </div>
+                        {jump.ticketsTransferred ? (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            <span className="text-sm text-green-600">
+                              Transferred {jump.ticketsTransferredAt ? formatDate(jump.ticketsTransferredAt) : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-yellow-600" />
+                            <span className="text-sm text-yellow-600">Pending Transfer</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Truck className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium">Memorabilia:</span>
+                        </div>
+                        {jump.memorabiliaShipped ? (
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-sm text-green-600">
+                                Shipped {jump.memorabiliaShippedAt ? formatDate(jump.memorabiliaShippedAt) : ''}
+                              </span>
+                            </div>
+                            {jump.trackingNumber && (
+                              <a
+                                href={getTrackingUrl(jump.shippingCarrier, jump.trackingNumber) || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                              >
+                                {jump.shippingCarrier}: {jump.trackingNumber}
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-yellow-600" />
+                            <span className="text-sm text-yellow-600">Pending Shipment</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

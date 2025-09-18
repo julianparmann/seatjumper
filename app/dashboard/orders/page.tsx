@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, MapPin, Package, Ticket, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Package, Ticket, Loader2, CheckCircle, Clock, Truck, CreditCard, Image } from 'lucide-react';
 
 interface SpinHistory {
   id: string;
@@ -13,12 +13,19 @@ interface SpinHistory {
   totalValue: number;
   adjacentSeats: boolean;
   createdAt: string;
+  ticketsTransferred: boolean;
+  ticketsTransferredAt: string | null;
+  memorabiliaShipped: boolean;
+  memorabiliaShippedAt: string | null;
+  trackingNumber: string | null;
+  shippingCarrier: string | null;
   game: {
     eventName: string;
     eventDate: string;
     venue: string;
     city: string;
     state: string;
+    spinPricePerBundle: number;
   };
   bundles: Array<{
     id: string;
@@ -127,7 +134,10 @@ export default function OrderHistoryPage() {
                     <div className="text-yellow-400 font-bold text-lg">
                       {spin.quantity} bundle{spin.quantity > 1 ? 's' : ''}
                     </div>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-300 text-sm">
+                      Jump Price: ${(spin.game.spinPricePerBundle * spin.quantity).toFixed(2)}
+                    </div>
+                    <div className="text-gray-400 text-xs">
                       {new Date(spin.createdAt).toLocaleDateString()}
                     </div>
                   </div>
@@ -141,39 +151,168 @@ export default function OrderHistoryPage() {
                       {spin.bundles.map((bundle, idx) => (
                         <div
                           key={bundle.id}
-                          className="bg-white/5 rounded-lg p-3"
+                          className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-4 border border-white/10"
                         >
-                          <div className="flex items-start gap-3">
-                            <Ticket className="w-5 h-5 text-yellow-400 mt-1" />
-                            <div className="flex-1">
-                              <p className="text-white font-medium">
-                                Bundle {idx + 1}
-                              </p>
-                              <p className="text-gray-300 text-sm">
-                                Section {bundle.ticketSection}, Row {bundle.ticketRow}
-                              </p>
-                              {bundle.breaks && bundle.breaks.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-gray-400 text-xs">Card Breaks:</p>
-                                  {bundle.breaks.map((breakItem: any, breakIdx: number) => (
-                                    <p key={breakIdx} className="text-gray-300 text-sm">
-                                      • {breakItem.teamName}
-                                    </p>
-                                  ))}
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-yellow-400/20 p-2 rounded-lg">
+                              <Package className="w-5 h-5 text-yellow-400" />
+                            </div>
+                            <p className="text-white font-semibold text-lg">
+                              Bundle {idx + 1}
+                            </p>
+                            <span className="ml-auto text-green-400 font-semibold">
+                              ${bundle.bundleValue.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Tickets Section */}
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Ticket className="w-4 h-4 text-blue-400" />
+                              <span className="text-blue-400 font-medium text-sm">Event Tickets</span>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-white font-medium">
+                                    Section {bundle.ticketSection}, Row {bundle.ticketRow}
+                                  </p>
+                                  <p className="text-gray-400 text-sm">
+                                    {bundle.ticketQuantity} ticket{bundle.ticketQuantity > 1 ? 's' : ''}
+                                  </p>
                                 </div>
-                              )}
+                                <div className="text-right">
+                                  <p className="text-green-400 font-semibold">
+                                    ${bundle.ticketValue.toFixed(2)}
+                                  </p>
+                                  <p className="text-gray-500 text-xs">value</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Card Breaks Section */}
+                          {bundle.breaks && bundle.breaks.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <CreditCard className="w-4 h-4 text-purple-400" />
+                                <span className="text-purple-400 font-medium text-sm">Card Breaks</span>
+                              </div>
+                              <div className="space-y-2">
+                                {bundle.breaks.map((breakItem: any, breakIdx: number) => (
+                                  <div key={breakIdx} className="bg-black/30 rounded-lg p-3">
+                                    <div className="flex items-start gap-3">
+                                      {breakItem.imageUrl && (
+                                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                                          <img
+                                            src={breakItem.imageUrl}
+                                            alt={breakItem.breakName || breakItem.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).style.display = 'none';
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                      <div className="flex-1">
+                                        <p className="text-white font-medium">
+                                          {breakItem.breakName || breakItem.name || 'Card Break'}
+                                        </p>
+                                        {breakItem.teamName && (
+                                          <p className="text-gray-400 text-sm">
+                                            Team: {breakItem.teamName}
+                                          </p>
+                                        )}
+                                        {breakItem.category && (
+                                          <p className="text-gray-400 text-sm">
+                                            {breakItem.category}
+                                          </p>
+                                        )}
+                                        {breakItem.breaker && (
+                                          <p className="text-gray-500 text-xs">
+                                            Breaker: {breakItem.breaker}
+                                          </p>
+                                        )}
+                                      </div>
+                                      {breakItem.breakValue && (
+                                        <div className="text-right">
+                                          <p className="text-green-400 font-semibold">
+                                            ${breakItem.breakValue}
+                                          </p>
+                                          <p className="text-gray-500 text-xs">value</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                     {spin.adjacentSeats && spin.quantity > 1 && (
-                      <p className="text-yellow-400 text-sm mt-3">
-                        ✨ Adjacent seats
-                      </p>
+                      <div className="flex items-center gap-2 mt-4 p-3 bg-yellow-400/10 rounded-lg border border-yellow-400/30">
+                        <CheckCircle className="w-5 h-5 text-yellow-400" />
+                        <p className="text-yellow-400 font-medium">
+                          Adjacent seats confirmed
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
+
+                {/* Fulfillment Status */}
+                <div className="border-t border-white/20 pt-4 mt-4">
+                  <h4 className="text-white font-semibold mb-3">Fulfillment Status:</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-300">Tickets:</span>
+                      </div>
+                      {spin.ticketsTransferred ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400" />
+                          <span className="text-sm text-green-400">
+                            Transferred {spin.ticketsTransferredAt ? new Date(spin.ticketsTransferredAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-yellow-400" />
+                          <span className="text-sm text-yellow-400">Pending Transfer</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Truck className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-300">Memorabilia:</span>
+                      </div>
+                      {spin.memorabiliaShipped ? (
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                            <span className="text-sm text-green-400">
+                              Shipped {spin.memorabiliaShippedAt ? new Date(spin.memorabiliaShippedAt).toLocaleDateString() : ''}
+                            </span>
+                          </div>
+                          {spin.trackingNumber && (
+                            <span className="text-xs text-blue-400 mt-1">
+                              {spin.shippingCarrier}: {spin.trackingNumber}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-yellow-400" />
+                          <span className="text-sm text-yellow-400">Pending Shipment</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

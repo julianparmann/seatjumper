@@ -61,9 +61,11 @@ export async function GET(req: NextRequest) {
         where: { paidAt: { not: null } }
       }),
 
-      // Pending orders
-      prisma.order.count({
-        where: { paymentStatus: 'PENDING' }
+      // Pending orders - temporarily count all unpaid orders
+      prisma.spinResult.count({
+        where: {
+          paidAt: null
+        }
       }),
 
       // Total games

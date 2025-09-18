@@ -8,6 +8,16 @@ export async function DELETE(
   try {
     const { id: gameId, breakId } = await params;
 
+    // Check if the item exists before trying to delete
+    const existingItem = await prisma.cardBreak.findUnique({
+      where: { id: breakId }
+    });
+
+    if (!existingItem) {
+      // Item doesn't exist, but that's okay - treat as success
+      return NextResponse.json({ success: true, message: 'Item already deleted' });
+    }
+
     // Delete the specific break item
     await prisma.cardBreak.delete({
       where: { id: breakId }
@@ -34,7 +44,12 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
+    // If it's a "record not found" error, treat as success
+    if (error?.code === 'P2025') {
+      return NextResponse.json({ success: true, message: 'Item already deleted' });
+    }
+
     console.error('Error deleting break item:', error);
     return NextResponse.json(
       { error: 'Failed to delete item' },

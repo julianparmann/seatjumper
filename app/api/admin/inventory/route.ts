@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
     const games = await prisma.dailyGame.findMany({
       include: {
         ticketGroups: true,
+        ticketLevels: true,
+        specialPrizes: true,
         cardBreaks: true,
         entries: true,
         spinResults: true,
@@ -72,11 +74,11 @@ export async function POST(req: NextRequest) {
       sport,
       stadiumId,
       ticketGroups,
+      ticketLevels,
+      specialPrizes,
+      memorabiliaItems,
       avgTicketPrice,
-      spinPricePerBundle,
-      memorabiliaImage,
-      memorabiliaName,
-      memorabiliaPrice
+      spinPricePerBundle
     } = body;
 
     // Create the game
@@ -98,50 +100,84 @@ export async function POST(req: NextRequest) {
 
     console.log('Game created successfully:', newGame.id);
 
-    // Create ticket groups if provided
-    if (ticketGroups && ticketGroups.length > 0) {
-      for (const group of ticketGroups) {
-        if (group.section && group.row) {
+    // Create ticket levels if provided
+    if (ticketLevels && ticketLevels.length > 0) {
+      for (const level of ticketLevels) {
+        if (level.level && level.quantity > 0) {
           try {
-            await prisma.ticketGroup.create({
+            await prisma.ticketLevel.create({
               data: {
                 gameId: newGame.id,
-                section: group.section,
-                row: group.row,
-                quantity: parseInt(group.seats) || 1,
-                pricePerSeat: parseFloat(group.pricePerSeat) || 0,
-                status: 'AVAILABLE',
-                notes: group.notes || null
+                level: level.level,
+                levelName: level.levelName,
+                quantity: parseInt(level.quantity) || 0,
+                pricePerSeat: parseFloat(level.pricePerSeat) || 0,
+                viewImageUrl: level.viewImageUrl || null,
+                sections: level.sections || [],
+                isSelectable: level.isSelectable !== false
               }
             });
-            console.log('Created ticket group:', group.section, group.row);
-          } catch (groupError: any) {
-            console.error('Error creating ticket group:', groupError);
+            console.log('Created ticket level:', level.level, level.levelName);
+          } catch (levelError: any) {
+            console.error('Error creating ticket level:', levelError);
           }
         }
       }
     }
 
-    // Create memorabilia card break if provided
-    if (memorabiliaImage && memorabiliaName) {
-      try {
-        await prisma.cardBreak.create({
-          data: {
-            gameId: newGame.id,
-            breakName: memorabiliaName,
-            breakValue: memorabiliaPrice || 0,
-            breakDateTime: new Date(),
-            breaker: 'Admin Import',
-            status: 'AVAILABLE',
-            itemType: 'memorabilia',
-            imageUrl: memorabiliaImage,
-            description: memorabiliaName,
-            category: 'card'
+    // Create special prizes if provided
+    if (specialPrizes && specialPrizes.length > 0) {
+      for (const prize of specialPrizes) {
+        if (prize.name && prize.quantity > 0) {
+          try {
+            await prisma.specialPrize.create({
+              data: {
+                gameId: newGame.id,
+                name: prize.name,
+                description: prize.description || '',
+                value: parseFloat(prize.value) || 0,
+                quantity: parseInt(prize.quantity) || 0,
+                imageUrl: prize.imageUrl || null,
+                prizeType: prize.prizeType || 'EXPERIENCE',
+                metadata: prize.metadata || null
+              }
+            });
+            console.log('Created special prize:', prize.name);
+          } catch (prizeError: any) {
+            console.error('Error creating special prize:', prizeError);
           }
-        });
-        console.log('Created memorabilia card break:', memorabiliaName);
-      } catch (memorabiliaError: any) {
-        console.error('Error creating memorabilia card break:', memorabiliaError);
+        }
+      }
+    }
+
+    // Create memorabilia card breaks if provided
+    if (memorabiliaItems && memorabiliaItems.length > 0) {
+      for (const item of memorabiliaItems) {
+        if (item.name && item.quantity > 0) {
+          // Create individual records for each quantity
+          for (let i = 0; i < item.quantity; i++) {
+            try {
+              await prisma.cardBreak.create({
+                data: {
+                  gameId: newGame.id,
+                  breakName: item.name,
+                  breakValue: parseFloat(item.value) || 0,
+                  breakDateTime: new Date(),
+                  breaker: 'Admin Import',
+                  status: 'AVAILABLE',
+                  itemType: 'memorabilia',
+                  imageUrl: item.imageUrl || null,
+                  description: item.description || item.name,
+                  category: 'card',
+                  quantity: 1  // Each record represents 1 item
+                }
+              });
+            } catch (memorabiliaError: any) {
+              console.error('Error creating memorabilia card break:', memorabiliaError);
+            }
+          }
+          console.log(`Created ${item.quantity} memorabilia card breaks:`, item.name);
+        }
       }
     }
 
@@ -150,6 +186,8 @@ export async function POST(req: NextRequest) {
       where: { id: newGame.id },
       include: {
         ticketGroups: true,
+        ticketLevels: true,
+        specialPrizes: true,
         cardBreaks: true
       }
     });

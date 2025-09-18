@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please sign in to jump' }, { status: 401 });
     }
 
-    const { gameId, quantity = 1, preferAdjacent = true } = await req.json();
+    const { gameId, quantity = 1, selectedLevels = [] } = await req.json();
 
     if (!gameId) {
       return NextResponse.json({ error: 'Game ID required' }, { status: 400 });
@@ -23,10 +23,15 @@ export async function POST(req: NextRequest) {
       const game = await tx.dailyGame.findUnique({
         where: { id: gameId },
         include: {
-          ticketGroups: {
+          ticketLevels: {
             where: {
               quantity: { gt: 0 },
-              status: 'AVAILABLE'
+              ...(selectedLevels.length > 0 ? { level: { in: selectedLevels } } : { isSelectable: true })
+            }
+          },
+          specialPrizes: {
+            where: {
+              quantity: { gt: 0 }
             }
           },
           cardBreaks: {
@@ -41,136 +46,165 @@ export async function POST(req: NextRequest) {
         throw new Error('Game not found');
       }
 
-      // Check if there's enough inventory for bundles
-      const availableTickets = game.ticketGroups.reduce((sum, group) => sum + group.quantity, 0);
-      const availableBreaks = game.cardBreaks.length;
+      // Build the complete inventory pool with equal probability
+      const inventoryPool: any[] = [];
 
-      if (availableTickets < quantity) {
-        throw new Error(`Only ${availableTickets} tickets available, but ${quantity} requested`);
-      }
-
-      if (availableBreaks < quantity) {
-        throw new Error(`Only ${availableBreaks} card breaks available, but ${quantity} bundles requested`);
-      }
-
-      const bundles = [];
-      let ticketsAssigned = [];
-      let breaksAssigned = [];
-
-      // If preferAdjacent and quantity > 1, try to find adjacent seats
-      if (preferAdjacent && quantity > 1) {
-        // Find a group with enough adjacent seats
-        const adjacentGroup = game.ticketGroups.find(group => group.quantity >= quantity);
-
-        if (adjacentGroup) {
-          // Assign adjacent tickets from the same group
-          for (let i = 0; i < quantity; i++) {
-            ticketsAssigned.push({
-              groupId: adjacentGroup.id,
-              section: adjacentGroup.section,
-              row: adjacentGroup.row,
-              value: adjacentGroup.pricePerSeat,
-              seatNumber: i + 1 // Track seat position for display
-            });
-          }
-
-          // Update inventory for adjacent group
-          await tx.ticketGroup.update({
-            where: { id: adjacentGroup.id },
-            data: {
-              quantity: {
-                decrement: quantity
-              }
-            }
+      // Add all available tickets from selected levels
+      game.ticketLevels.forEach(level => {
+        for (let i = 0; i < level.quantity; i++) {
+          inventoryPool.push({
+            type: 'ticket',
+            id: level.id,
+            level: level.level,
+            levelName: level.levelName,
+            value: level.pricePerSeat,
+            sections: level.sections,
+            viewImageUrl: level.viewImageUrl
           });
-        }
-      }
-
-      // If no adjacent seats found or not preferred, select randomly
-      if (ticketsAssigned.length === 0) {
-        // Build array of all available tickets with their group info
-        const ticketPool: any[] = [];
-        game.ticketGroups.forEach(group => {
-          for (let i = 0; i < group.quantity; i++) {
-            ticketPool.push({
-              groupId: group.id,
-              section: group.section,
-              row: group.row,
-              value: group.pricePerSeat
-            });
-          }
-        });
-
-        // Randomly select tickets
-        for (let i = 0; i < quantity; i++) {
-          const randomIndex = Math.floor(Math.random() * ticketPool.length);
-          const selectedTicket = ticketPool.splice(randomIndex, 1)[0];
-          ticketsAssigned.push(selectedTicket);
-        }
-
-        // Update inventory for each ticket group
-        const groupUpdates = ticketsAssigned.reduce((acc: any, ticket) => {
-          acc[ticket.groupId] = (acc[ticket.groupId] || 0) + 1;
-          return acc;
-        }, {});
-
-        for (const [groupId, count] of Object.entries(groupUpdates)) {
-          await tx.ticketGroup.update({
-            where: { id: groupId },
-            data: {
-              quantity: {
-                decrement: count as number
-              }
-            }
-          });
-        }
-      }
-
-      // Randomly select card breaks for each bundle
-      const shuffledBreaks = [...game.cardBreaks].sort(() => Math.random() - 0.5);
-
-      for (let i = 0; i < quantity; i++) {
-        // Each bundle gets exactly 1 memorabilia item
-        const numBreaks = 1;
-
-        const bundleBreaks = shuffledBreaks.splice(0, numBreaks);
-        breaksAssigned.push(...bundleBreaks);
-
-        bundles.push({
-          ticket: {
-            section: ticketsAssigned[i].section,
-            row: ticketsAssigned[i].row,
-            value: ticketsAssigned[i].value,
-            seatNumber: ticketsAssigned[i].seatNumber
-          },
-          breaks: bundleBreaks.map(b => ({
-            teamName: b.teamName || b.breakName,
-            value: b.breakValue,
-            imageUrl: b.imageUrl,
-            description: b.description,
-            itemType: b.itemType || 'break'
-          }))
-        });
-      }
-
-      // Mark selected card breaks as SOLD
-      await tx.cardBreak.updateMany({
-        where: {
-          id: {
-            in: breaksAssigned.map(b => b.id)
-          }
-        },
-        data: {
-          status: 'SOLD'
         }
       });
 
-      // Calculate total value
+      // Add all special prizes
+      game.specialPrizes.forEach(prize => {
+        for (let i = 0; i < prize.quantity; i++) {
+          inventoryPool.push({
+            type: 'special',
+            id: prize.id,
+            name: prize.name,
+            description: prize.description,
+            value: prize.value,
+            imageUrl: prize.imageUrl,
+            prizeType: prize.prizeType,
+            metadata: prize.metadata
+          });
+        }
+      });
+
+      // Add all card breaks/memorabilia
+      game.cardBreaks.forEach(cardBreak => {
+        inventoryPool.push({
+          type: 'memorabilia',
+          id: cardBreak.id,
+          name: cardBreak.breakName,
+          value: cardBreak.breakValue,
+          imageUrl: cardBreak.imageUrl,
+          description: cardBreak.description,
+          itemType: cardBreak.itemType
+        });
+      });
+
+      // Check if we have enough items for the requested bundles
+      if (inventoryPool.length < quantity * 2) { // Each bundle needs 1 ticket/prize + 1 memorabilia
+        throw new Error(`Not enough inventory available. Need ${quantity * 2} items but only ${inventoryPool.length} available`);
+      }
+
+      // Shuffle the pool for random selection
+      const shuffled = [...inventoryPool].sort(() => Math.random() - 0.5);
+
+      // Create bundles
+      const bundles = [];
+      const itemsToUpdate = {
+        ticketLevels: new Map<string, number>(),
+        specialPrizes: new Map<string, number>(),
+        cardBreaks: [] as string[]
+      };
+
+      for (let i = 0; i < quantity; i++) {
+        // Select a ticket or special prize
+        let ticketItem = null;
+        let ticketIndex = shuffled.findIndex(item => item.type === 'ticket' || item.type === 'special');
+
+        if (ticketIndex !== -1) {
+          ticketItem = shuffled.splice(ticketIndex, 1)[0];
+
+          // Track inventory updates
+          if (ticketItem.type === 'ticket') {
+            itemsToUpdate.ticketLevels.set(
+              ticketItem.id,
+              (itemsToUpdate.ticketLevels.get(ticketItem.id) || 0) + 1
+            );
+          } else if (ticketItem.type === 'special') {
+            itemsToUpdate.specialPrizes.set(
+              ticketItem.id,
+              (itemsToUpdate.specialPrizes.get(ticketItem.id) || 0) + 1
+            );
+          }
+        }
+
+        // Select a memorabilia item
+        let memorabiliaItem = null;
+        let memorabiliaIndex = shuffled.findIndex(item => item.type === 'memorabilia');
+
+        if (memorabiliaIndex !== -1) {
+          memorabiliaItem = shuffled.splice(memorabiliaIndex, 1)[0];
+          itemsToUpdate.cardBreaks.push(memorabiliaItem.id);
+        }
+
+        // Create the bundle
+        if (ticketItem && memorabiliaItem) {
+          bundles.push({
+            ticket: ticketItem.type === 'ticket' ? {
+              level: ticketItem.level,
+              levelName: ticketItem.levelName,
+              value: ticketItem.value,
+              sections: ticketItem.sections,
+              viewImageUrl: ticketItem.viewImageUrl
+            } : {
+              special: true,
+              name: ticketItem.name,
+              description: ticketItem.description,
+              value: ticketItem.value,
+              prizeType: ticketItem.prizeType,
+              imageUrl: ticketItem.imageUrl
+            },
+            memorabilia: {
+              name: memorabiliaItem.name,
+              value: memorabiliaItem.value,
+              imageUrl: memorabiliaItem.imageUrl,
+              description: memorabiliaItem.description
+            }
+          });
+        }
+      }
+
+      if (bundles.length !== quantity) {
+        throw new Error('Unable to create all requested bundles');
+      }
+
+      // Update inventory quantities
+      for (const [levelId, count] of itemsToUpdate.ticketLevels) {
+        await tx.ticketLevel.update({
+          where: { id: levelId },
+          data: { quantity: { decrement: count } }
+        });
+      }
+
+      for (const [prizeId, count] of itemsToUpdate.specialPrizes) {
+        await tx.specialPrize.update({
+          where: { id: prizeId },
+          data: { quantity: { decrement: count } }
+        });
+      }
+
+      // Mark card breaks as sold
+      if (itemsToUpdate.cardBreaks.length > 0) {
+        await tx.cardBreak.updateMany({
+          where: { id: { in: itemsToUpdate.cardBreaks } },
+          data: { status: 'SOLD' }
+        });
+      }
+
+      // Calculate total value and average price
       const totalValue = bundles.reduce((sum, bundle) => {
-        const ticketValue = bundle.ticket.value;
-        const breaksValue = bundle.breaks.reduce((s: number, b: any) => s + b.value, 0);
-        return sum + ticketValue + breaksValue;
+        const ticketValue = bundle.ticket.value || 0;
+        const memorabiliaValue = bundle.memorabilia.value || 0;
+        return sum + ticketValue + memorabiliaValue;
       }, 0);
+
+      // Calculate the price based on average of entire pool
+      const poolTotalValue = inventoryPool.reduce((sum, item) => sum + item.value, 0);
+      const avgPricePerItem = poolTotalValue / inventoryPool.length;
+      const pricePerBundle = avgPricePerItem * 2; // Each bundle has 2 items
 
       // Create SpinResult record
       const spinResult = await tx.spinResult.create({
@@ -178,17 +212,18 @@ export async function POST(req: NextRequest) {
           gameId,
           userId: session.user.id,
           quantity,
-          totalPrice: (game.spinPricePerBundle || 0) * quantity,
+          totalPrice: pricePerBundle * quantity,
           totalValue,
-          adjacentSeats: preferAdjacent && ticketsAssigned.every(t => t.groupId === ticketsAssigned[0].groupId),
+          paidAt: new Date(), // Temporarily mark as paid until Stripe integration
+          adjacentSeats: false, // Not applicable in level-based system
           bundles: {
             create: bundles.map(bundle => ({
-              ticketSection: bundle.ticket.section,
-              ticketRow: bundle.ticket.row,
+              ticketSection: bundle.ticket.level || bundle.ticket.name || '',
+              ticketRow: bundle.ticket.levelName || bundle.ticket.prizeType || '',
               ticketValue: bundle.ticket.value,
               ticketQuantity: 1,
-              breaks: bundle.breaks,
-              bundleValue: bundle.ticket.value + bundle.breaks.reduce((s: number, b: any) => s + b.value, 0)
+              breaks: [bundle.memorabilia],
+              bundleValue: bundle.ticket.value + bundle.memorabilia.value
             }))
           }
         },
@@ -202,17 +237,18 @@ export async function POST(req: NextRequest) {
         quantity,
         bundles,
         totalValue,
-        adjacentSeats: spinResult.adjacentSeats,
-        spinId: spinResult.id
+        totalPrice: pricePerBundle * quantity,
+        spinId: spinResult.id,
+        averagePoolValue: avgPricePerItem
       };
     });
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Spin error:', error);
+    console.error('Jump error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to process spin',
+        error: 'Failed to process jump',
         message: error.message || 'Unknown error'
       },
       { status: 500 }

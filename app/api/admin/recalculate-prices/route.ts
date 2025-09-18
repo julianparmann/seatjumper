@@ -1,52 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { calculateBundlePricing } from '@/lib/pricing';
 
 export async function POST(req: NextRequest) {
   try {
-    // Fetch all games with their ticket groups
+    // Fetch all games with their ticket groups, levels, prizes, and card breaks
     const games = await prisma.dailyGame.findMany({
       include: {
-        ticketGroups: true
+        ticketGroups: true,
+        ticketLevels: true,
+        specialPrizes: true,
+        cardBreaks: true
       }
     });
 
     const updates = [];
 
     for (const game of games) {
-      // Calculate weighted average ticket price
-      let avgTicketPrice = 0;
+      // Calculate pricing based on available inventory only
+      const pricing = calculateBundlePricing(
+        game.ticketGroups,
+        game.cardBreaks,
+        30, // 30% margin
+        game.ticketLevels,
+        game.specialPrizes
+      );
 
-      if (game.ticketGroups.length > 0) {
-        const totalValue = game.ticketGroups.reduce((sum, group) => {
-          return sum + (group.pricePerSeat * group.quantity);
-        }, 0);
-
-        const totalTickets = game.ticketGroups.reduce((sum, group) => {
-          return sum + group.quantity;
-        }, 0);
-
-        avgTicketPrice = totalTickets > 0 ? totalValue / totalTickets : 0;
-      }
-
-      // Calculate spin price with 35% margin
-      const spinPricePerBundle = avgTicketPrice * 1.35;
-
-      // Update the game
+      // Update the game with new pricing
       const updated = await prisma.dailyGame.update({
         where: { id: game.id },
         data: {
-          avgTicketPrice,
-          spinPricePerBundle
+          avgTicketPrice: pricing.avgTicketPrice,
+          avgBreakValue: pricing.avgBreakValue,
+          spinPricePerBundle: pricing.spinPricePerBundle
         }
       });
 
       updates.push({
         gameId: game.id,
         eventName: game.eventName,
-        oldAvgPrice: game.avgTicketPrice,
-        newAvgPrice: avgTicketPrice,
+        oldAvgTicketPrice: game.avgTicketPrice,
+        newAvgTicketPrice: pricing.avgTicketPrice,
+        oldAvgBreakValue: game.avgBreakValue,
+        newAvgBreakValue: pricing.avgBreakValue,
         oldSpinPrice: game.spinPricePerBundle,
-        newSpinPrice: spinPricePerBundle
+        newSpinPrice: pricing.spinPricePerBundle,
+        availableTickets: pricing.availableTickets,
+        availableBreaks: pricing.availableBreaks
       });
     }
 

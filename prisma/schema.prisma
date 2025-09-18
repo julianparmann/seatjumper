@@ -191,28 +191,30 @@ model AdminAuditLog {
 }
 
 model DailyGame {
-  id                 String        @id @default(cuid())
+  id                 String         @id @default(cuid())
   eventName          String
   eventDate          DateTime
   venue              String
   city               String
   state              String
   sport              Sport
-  stadiumId          String?
-  isActive           Boolean       @default(false)
-  maxEntries         Int           @default(100)
-  currentEntries     Int           @default(0)
-  status             GameStatus    @default(DRAFT)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  isActive           Boolean        @default(false)
+  maxEntries         Int            @default(100)
+  currentEntries     Int            @default(0)
+  status             GameStatus     @default(DRAFT)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   avgBreakValue      Float?
   avgTicketPrice     Float?
   spinPricePerBundle Float?
-  stadium            Stadium?      @relation(fields: [stadiumId], references: [id])
+  stadiumId          String?
   cardBreaks         CardBreak[]
+  stadium            Stadium?       @relation(fields: [stadiumId], references: [id])
   entries            GameEntry[]
   spinResults        SpinResult[]
   ticketGroups       TicketGroup[]
+  ticketLevels       TicketLevel[]
+  specialPrizes      SpecialPrize[]
 }
 
 model TicketGroup {
@@ -226,30 +228,31 @@ model TicketGroup {
   notes        String?
   createdAt    DateTime     @default(now())
   quantity     Int
+  seatViewUrl  String?
   game         DailyGame    @relation(fields: [gameId], references: [id], onDelete: Cascade)
 }
 
 model CardBreak {
-  id            String            @id @default(cuid())
+  id            String      @id @default(cuid())
   gameId        String
   breakName     String
   breakValue    Float
   breakDateTime DateTime
   streamUrl     String?
   breaker       String
-  status        BreakStatus       @default(AVAILABLE)
-  createdAt     DateTime          @default(now())
+  status        BreakStatus @default(AVAILABLE)
+  createdAt     DateTime    @default(now())
   breakType     String?
   scrapedAt     DateTime?
   sourceUrl     String?
   spotPrice     Float?
   teamName      String?
-  // New fields for memorabilia
-  itemType      String?           @default("break") // "break" or "memorabilia"
-  imageUrl      String?           // Image URL for memorabilia items
-  description   String?           // Description of the memorabilia item
-  category      String?           // Category of memorabilia (e.g., "autograph", "card", "jersey")
-  game          DailyGame         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  category      String?
+  description   String?
+  imageUrl      String?
+  itemType      String?     @default("break")
+  quantity      Int         @default(1)
+  game          DailyGame   @relation(fields: [gameId], references: [id], onDelete: Cascade)
 }
 
 model GameEntry {
@@ -267,56 +270,92 @@ model GameEntry {
 }
 
 model SpinResult {
-  id              String            @id @default(cuid())
-  gameId          String
-  userId          String
-  quantity        Int               // Number of bundles purchased
-  totalPrice      Float
-  totalValue      Float             // Total value of winnings
-  adjacentSeats   Boolean           @default(false)
-  paymentIntentId String?
-  paidAt          DateTime?
-  createdAt       DateTime          @default(now())
-  game            DailyGame         @relation(fields: [gameId], references: [id])
-  user            User              @relation(fields: [userId], references: [id])
-  bundles         SpinBundle[]
+  id                    String       @id @default(cuid())
+  gameId                String
+  userId                String
+  totalPrice            Float
+  paymentIntentId       String?
+  paidAt                DateTime?
+  createdAt             DateTime     @default(now())
+  adjacentSeats         Boolean      @default(false)
+  quantity              Int
+  totalValue            Float
+  ticketsTransferred    Boolean      @default(false)
+  ticketsTransferredAt  DateTime?
+  memorabiliaShipped    Boolean      @default(false)
+  memorabiliaShippedAt  DateTime?
+  trackingNumber        String?
+  shippingCarrier       String?
+  bundles               SpinBundle[]
+  game                  DailyGame    @relation(fields: [gameId], references: [id])
+  user                  User         @relation(fields: [userId], references: [id])
 }
 
 model SpinBundle {
-  id             String      @id @default(cuid())
+  id             String     @id @default(cuid())
   spinResultId   String
   ticketSection  String
   ticketRow      String
   ticketValue    Float
-  ticketQuantity Int         @default(1)
-  breaks         Json        // Array of {teamName, value}
-  bundleValue    Float       // Total value of this bundle
-  spinResult     SpinResult  @relation(fields: [spinResultId], references: [id], onDelete: Cascade)
+  ticketQuantity Int        @default(1)
+  breaks         Json
+  bundleValue    Float
+  spinResult     SpinResult @relation(fields: [spinResultId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  source    String    @default("landing")
+  id        String     @id @default(cuid())
+  email     String     @unique
+  source    String     @default("landing")
   status    LeadStatus @default(PENDING)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Stadium {
-  id                String      @id @default(cuid())
-  name              String      @unique
-  displayName       String
-  city              String
-  state             String
-  imagePath         String
-  imageWidth        Int
-  imageHeight       Int
-  sectionConfig     Json        // Stores precise coordinate mapping for sections
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  games             DailyGame[]
+  id            String      @id @default(cuid())
+  name          String      @unique
+  displayName   String
+  city          String
+  state         String
+  imagePath     String
+  imageWidth    Int
+  imageHeight   Int
+  sectionConfig Json
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  games         DailyGame[]
+}
+
+model TicketLevel {
+  id           String    @id @default(cuid())
+  gameId       String
+  level        String    // "100", "200", "300", "400", "FLOOR"
+  levelName    String    // "Lower Bowl", "Club Level", "Upper Deck"
+  quantity     Int       // Total tickets available at this level
+  pricePerSeat Float     // Price for tickets in this level
+  viewImageUrl String?   // Representative view image for this level
+  sections     String[]  // List of sections in this level
+  isSelectable Boolean   @default(true) // Can users filter this level?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  game         DailyGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model SpecialPrize {
+  id          String    @id @default(cuid())
+  gameId      String
+  name        String    // "Front Row Seats", "Backstage Pass", "VIP Box"
+  description String    // Detailed description of the prize
+  value       Float     // Value for pricing calculations
+  quantity    Int       // How many of this prize available
+  imageUrl    String?   // Image of the prize
+  prizeType   String    // "TICKET", "EXPERIENCE", "VIP"
+  metadata    Json?     // Extra data like specific section/row for special seats
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  game        DailyGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
 }
 
 enum Sport {

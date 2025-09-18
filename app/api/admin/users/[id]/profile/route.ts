@@ -44,7 +44,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
                 eventDate: true,
                 venue: true,
                 city: true,
-                state: true
+                state: true,
+                spinPricePerBundle: true
               }
             },
             bundles: true
@@ -90,9 +91,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       city: result.game.city,
       state: result.game.state,
       quantity: result.quantity,
-      totalPrice: result.totalPrice,
+      jumpPrice: (result.game.spinPricePerBundle || 0) * result.quantity, // Use actual jump price
+      totalPrice: result.totalPrice, // Keep for backward compatibility
       totalValue: result.totalValue,
       createdAt: result.createdAt,
+      ticketsTransferred: result.ticketsTransferred,
+      ticketsTransferredAt: result.ticketsTransferredAt,
+      memorabiliaShipped: result.memorabiliaShipped,
+      memorabiliaShippedAt: result.memorabiliaShippedAt,
+      trackingNumber: result.trackingNumber,
+      shippingCarrier: result.shippingCarrier,
       bundles: result.bundles
     }));
 

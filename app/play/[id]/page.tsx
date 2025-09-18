@@ -3,16 +3,29 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Calendar, MapPin, Ticket, Package, Loader2, DollarSign, LogIn } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Package, Loader2, DollarSign, LogIn, Filter, Check, X } from 'lucide-react';
 import AllegiantStadiumAnimation from '@/components/jumps/AllegiantStadiumAnimation';
 import Link from 'next/link';
 
-interface TicketGroup {
+interface TicketLevel {
   id: string;
-  section: string;
-  row: string;
+  level: string;
+  levelName: string;
   quantity: number;
   pricePerSeat: number;
+  viewImageUrl?: string;
+  sections: string[];
+  isSelectable: boolean;
+}
+
+interface SpecialPrize {
+  id: string;
+  name: string;
+  description: string;
+  value: number;
+  quantity: number;
+  imageUrl?: string;
+  prizeType: string;
 }
 
 interface CardBreak {
@@ -37,8 +50,20 @@ interface Game {
   avgTicketPrice: number;
   avgBreakValue: number;
   spinPricePerBundle: number;
-  ticketGroups: TicketGroup[];
+  ticketGroups?: any[];
+  ticketLevels: TicketLevel[];
+  specialPrizes: SpecialPrize[];
   cardBreaks: CardBreak[];
+  stadium?: {
+    id: string;
+    name: string;
+    city: string;
+    state: string;
+    footballImage?: string;
+    concertImage?: string;
+    basketballImage?: string;
+    configurations?: any;
+  };
 }
 
 export default function PlayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -51,8 +76,23 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
   const [jumpResult, setJumpResult] = useState<any>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [bundleQuantity, setBundleQuantity] = useState(1);
-  const [adjacentWarning, setAdjacentWarning] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [modalImage, setModalImage] = useState<{ url: string; alt: string } | null>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: ''
+  });
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGame();
@@ -64,6 +104,17 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       if (res.ok) {
         const data = await res.json();
         setGame(data);
+        // Initialize selected levels with all selectable levels
+        if (data.ticketLevels) {
+          const selectableLevels = data.ticketLevels
+            .filter((level: TicketLevel) => level.isSelectable && level.quantity > 0)
+            .map((level: TicketLevel) => level.level);
+          setSelectedLevels(selectableLevels);
+        }
+        // Use pre-calculated price if available
+        if (data.spinPricePerBundle) {
+          setCalculatedPrice(data.spinPricePerBundle);
+        }
       } else {
         router.push('/events');
       }
@@ -75,47 +126,87 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  // Calculate pool value based on selected levels
+  useEffect(() => {
+    if (!game) return;
+
+    // Check if user has customized level selection
+    const allSelectableLevels = game.ticketLevels
+      .filter((level: TicketLevel) => level.isSelectable && level.quantity > 0)
+      .map((level: TicketLevel) => level.level);
+
+    const isDefaultSelection = selectedLevels.length === allSelectableLevels.length &&
+      selectedLevels.every(level => allSelectableLevels.includes(level));
+
+    // If using default selection and we have a pre-calculated price, use it
+    if (game.spinPricePerBundle && isDefaultSelection) {
+      setCalculatedPrice(game.spinPricePerBundle);
+      return;
+    }
+
+    // Otherwise recalculate based on selected levels
+    let totalValue = 0;
+    let totalItems = 0;
+
+    // Add selected ticket levels to calculation
+    game.ticketLevels
+      .filter(level => selectedLevels.includes(level.level))
+      .forEach(level => {
+        totalValue += level.pricePerSeat * level.quantity;
+        totalItems += level.quantity;
+      });
+
+    // ALWAYS add all special prizes (they're always in the pool regardless of level selection)
+    game.specialPrizes.forEach(prize => {
+      totalValue += prize.value * prize.quantity;
+      totalItems += prize.quantity;
+    });
+
+    // Add all memorabilia
+    game.cardBreaks
+      .filter(cb => cb.status === 'AVAILABLE')
+      .forEach(cb => {
+        totalValue += cb.breakValue || 0;
+        totalItems += 1;
+      });
+
+    // Calculate price per bundle (2 items per bundle)
+    const avgPricePerItem = totalItems > 0 ? totalValue / totalItems : 0;
+    const pricePerBundle = avgPricePerItem * 2 * 1.3; // Apply 30% margin like in pricing.ts
+    setCalculatedPrice(pricePerBundle);
+  }, [game, selectedLevels]);
+
   const calculateAvailableBundles = () => {
     if (!game) return 0;
 
-    // Calculate based on available inventory
-    const availableTickets = game.ticketGroups.reduce((sum, group) => sum + group.quantity, 0);
+    // Calculate based on available inventory in selected levels
+    const selectedTickets = game.ticketLevels
+      .filter(level => selectedLevels.includes(level.level))
+      .reduce((sum, level) => sum + level.quantity, 0);
+
+    const totalSpecialPrizes = game.specialPrizes.reduce((sum, prize) => sum + prize.quantity, 0);
+    const totalTicketsAndPrizes = selectedTickets + totalSpecialPrizes;
+
     const availableBreaks = game.cardBreaks.filter(cb => cb.status === 'AVAILABLE').length;
 
-    // A bundle needs at least 1 ticket and some breaks
-    // Assuming we need at least 1 break per bundle
-    return Math.min(availableTickets, Math.floor(availableBreaks / 1));
+    // Each bundle needs 1 ticket/prize + 1 memorabilia
+    return Math.min(totalTicketsAndPrizes, availableBreaks);
+  };
+
+  const toggleLevel = (level: string) => {
+    setSelectedLevels(prev => {
+      if (prev.includes(level)) {
+        // Don't allow deselecting all levels
+        if (prev.length === 1) return prev;
+        return prev.filter(l => l !== level);
+      } else {
+        return [...prev, level];
+      }
+    });
   };
 
   const [showAnimation, setShowAnimation] = useState(false);
   const [animationResult, setAnimationResult] = useState<any>(null);
-
-  const checkAdjacentSeats = (quantity: number) => {
-    if (!game || quantity === 1) {
-      setAdjacentWarning(null);
-      return true;
-    }
-
-    // Check if any ticket group has enough adjacent seats
-    const hasAdjacentSeats = game.ticketGroups.some(group => group.quantity >= quantity);
-
-    if (!hasAdjacentSeats) {
-      const maxAdjacent = Math.max(...game.ticketGroups.map(g => g.quantity));
-      if (maxAdjacent > 1) {
-        setAdjacentWarning(`Maximum adjacent seats available: ${maxAdjacent}. Your seats may not be together.`);
-      } else {
-        setAdjacentWarning('No adjacent seats available. Each ticket will be in a different location.');
-      }
-      return false;
-    }
-
-    setAdjacentWarning(null);
-    return true;
-  };
-
-  useEffect(() => {
-    checkAdjacentSeats(bundleQuantity);
-  }, [bundleQuantity, game]);
 
   const handlePayAndJump = async () => {
     // Check if user is authenticated
@@ -124,15 +215,59 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       return;
     }
 
-    // For now, simulate the payment and go straight to jump
-    // When Stripe is ready, this will handle the actual payment
-    setShowPayment(true);
+    // Fetch saved addresses if not already loaded
+    if (savedAddresses.length === 0 && session?.user?.email) {
+      try {
+        const res = await fetch('/api/user/addresses');
+        if (res.ok) {
+          const addresses = await res.json();
+          setSavedAddresses(addresses);
+          if (addresses.length > 0) {
+            setSelectedAddressId(addresses[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+      }
+    }
 
-    // Simulate payment processing
-    setTimeout(() => {
-      setShowPayment(false);
-      handleJump();
-    }, 1500);
+    // Show address modal first
+    setShowAddressModal(true);
+  };
+
+  const handleAddressSubmit = async () => {
+    // Validate address
+    if (selectedAddressId || (
+      shippingAddress.fullName &&
+      shippingAddress.addressLine1 &&
+      shippingAddress.city &&
+      shippingAddress.state &&
+      shippingAddress.zipCode
+    )) {
+      setShowAddressModal(false);
+      setShowPayment(true);
+
+      // Save address if it's a new one
+      if (!selectedAddressId && session?.user?.email) {
+        try {
+          await fetch('/api/user/addresses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(shippingAddress)
+          });
+        } catch (error) {
+          console.error('Error saving address:', error);
+        }
+      }
+
+      // Simulate payment processing
+      setTimeout(() => {
+        setShowPayment(false);
+        handleJump();
+      }, 1500);
+    } else {
+      alert('Please complete all required fields');
+    }
   };
 
   const handleJump = async () => {
@@ -146,7 +281,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
         body: JSON.stringify({
           gameId: id,
           quantity: bundleQuantity,
-          preferAdjacent: !adjacentWarning
+          selectedLevels
         })
       });
 
@@ -224,9 +359,54 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
             </div>
             <div className="text-right">
               <div className="text-yellow-400 text-sm font-semibold mb-1">Jump Price</div>
-              <div className="text-white text-4xl font-bold">${game.spinPricePerBundle.toFixed(2)}</div>
+              <div className="text-white text-4xl font-bold">${calculatedPrice.toFixed(2)}</div>
+              <div className="text-gray-400 text-xs mt-1">per bundle</div>
             </div>
           </div>
+
+          {/* Level Filter Section */}
+          {game.ticketLevels && game.ticketLevels.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 text-yellow-400 hover:text-yellow-300 mb-3"
+              >
+                <Filter className="w-5 h-5" />
+                <span className="font-semibold">Customize Risk Profile</span>
+              </button>
+
+              {showFilters && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <p className="text-gray-300 text-sm mb-3">
+                    Select which ticket levels to include in your jump pool. Deselecting levels changes your risk/reward ratio.
+                  </p>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {game.ticketLevels.filter(level => level.quantity > 0).map(level => (
+                      <button
+                        key={level.id}
+                        onClick={() => toggleLevel(level.level)}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          selectedLevels.includes(level.level)
+                            ? 'border-yellow-400 bg-yellow-400/20 text-white'
+                            : 'border-white/20 bg-white/5 text-gray-400 hover:border-white/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold">{level.levelName}</span>
+                          {selectedLevels.includes(level.level) && <Check className="w-4 h-4 text-yellow-400" />}
+                        </div>
+                        <div className="text-sm">
+                          <p>Level {level.level}</p>
+                          <p>${level.pricePerSeat}/seat</p>
+                          <p className="text-xs opacity-75">{level.quantity} available</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Inventory Status */}
           <div className="grid md:grid-cols-3 gap-6 mb-6">
@@ -242,13 +422,17 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
             <div className="bg-white/5 rounded-lg p-4">
               <div className="flex items-center gap-2 text-blue-400 mb-2">
                 <Ticket className="w-5 h-5" />
-                <span className="font-semibold">Ticket Inventory</span>
+                <span className="font-semibold">Ticket Pool</span>
               </div>
               <div className="text-white text-2xl font-bold">
-                {game.ticketGroups.reduce((sum, g) => sum + g.quantity, 0)} tickets
+                {game.ticketLevels
+                  .filter(level => selectedLevels.includes(level.level))
+                  .reduce((sum, level) => sum + level.quantity, 0)} tickets
               </div>
               <div className="text-gray-400 text-sm mt-1">
-                Avg value: ${game.avgTicketPrice?.toFixed(2) || '0.00'}
+                {game.specialPrizes.length > 0 && (
+                  <span>+ {game.specialPrizes.reduce((sum, p) => sum + p.quantity, 0)} special prizes</span>
+                )}
               </div>
             </div>
 
@@ -266,16 +450,47 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
             </div>
           </div>
 
+          {/* Special Prizes Display */}
+          {game.specialPrizes && game.specialPrizes.length > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
+              <h3 className="text-yellow-400 font-bold mb-3">🌟 Special Prizes Available!</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {game.specialPrizes.map(prize => (
+                  <div key={prize.id} className="flex items-start gap-3 bg-black/20 rounded-lg p-2">
+                    {prize.imageUrl && (
+                      <img
+                        src={prize.imageUrl}
+                        alt={prize.name}
+                        className="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setModalImage({ url: prize.imageUrl!, alt: prize.name })}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-white font-semibold text-sm">{prize.name}</p>
+                      <p className="text-gray-400 text-xs">({prize.quantity}x)</p>
+                      {prize.description && (
+                        <p className="text-gray-500 text-xs mt-1">{prize.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Animation */}
           {showAnimation && animationResult && (
             <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
               <AllegiantStadiumAnimation
-                targetSection={animationResult.bundles ? animationResult.bundles[0].ticket.section : animationResult.ticket.section}
-                targetRow={animationResult.bundles ? animationResult.bundles[0].ticket.row : animationResult.ticket.row}
-                targetSeats={animationResult.bundles ? animationResult.bundles[0].ticket.seats : animationResult.ticket.seats}
-                cardBreak={animationResult.bundles ? animationResult.bundles[0].breaks?.[0] : animationResult.breaks?.[0]}
+                targetSection={animationResult.bundles?.[0]?.ticket?.level || animationResult.bundles?.[0]?.ticket?.name || ''}
+                targetRow={animationResult.bundles?.[0]?.ticket?.levelName || ''}
+                targetSeats={[]}
+                cardBreak={animationResult.bundles?.[0]?.memorabilia}
+                seatViewUrl={animationResult.bundles?.[0]?.ticket?.viewImageUrl || animationResult.bundles?.[0]?.ticket?.imageUrl}
                 onComplete={onAnimationComplete}
                 isAnimating={showAnimation}
+                stadium={game.stadium}
+                venueName={game.venue}
               />
             </div>
           )}
@@ -315,23 +530,16 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                       </button>
                     </div>
 
-                    {/* Adjacent Seats Warning */}
-                    {adjacentWarning && (
-                      <div className="bg-yellow-500/20 border border-yellow-500 rounded p-3 mb-4">
-                        <p className="text-yellow-300 text-sm">⚠️ {adjacentWarning}</p>
-                      </div>
-                    )}
-
                     {/* Total Price Display */}
                     <div className="border-t border-white/20 pt-4">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-400">Price per bundle:</span>
-                        <span className="text-white">${game.spinPricePerBundle.toFixed(2)}</span>
+                        <span className="text-white">${calculatedPrice.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400 font-semibold">Total:</span>
                         <span className="text-yellow-400 text-2xl font-bold">
-                          ${(game.spinPricePerBundle * bundleQuantity).toFixed(2)}
+                          ${(calculatedPrice * bundleQuantity).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -339,7 +547,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
 
                   <button
                     onClick={handlePayAndJump}
-                    disabled={jumping || showPayment}
+                    disabled={jumping || showPayment || selectedLevels.length === 0}
                     className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black px-12 py-4 rounded-lg font-bold text-xl disabled:opacity-50 flex items-center gap-3 mx-auto"
                   >
                     {showPayment ? (
@@ -350,7 +558,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                     ) : (
                       <>
                         <DollarSign className="w-6 h-6" />
-                        Pay ${(game.spinPricePerBundle * bundleQuantity).toFixed(2)} & Jump
+                        Pay ${(calculatedPrice * bundleQuantity).toFixed(2)} & Jump
                       </>
                     )}
                   </button>
@@ -364,98 +572,78 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                   <div className="text-white space-y-3">
                     <p className="text-lg">
                       You won {jumpResult.quantity} bundle{jumpResult.quantity > 1 ? 's' : ''}!
-                      {jumpResult.adjacentSeats && jumpResult.quantity > 1 && (
-                        <span className="text-yellow-400 ml-2">✨ Adjacent seats!</span>
-                      )}
                     </p>
 
-                    {jumpResult.bundles ? (
-                      // Multiple bundles
-                      jumpResult.bundles.map((bundle: any, bundleIdx: number) => (
-                        <div key={bundleIdx} className="bg-white/10 rounded p-3">
-                          <p className="font-semibold text-yellow-400 mb-2">Bundle {bundleIdx + 1}:</p>
+                    {jumpResult.bundles && jumpResult.bundles.map((bundle: any, bundleIdx: number) => (
+                      <div key={bundleIdx} className="bg-white/10 rounded p-3">
+                        <p className="font-semibold text-yellow-400 mb-2">Bundle {bundleIdx + 1}:</p>
 
-                          <div className="ml-4 space-y-2">
-                            <div>
-                              <p className="font-semibold">🎟️ Ticket:</p>
-                              <p>Section {bundle.ticket.section}, Row {bundle.ticket.row}</p>
-                              <p className="text-sm text-gray-300">Value: ${bundle.ticket.value}</p>
-                            </div>
-
-                            {bundle.breaks && bundle.breaks.length > 0 && (
-                              <div>
-                                <p className="font-semibold">🎁 Memorabilia:</p>
-                                <div className="space-y-2 mt-2">
-                                  {bundle.breaks.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-2">
-                                      {item.imageUrl && (
-                                        <img
-                                          src={item.imageUrl}
-                                          alt={item.teamName}
-                                          className="w-16 h-16 object-cover rounded"
-                                        />
-                                      )}
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium">{item.teamName}</p>
-                                        <p className="text-xs text-gray-400">${item.value}</p>
-                                        {item.description && (
-                                          <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      // Single bundle (backwards compatibility)
-                      <>
-                        {jumpResult.ticket && (
-                          <div className="bg-white/10 rounded p-3">
-                            <p className="font-semibold">🎟️ Ticket:</p>
-                            <p>Section {jumpResult.ticket.section}, Row {jumpResult.ticket.row}</p>
-                            <p className="text-sm text-gray-300">Value: ${jumpResult.ticket.value}</p>
-                          </div>
-                        )}
-                        {jumpResult.breaks && jumpResult.breaks.length > 0 && (
-                          <div className="bg-white/10 rounded p-3">
-                            <p className="font-semibold">🎁 Memorabilia:</p>
-                            <div className="space-y-2 mt-2">
-                              {jumpResult.breaks.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-start gap-2">
-                                  {item.imageUrl && (
+                        <div className="ml-4 space-y-4">
+                          <div>
+                            {bundle.ticket.special ? (
+                              <>
+                                <p className="font-semibold mb-2">🌟 Special Prize:</p>
+                                <div className="flex items-start gap-3">
+                                  {bundle.ticket.imageUrl && (
                                     <img
-                                      src={item.imageUrl}
-                                      alt={item.teamName}
-                                      className="w-16 h-16 object-cover rounded"
+                                      src={bundle.ticket.imageUrl}
+                                      alt={bundle.ticket.name}
+                                      className="w-24 h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => setModalImage({ url: bundle.ticket.imageUrl!, alt: bundle.ticket.name })}
                                     />
                                   )}
                                   <div className="flex-1">
-                                    <p className="text-sm font-medium">{item.teamName}</p>
-                                    <p className="text-xs text-gray-400">${item.value}</p>
-                                    {item.description && (
-                                      <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                                    )}
+                                    <p className="text-lg font-medium">{bundle.ticket.name}</p>
+                                    <p className="text-sm text-gray-300 mt-1">{bundle.ticket.description}</p>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-semibold mb-2">🎟️ Ticket:</p>
+                                <div className="flex items-start gap-3">
+                                  {bundle.ticket.viewImageUrl && (
+                                    <img
+                                      src={bundle.ticket.viewImageUrl}
+                                      alt={`${bundle.ticket.levelName} view`}
+                                      className="w-24 h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => setModalImage({ url: bundle.ticket.viewImageUrl!, alt: `${bundle.ticket.levelName} view` })}
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="text-lg font-medium">{bundle.ticket.levelName}</p>
+                                    <p className="text-sm text-gray-300">Level {bundle.ticket.level}</p>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </>
-                    )}
 
-                    <div className="border-t border-white/20 pt-4 mt-4">
-                      <p className="text-2xl font-bold text-yellow-400">
-                        Total Value: ${jumpResult.totalValue.toFixed(2)}
-                      </p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        You paid: ${(game.spinPricePerBundle * (jumpResult.quantity || 1)).toFixed(2)}
-                      </p>
-                    </div>
+                          {bundle.memorabilia && (
+                            <div>
+                              <p className="font-semibold mb-2">🎁 Memorabilia:</p>
+                              <div className="flex items-start gap-3">
+                                {bundle.memorabilia.imageUrl && (
+                                  <img
+                                    src={bundle.memorabilia.imageUrl}
+                                    alt={bundle.memorabilia.name}
+                                    className="w-24 h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => setModalImage({ url: bundle.memorabilia.imageUrl!, alt: bundle.memorabilia.name })}
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <p className="text-lg font-medium">{bundle.memorabilia.name}</p>
+                                  {bundle.memorabilia.description && (
+                                    <p className="text-sm text-gray-300 mt-1">{bundle.memorabilia.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
                   </div>
                   <button
                     onClick={() => window.location.reload()}
@@ -474,19 +662,179 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
           )}
         </div>
 
-        {/* Jump Wheel Component - Commented out until MultiStageJump is created */}
-        {/* {jumping && !jumpResult && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8">
-              <MultiStageJump
-                onJumpComplete={(result) => {
-                  // This would be populated by the API response
-                  console.log('Jump complete:', result);
-                }}
-              />
+        {/* Address Modal */}
+        {showAddressModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+            <div className="bg-gray-900 rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold text-white mb-6">Shipping Information</h3>
+              <p className="text-gray-400 mb-6">
+                Please provide your shipping address for memorabilia delivery
+              </p>
+
+              {/* Saved Addresses */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-white mb-3">Select a saved address:</h4>
+                  <div className="space-y-2">
+                    {savedAddresses.map(addr => (
+                      <label
+                        key={addr.id}
+                        className="flex items-start gap-3 p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700"
+                      >
+                        <input
+                          type="radio"
+                          name="address"
+                          value={addr.id}
+                          checked={selectedAddressId === addr.id}
+                          onChange={() => setSelectedAddressId(addr.id)}
+                          className="mt-1"
+                        />
+                        <div className="text-sm text-gray-300">
+                          <p className="font-semibold">{addr.fullName}</p>
+                          <p>{addr.addressLine1}</p>
+                          {addr.addressLine2 && <p>{addr.addressLine2}</p>}
+                          <p>{addr.city}, {addr.state} {addr.zipCode}</p>
+                          {addr.phone && <p>Phone: {addr.phone}</p>}
+                        </div>
+                      </label>
+                    ))}
+                    <label
+                      className="flex items-start gap-3 p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700"
+                    >
+                      <input
+                        type="radio"
+                        name="address"
+                        value="new"
+                        checked={selectedAddressId === null}
+                        onChange={() => setSelectedAddressId(null)}
+                        className="mt-1"
+                      />
+                      <div className="text-sm text-gray-300 font-semibold">
+                        Add a new address
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* New Address Form */}
+              {(savedAddresses.length === 0 || selectedAddressId === null) && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingAddress.fullName}
+                      onChange={(e) => setShippingAddress({...shippingAddress, fullName: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                      placeholder="John Doe"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Address Line 1 *
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingAddress.addressLine1}
+                      onChange={(e) => setShippingAddress({...shippingAddress, addressLine1: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                      placeholder="123 Main St"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Address Line 2 (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingAddress.addressLine2}
+                      onChange={(e) => setShippingAddress({...shippingAddress, addressLine2: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                      placeholder="Apt 4B"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        City *
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingAddress.city}
+                        onChange={(e) => setShippingAddress({...shippingAddress, city: e.target.value})}
+                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                        placeholder="New York"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        State *
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingAddress.state}
+                        onChange={(e) => setShippingAddress({...shippingAddress, state: e.target.value})}
+                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                        placeholder="NY"
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        ZIP Code *
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingAddress.zipCode}
+                        onChange={(e) => setShippingAddress({...shippingAddress, zipCode: e.target.value})}
+                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                        placeholder="10001"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        Phone (Optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={shippingAddress.phone}
+                        onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
+                        className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowAddressModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-700 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddressSubmit}
+                  className="flex-1 px-4 py-3 bg-yellow-400 text-gray-900 rounded-lg font-semibold hover:bg-yellow-300 transition-colors"
+                >
+                  Continue to Payment
+                </button>
+              </div>
             </div>
           </div>
-        )} */}
+        )}
 
         {/* Login Prompt Modal */}
         {showLoginPrompt && (
@@ -520,6 +868,31 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Modal */}
+        {modalImage && (
+          <div
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4"
+            onClick={() => setModalImage(null)}
+          >
+            <div className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center">
+              <img
+                src={modalImage.url}
+                alt={modalImage.alt}
+                className="max-w-full max-h-full object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={() => setModalImage(null)}
+                className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
         )}

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { gameId, section, row, quantity, pricePerSeat, status, notes } = body;
+    const { gameId, section, row, quantity, pricePerSeat, status, notes, seatViewUrl } = body;
 
     const ticketGroup = await prisma.ticketGroup.create({
       data: {
@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
         quantity: quantity || 1,
         pricePerSeat: pricePerSeat || 0,
         status: status || 'AVAILABLE',
-        notes
+        notes,
+        seatViewUrl
       }
     });
 

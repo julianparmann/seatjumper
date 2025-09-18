@@ -1,295 +1,183 @@
-'use client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { redirect } from 'next/navigation';
+import AdminDashboardClient from './AdminDashboardClient';
 
-import { useState, useEffect } from 'react';
-import {
-  Users,
-  DollarSign,
-  ShoppingCart,
-  TrendingUp,
-  Calendar,
-  Package,
-  Activity,
-  CreditCard
-} from 'lucide-react';
+async function getAdminStats() {
+  try {
+    // Calculate date ranges
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalRevenue: number;
-  pendingOrders: number;
-  totalGames: number;
-  totalJumps: number;
-  revenueGrowth: number;
-  userGrowth: number;
-  recentUsers: Array<{
-    id: string;
-    name: string;
-    email: string;
-    createdAt: string;
-    totalSpent: number;
-  }>;
-  recentOrders: Array<{
-    id: string;
-    userName: string;
-    amount: number;
-    status: string;
-    createdAt: string;
-  }>;
+    // Fetch all statistics in parallel
+    const [
+      totalUsers,
+      activeUsers,
+      totalRevenue,
+      pendingOrders,
+      totalGames,
+      totalJumps,
+      recentUsers,
+      recentOrders,
+      lastMonthUsers,
+      thisMonthUsers,
+      lastMonthRevenue,
+      thisMonthRevenue
+    ] = await Promise.all([
+      // Total users
+      prisma.user.count(),
+
+      // Active users (logged in within 30 days)
+      prisma.user.count({
+        where: {
+          OR: [
+            { sessions: { some: { expires: { gte: thirtyDaysAgo } } } },
+            { spinResults: { some: { createdAt: { gte: thirtyDaysAgo } } } }
+          ]
+        }
+      }),
+
+      // Total revenue (sum of all spin results - temporarily counting all as paid)
+      prisma.spinResult.aggregate({
+        _sum: { totalPrice: true }
+      }),
+
+      // Pending orders - count all SpinResults since payment isn't implemented yet
+      prisma.spinResult.count(),
+
+      // Total games
+      prisma.dailyGame.count({
+        where: { status: { in: ['ACTIVE', 'DRAFT'] } }
+      }),
+
+      // Total jumps (spin results)
+      prisma.spinResult.count(),
+
+      // Recent users with spending
+      prisma.user.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          spinResults: {
+            select: { totalPrice: true }
+          }
+        }
+      }),
+
+      // Recent orders
+      prisma.spinResult.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: { name: true, email: true }
+          }
+        }
+      }),
+
+      // User growth calculations
+      prisma.user.count({
+        where: {
+          createdAt: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          }
+        }
+      }),
+
+      prisma.user.count({
+        where: {
+          createdAt: { gte: thisMonthStart }
+        }
+      }),
+
+      // Revenue growth calculations
+      prisma.spinResult.aggregate({
+        _sum: { totalPrice: true },
+        where: {
+          createdAt: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          }
+        }
+      }),
+
+      prisma.spinResult.aggregate({
+        _sum: { totalPrice: true },
+        where: {
+          createdAt: { gte: thisMonthStart }
+        }
+      })
+    ]);
+
+    // Calculate growth percentages
+    const userGrowth = lastMonthUsers > 0
+      ? Math.round(((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100)
+      : 0;
+
+    const lastMonthRev = lastMonthRevenue._sum.totalPrice || 0;
+    const thisMonthRev = thisMonthRevenue._sum.totalPrice || 0;
+    const revenueGrowth = lastMonthRev > 0
+      ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100)
+      : 0;
+
+    // Format recent users data
+    const formattedRecentUsers = recentUsers.map(user => ({
+      id: user.id,
+      name: user.name || 'Unknown',
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+      totalSpent: user.spinResults.reduce((sum, result) => sum + result.totalPrice, 0)
+    }));
+
+    // Format recent orders data
+    const formattedRecentOrders = recentOrders.map(order => ({
+      id: order.id,
+      userName: order.user.name || order.user.email,
+      amount: order.totalPrice,
+      status: order.paidAt ? 'COMPLETED' : 'PENDING',
+      createdAt: order.createdAt.toISOString()
+    }));
+
+    return {
+      totalUsers,
+      activeUsers,
+      totalRevenue: totalRevenue._sum.totalPrice || 0,
+      pendingOrders,
+      totalGames,
+      totalJumps,
+      userGrowth,
+      revenueGrowth,
+      recentUsers: formattedRecentUsers,
+      recentOrders: formattedRecentOrders
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    return null;
+  }
 }
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+export default async function AdminDashboard() {
+  const session = await getServerSession(authOptions);
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  const fetchDashboardStats = async () => {
-    try {
-      const response = await fetch('/api/admin/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  // Check if user is admin
+  if (!session?.user?.email) {
+    redirect('/api/auth/signin');
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Welcome to SeatJumper Admin Panel</p>
-      </div>
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email }
+  });
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Users"
-          value={stats?.totalUsers || 0}
-          icon={Users}
-          change={stats?.userGrowth || 0}
-          changeLabel="from last month"
-        />
-        <StatCard
-          title="Active Users"
-          value={stats?.activeUsers || 0}
-          icon={Activity}
-          subtitle="Last 30 days"
-        />
-        <StatCard
-          title="Total Revenue"
-          value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
-          icon={DollarSign}
-          change={stats?.revenueGrowth || 0}
-          changeLabel="from last month"
-        />
-        <StatCard
-          title="Pending Orders"
-          value={stats?.pendingOrders || 0}
-          icon={ShoppingCart}
-          subtitle="Requires attention"
-          variant="warning"
-        />
-      </div>
+  if (!user?.isAdmin) {
+    redirect('/');
+  }
 
-      {/* Secondary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          title="Total Games"
-          value={stats?.totalGames || 0}
-          icon={Calendar}
-          subtitle="Active events"
-        />
-        <StatCard
-          title="Total Jumps"
-          value={stats?.totalJumps || 0}
-          icon={Package}
-          subtitle="All time"
-        />
-        <StatCard
-          title="Avg Order Value"
-          value={`$${((stats?.totalRevenue || 0) / (stats?.totalJumps || 1)).toFixed(2)}`}
-          icon={CreditCard}
-          subtitle="Per transaction"
-        />
-      </div>
+  const stats = await getAdminStats();
 
-      {/* Recent Activity Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Users */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Users</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Joined
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Spent
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {stats?.recentUsers?.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name || 'Unknown'}
-                        </div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${user.totalSpent.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recent Orders */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {stats?.recentOrders?.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {order.userName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${order.amount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          order.status === 'COMPLETED'
-                            ? 'bg-green-100 text-green-800'
-                            : order.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  change?: number;
-  changeLabel?: string;
-  subtitle?: string;
-  variant?: 'default' | 'warning';
-}
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  change,
-  changeLabel,
-  subtitle,
-  variant = 'default'
-}: StatCardProps) {
-  return (
-    <div className={`bg-white rounded-lg shadow p-6 ${
-      variant === 'warning' ? 'border-l-4 border-yellow-500' : ''
-    }`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {change !== undefined && (
-            <div className="flex items-center mt-2">
-              <TrendingUp
-                className={`w-4 h-4 ${
-                  change >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}
-              />
-              <span
-                className={`text-sm ml-1 ${
-                  change >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {change >= 0 ? '+' : ''}{change}%
-              </span>
-              {changeLabel && (
-                <span className="text-sm text-gray-500 ml-1">{changeLabel}</span>
-              )}
-            </div>
-          )}
-          {subtitle && !change && (
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
-          )}
-        </div>
-        <div className={`p-3 rounded-full ${
-          variant === 'warning' ? 'bg-yellow-50' : 'bg-blue-50'
-        }`}>
-          <Icon className={`w-6 h-6 ${
-            variant === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-          }`} />
-        </div>
-      </div>
-    </div>
-  );
+  return <AdminDashboardClient stats={stats} />;
 }

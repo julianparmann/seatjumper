@@ -29,7 +29,10 @@ export async function GET() {
         displayName: true,
         city: true,
         state: true,
-        imagePath: true
+        imagePath: true,
+        imageWidth: true,
+        imageHeight: true,
+        sectionConfig: true
       },
       orderBy: { displayName: 'asc' }
     });

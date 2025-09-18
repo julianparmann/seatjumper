@@ -11,6 +11,8 @@ export async function GET(
       where: { id },
       include: {
         ticketGroups: true,
+        ticketLevels: true,
+        specialPrizes: true,
         cardBreaks: true,
         entries: true,
         spinResults: true,
@@ -42,7 +44,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { ticketGroups, ...gameData } = body;
+    const { ticketGroups, ticketLevels, specialPrizes, ...gameData } = body;
 
     // Update game details
     const updatedGame = await prisma.dailyGame.update({
@@ -58,6 +60,45 @@ export async function PUT(
       }
     });
 
+    // Update ticket levels if provided
+    if (ticketLevels && Array.isArray(ticketLevels)) {
+      for (const level of ticketLevels) {
+        if (level.id) {
+          await prisma.ticketLevel.update({
+            where: { id: level.id },
+            data: {
+              level: level.level,
+              levelName: level.levelName,
+              quantity: level.quantity,
+              pricePerSeat: level.pricePerSeat,
+              viewImageUrl: level.viewImageUrl,
+              sections: level.sections,
+              isSelectable: level.isSelectable
+            }
+          });
+        }
+      }
+    }
+
+    // Update special prizes if provided
+    if (specialPrizes && Array.isArray(specialPrizes)) {
+      for (const prize of specialPrizes) {
+        if (prize.id) {
+          await prisma.specialPrize.update({
+            where: { id: prize.id },
+            data: {
+              name: prize.name,
+              description: prize.description,
+              value: prize.value,
+              quantity: prize.quantity,
+              imageUrl: prize.imageUrl,
+              prizeType: prize.prizeType
+            }
+          });
+        }
+      }
+    }
+
     // Update ticket groups if provided
     if (ticketGroups && Array.isArray(ticketGroups)) {
       for (const group of ticketGroups) {
@@ -71,41 +112,39 @@ export async function PUT(
               quantity: group.quantity,
               pricePerSeat: group.pricePerSeat,
               status: group.status,
-              notes: group.notes
+              notes: group.notes,
+              seatViewUrl: group.seatViewUrl
             }
           });
         }
       }
     }
 
-    // Recalculate average ticket price
+    // Recalculate pricing based on available inventory
     const allTicketGroups = await prisma.ticketGroup.findMany({
       where: { gameId: id }
     });
 
-    let avgTicketPrice = 0;
-    if (allTicketGroups.length > 0) {
-      const totalValue = allTicketGroups.reduce((sum, group) => {
-        return sum + (group.pricePerSeat * group.quantity);
-      }, 0);
-      const totalTickets = allTicketGroups.reduce((sum, group) => {
-        return sum + group.quantity;
-      }, 0);
-      avgTicketPrice = totalTickets > 0 ? totalValue / totalTickets : 0;
-    }
+    const allCardBreaks = await prisma.cardBreak.findMany({
+      where: { gameId: id }
+    });
 
-    // Update spin price with 35% margin
-    const spinPricePerBundle = avgTicketPrice * 1.35;
+    // Use the new inventory-aware pricing calculation
+    const { calculateBundlePricing } = await import('@/lib/pricing');
+    const pricing = calculateBundlePricing(allTicketGroups, allCardBreaks, 30);
 
     // Update game with new prices
     const finalGame = await prisma.dailyGame.update({
       where: { id },
       data: {
-        avgTicketPrice,
-        spinPricePerBundle
+        avgTicketPrice: pricing.avgTicketPrice,
+        avgBreakValue: pricing.avgBreakValue,
+        spinPricePerBundle: pricing.spinPricePerBundle
       },
       include: {
         ticketGroups: true,
+        ticketLevels: true,
+        specialPrizes: true,
         cardBreaks: true
       }
     });
