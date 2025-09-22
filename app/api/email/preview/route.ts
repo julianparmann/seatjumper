@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         emailHtml = await render(WelcomeEmail({
           userName: 'John Doe',
           userEmail: 'john.doe@example.com',
-        }));
+        }) as any) as string;
         break;
 
       case 'password-reset':
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
           userName: 'John Doe',
           resetUrl: 'https://seatjumper.com/auth/reset-password?token=example-token',
           expiresInHours: 24,
-        }));
+        }) as any) as string;
         break;
 
       case 'password-changed':
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
           userName: 'John Doe',
           userEmail: 'john.doe@example.com',
           changedAt: new Date(),
-        }));
+        }) as any) as string;
         break;
 
       case 'order-receipt':
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
             },
           ],
           orderDate: new Date(),
-        }));
+        }) as any) as string;
         break;
 
       case 'ticket-transfer':
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
           ],
           transferMethod: 'email',
           instructions: 'Check your email for the Ticketmaster transfer. Accept the tickets and save them to your mobile wallet.',
-        }));
+        }) as any) as string;
         break;
 
       case 'shipping':
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
               quantity: 1,
             },
           ],
-        }));
+        }) as any) as string;
         break;
 
       default:

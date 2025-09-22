@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         userName: user.name || user.email.split('@')[0],
         userEmail: user.email,
         changedAt: new Date(),
-      }));
+      }) as any) as string;
 
       await mailgunService.sendTemplatedEmail(
         user.email,

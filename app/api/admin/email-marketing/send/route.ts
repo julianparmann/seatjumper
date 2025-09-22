@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
             ctaUrl,
             previewText,
             unsubscribeUrl
-          }));
+          }) as any) as string;
 
           const result = await mailgunService.sendTemplatedEmail(
             recipient.email,

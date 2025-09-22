@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const emailHtml = await render(WelcomeEmail({
         userName: name || email.split('@')[0],
         userEmail: email,
-      }));
+      }) as any) as string;
 
       await mailgunService.sendTemplatedEmail(
         email,

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         userName: user.name || email.split('@')[0],
         resetUrl,
         expiresInHours: 24,
-      }));
+      }) as any) as string;
 
       await mailgunService.sendTemplatedEmail(
         email,
