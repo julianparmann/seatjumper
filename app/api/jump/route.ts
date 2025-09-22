@@ -52,8 +52,14 @@ export async function POST(req: NextRequest) {
       // Build the complete inventory pool with equal probability
       const inventoryPool: any[] = [];
 
-      // Add all available tickets from selected levels
-      game.ticketLevels.forEach(level => {
+      // Filter ticket levels by bundle quantity availability
+      const eligibleTicketLevels = game.ticketLevels.filter(level => {
+        const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
+        return availableUnits.includes(quantity);
+      });
+
+      // Add eligible tickets to pool
+      eligibleTicketLevels.forEach(level => {
         for (let i = 0; i < level.quantity; i++) {
           inventoryPool.push({
             type: 'ticket',
@@ -67,15 +73,15 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Add special prizes to pool (filter based on quantity requested)
-      game.specialPrizes.forEach(prize => {
-        // If buying multiple bundles, only include special prizes that have enough quantity
-        // This ensures seats are together (all same level) for multi-bundle purchases
-        if (quantity > 1 && prize.quantity < quantity) {
-          // Skip this prize - not enough for all bundles
-          return;
-        }
+      // Filter special prizes by bundle quantity availability
+      const eligibleSpecialPrizes = game.specialPrizes.filter(prize => {
+        const availableUnits = prize.availableUnits as number[] || [1, 2, 3, 4];
+        // Check both bundle size compatibility and quantity availability
+        return availableUnits.includes(quantity) && prize.quantity >= quantity;
+      });
 
+      // Add eligible special prizes to pool
+      eligibleSpecialPrizes.forEach(prize => {
         for (let i = 0; i < prize.quantity; i++) {
           inventoryPool.push({
             type: 'special',
@@ -254,8 +260,8 @@ export async function POST(req: NextRequest) {
       // Build the actual eligible pool (same logic as inventory building but filtered)
       const eligiblePool: Array<{ type: string; value: number }> = [];
 
-      // Add eligible tickets
-      game.ticketLevels.forEach(level => {
+      // Add eligible tickets (filtered by availableUnits)
+      eligibleTicketLevels.forEach(level => {
         for (let i = 0; i < level.quantity; i++) {
           eligiblePool.push({
             type: 'ticket',
@@ -264,15 +270,13 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Add eligible special prizes (only if quantity is sufficient for all bundles)
-      game.specialPrizes.forEach(prize => {
-        if (quantity <= 1 || prize.quantity >= quantity) {
-          for (let i = 0; i < prize.quantity; i++) {
-            eligiblePool.push({
-              type: 'special',
-              value: prize.value
-            });
-          }
+      // Add eligible special prizes (filtered by availableUnits and quantity)
+      eligibleSpecialPrizes.forEach(prize => {
+        for (let i = 0; i < prize.quantity; i++) {
+          eligiblePool.push({
+            type: 'special',
+            value: prize.value
+          });
         }
       });
 

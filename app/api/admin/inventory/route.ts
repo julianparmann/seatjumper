@@ -130,7 +130,8 @@ export async function POST(req: NextRequest) {
                 pricePerSeat: parseFloat(level.pricePerSeat) || 0,
                 viewImageUrl: level.viewImageUrl || null,
                 sections: level.sections || [],
-                isSelectable: level.isSelectable !== false
+                isSelectable: level.isSelectable !== false,
+                availableUnits: level.availableUnits || [1, 2, 3, 4]
               }
             });
           } catch (levelError: any) {
@@ -154,7 +155,8 @@ export async function POST(req: NextRequest) {
                 quantity: parseInt(prize.quantity) || 0,
                 imageUrl: prize.imageUrl || null,
                 prizeType: prize.prizeType || 'EXPERIENCE',
-                metadata: prize.metadata || null
+                metadata: prize.metadata || null,
+                availableUnits: prize.availableUnits || [1, 2, 3, 4]
               }
             });
           } catch (prizeError: any) {

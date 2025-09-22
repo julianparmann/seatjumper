@@ -13,6 +13,7 @@ interface TicketLevelInput {
   pricePerSeat: number;
   viewImageUrl: string;
   sections: string[];
+  availableUnits: number[];
 }
 
 interface SpecialPrizeInput {
@@ -24,6 +25,7 @@ interface SpecialPrizeInput {
   imageUrl: string;
   prizeType: 'TICKET' | 'EXPERIENCE' | 'VIP';
   metadata?: any;
+  availableUnits: number[];
 }
 
 interface MemorabiliaItem {
@@ -131,7 +133,8 @@ export default function AdminInventoryPage() {
       quantity: 0,
       pricePerSeat: 0,
       viewImageUrl: '',
-      sections: []
+      sections: [],
+      availableUnits: [1, 2, 3, 4]
     };
     setForm({
       ...form,
@@ -172,7 +175,8 @@ export default function AdminInventoryPage() {
       value: 0,
       quantity: 1,
       imageUrl: '',
-      prizeType: 'TICKET'
+      prizeType: 'TICKET',
+      availableUnits: [1, 2, 3, 4]
     };
     setForm({
       ...form,
@@ -495,6 +499,32 @@ export default function AdminInventoryPage() {
                   {level.sections.length > 5 && ` +${level.sections.length - 5} more`}
                 </div>
               )}
+
+              {/* Bundle Size Availability */}
+              <div className="mt-3 p-3 bg-white/10 rounded">
+                <label className="block text-white text-sm mb-2 font-semibold">Available for Bundle Sizes:</label>
+                <div className="flex gap-4">
+                  {[1, 2, 3, 4].map(size => (
+                    <label key={size} className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={level.availableUnits.includes(size)}
+                        onChange={(e) => {
+                          const newUnits = e.target.checked
+                            ? [...level.availableUnits, size].sort()
+                            : level.availableUnits.filter(u => u !== size);
+                          updateTicketLevel(level.id, 'availableUnits', newUnits);
+                        }}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span>{size}x {size === 1 ? '(Solo)' : size === 2 ? '(Pairs)' : size === 3 ? '(Triples)' : '(Groups)'}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Select which bundle sizes can win these tickets
+                </p>
+              </div>
             </div>
           ))}
 
@@ -603,6 +633,32 @@ export default function AdminInventoryPage() {
                   placeholder="Front row center court seats with VIP parking"
                   required
                 />
+              </div>
+
+              {/* Bundle Size Availability */}
+              <div className="mt-3 p-3 bg-white/10 rounded">
+                <label className="block text-white text-sm mb-2 font-semibold">Available for Bundle Sizes:</label>
+                <div className="flex gap-4">
+                  {[1, 2, 3, 4].map(size => (
+                    <label key={size} className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={prize.availableUnits.includes(size)}
+                        onChange={(e) => {
+                          const newUnits = e.target.checked
+                            ? [...prize.availableUnits, size].sort()
+                            : prize.availableUnits.filter(u => u !== size);
+                          updateSpecialPrize(prize.id, 'availableUnits', newUnits);
+                        }}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span>{size}x {size === 1 ? '(Solo)' : size === 2 ? '(Pairs)' : size === 3 ? '(Triples)' : '(Groups)'}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Select which bundle sizes can win this prize
+                </p>
               </div>
             </div>
           ))}
