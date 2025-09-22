@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { mailgunService } from '@/lib/email/mailgun';
+import { render } from '@react-email/render';
+import WelcomeLeadEmail from '@/lib/email/templates/welcome-lead';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,6 +46,22 @@ export async function POST(req: NextRequest) {
         source: 'landing'
       }
     });
+
+    // Send welcome email to new lead
+    try {
+      const emailHtml = await render(WelcomeLeadEmail({ email }) as any) as string;
+
+      await mailgunService.sendTemplatedEmail(
+        email,
+        "You're early. That's the best seat.",
+        emailHtml,
+        undefined,
+        { tags: ['welcome', 'lead-magnet'] }
+      );
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail the signup if email fails
+    }
 
     return NextResponse.json({
       message: 'Successfully added to waiting list!',
