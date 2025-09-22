@@ -52,7 +52,7 @@ class MailgunService {
       const mailgun = new Mailgun(FormData);
       this.client = mailgun.client({
         username: 'api',
-        key: apiKey,
+        key: apiKey!,
         url: 'https://api.mailgun.net' // US region
       });
     } else {

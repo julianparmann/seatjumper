@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { Sport } from '@prisma/client';
+import { Sport, Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,17 +21,17 @@ export async function GET(request: NextRequest) {
       : undefined;
 
     // Build where clause
-    const whereClause = {
+    const whereClause: Prisma.DailyGameWhereInput = {
       status: 'ACTIVE',
       ...(q && {
         OR: [
-          { eventName: { contains: q, mode: 'insensitive' } },
-          { venue: { contains: q, mode: 'insensitive' } },
-          { city: { contains: q, mode: 'insensitive' } },
+          { eventName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { venue: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { city: { contains: q, mode: Prisma.QueryMode.insensitive } },
         ],
       }),
-      ...(city && { city: { contains: city, mode: 'insensitive' } }),
-      ...(state && { state: { contains: state, mode: 'insensitive' } }),
+      ...(city && { city: { contains: city, mode: Prisma.QueryMode.insensitive } }),
+      ...(state && { state: { contains: state, mode: Prisma.QueryMode.insensitive } }),
       ...(sport && { sport }),
     };
 

@@ -21,7 +21,7 @@ interface SendTicketTransferEmailParams {
 
 export async function sendTicketTransferEmail(params: SendTicketTransferEmailParams): Promise<boolean> {
   try {
-    const emailHtml = render(TicketTransferEmail({
+    const emailHtml = await render(TicketTransferEmail({
       userName: params.userName,
       orderNumber: params.orderNumber,
       eventName: params.eventName,
@@ -32,7 +32,7 @@ export async function sendTicketTransferEmail(params: SendTicketTransferEmailPar
       tickets: params.tickets,
       transferMethod: 'email',
       instructions: 'Your tickets have been transferred to your email. Check your inbox for the ticket provider transfer notification and accept the tickets.',
-    }));
+    }) as any) as string;
 
     const result = await mailgunService.sendTemplatedEmail(
       params.userEmail,
@@ -78,7 +78,7 @@ export async function sendShippingEmail(params: SendShippingEmailParams): Promis
     const estimatedDays = params.carrier.toUpperCase() === 'USPS' ? 5 : 3;
     const estimatedDelivery = new Date(Date.now() + estimatedDays * 24 * 60 * 60 * 1000);
 
-    const emailHtml = render(ShippingEmail({
+    const emailHtml = await render(ShippingEmail({
       userName: params.userName,
       orderNumber: params.orderNumber,
       trackingNumber: params.trackingNumber,
@@ -86,7 +86,7 @@ export async function sendShippingEmail(params: SendShippingEmailParams): Promis
       estimatedDelivery,
       shippingAddress: params.shippingAddress,
       items: params.items,
-    }));
+    }) as any) as string;
 
     const result = await mailgunService.sendTemplatedEmail(
       params.userEmail,

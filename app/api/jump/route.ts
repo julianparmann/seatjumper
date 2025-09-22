@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
 
       // Calculate the price based on what's actually available for selection
       // Build the actual eligible pool (same logic as inventory building but filtered)
-      const eligiblePool = [];
+      const eligiblePool: Array<{ type: string; value: number }> = [];
 
       // Add eligible tickets
       game.ticketLevels.forEach(level => {
@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
           tickets: ticketDetails,
           memorabilia: memorabiliaDetails,
           orderDate: new Date()
-        }));
+        }) as any) as string;
 
         await mailgunService.sendTemplatedEmail(
           spinResult.user.email,

@@ -36,7 +36,7 @@ class BrowserPool {
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
       this.browser = await chromium.launch({
-        headless: 'new', // Use new headless mode for better memory efficiency
+        headless: true, // Use headless mode for better memory efficiency
         args: [
           '--disable-dev-shm-usage',
           '--disable-setuid-sandbox',
