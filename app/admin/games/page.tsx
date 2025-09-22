@@ -653,7 +653,7 @@ export default function AdminGamesPage() {
                             {isEditing && (
                               <button
                                 onClick={() => {
-                                  const newLevel: TicketLevel = {
+                                  const newLevel = {
                                     id: `new-${Date.now()}`,
                                     gameId: game.id,
                                     level: '',
@@ -815,7 +815,7 @@ export default function AdminGamesPage() {
                             {isEditing && (
                               <button
                                 onClick={() => {
-                                  const newPrize: SpecialPrize = {
+                                  const newPrize = {
                                     id: `new-${Date.now()}`,
                                     gameId: game.id,
                                     name: '',
