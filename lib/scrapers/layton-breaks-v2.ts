@@ -44,7 +44,6 @@ export class LaytonBreaksScraper {
     }
 
     try {
-      console.log(`Scraping Layton break: ${url}`);
 
       await this.page!.goto(url, {
         waitUntil: 'domcontentloaded',
@@ -60,7 +59,6 @@ export class LaytonBreaksScraper {
         el => el.textContent?.trim() || ''
       ).catch(() => 'Unknown Product');
 
-      console.log(`Title: ${title}`);
 
       // Extract teams using combined approach
       const teamsData = await this.page!.evaluate(() => {
@@ -87,7 +85,6 @@ export class LaytonBreaksScraper {
           });
         });
 
-        console.log('Available teams from dropdown:', Array.from(availableTeams));
 
         // Now get prices from JavaScript data
         const teams: any[] = [];
@@ -171,14 +168,11 @@ export class LaytonBreaksScraper {
         };
       });
 
-      console.log(`Found ${teamsData.availableTeamNames.length} available teams in dropdown`);
-      console.log(`Found ${teamsData.teamsWithPrices.length} teams with prices`);
 
       let teams = teamsData.teamsWithPrices;
 
       // If we didn't find prices in JavaScript, create entries with estimated prices
       if (teams.length === 0 && teamsData.availableTeamNames.length > 0) {
-        console.log('No prices found in JavaScript data, using available teams only');
         // We can't determine prices, so we'll need to handle this differently
         // For now, return empty as we can't determine actual prices
         teams = [];
@@ -197,12 +191,9 @@ export class LaytonBreaksScraper {
       else if (title.toLowerCase().includes('baseball')) productType = 'Baseball';
       else if (title.toLowerCase().includes('hockey')) productType = 'Hockey';
 
-      console.log(`Total teams found: ${teams.length}`);
-      console.log(`Summary: ${availableTeams} available teams, avg price: $${averagePrice.toFixed(2)}`);
 
       // Log the actual teams found
       teams.forEach(team => {
-        console.log(`  - ${team.teamName}: $${team.price}`);
       });
 
       return {

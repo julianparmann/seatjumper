@@ -74,7 +74,6 @@ export async function POST(req: NextRequest) {
             where: { id: user.id },
             data: { isAdmin: true }
           });
-          console.log(`Made ${session.user.email} an admin`);
         } else {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
@@ -82,7 +81,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    console.log('Received body:', JSON.stringify(body, null, 2));
 
     const {
       eventName,
@@ -117,7 +115,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    console.log('Game created successfully:', newGame.id);
 
     // Create ticket levels if provided
     if (ticketLevels && ticketLevels.length > 0) {
@@ -136,7 +133,6 @@ export async function POST(req: NextRequest) {
                 isSelectable: level.isSelectable !== false
               }
             });
-            console.log('Created ticket level:', level.level, level.levelName);
           } catch (levelError: any) {
             console.error('Error creating ticket level:', levelError);
           }
@@ -161,7 +157,6 @@ export async function POST(req: NextRequest) {
                 metadata: prize.metadata || null
               }
             });
-            console.log('Created special prize:', prize.name);
           } catch (prizeError: any) {
             console.error('Error creating special prize:', prizeError);
           }
@@ -195,7 +190,6 @@ export async function POST(req: NextRequest) {
               console.error('Error creating memorabilia card break:', memorabiliaError);
             }
           }
-          console.log(`Created ${item.quantity} memorabilia card breaks:`, item.name);
         }
       }
     }

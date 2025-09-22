@@ -660,7 +660,7 @@ export default function AdminGamesPage() {
                                     levelName: '',
                                     quantity: 0,
                                     pricePerSeat: 0,
-                                    viewImageUrl: null,
+                                    viewImageUrl: undefined,
                                     sections: [],
                                     isSelectable: true
                                   };
@@ -822,9 +822,9 @@ export default function AdminGamesPage() {
                                     description: '',
                                     value: 0,
                                     quantity: 0,
-                                    imageUrl: null,
+                                    imageUrl: undefined,
                                     prizeType: 'EXPERIENCE',
-                                    metadata: null
+                                    metadata: undefined
                                   };
                                   setEditedGames({
                                     ...editedGames,

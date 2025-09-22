@@ -124,7 +124,6 @@ export class SportsCollectiblesScraper {
     }
 
     try {
-      console.log(`Scraping Sports Collectibles: ${url}`);
 
       // Navigate with optimized settings
       await this.page!.goto(url, {
@@ -132,7 +131,6 @@ export class SportsCollectiblesScraper {
         timeout: 30000 // Reduced timeout
       });
 
-      console.log('Page loaded, waiting for products to appear...');
 
       // Reduced wait time for efficiency
       await this.page!.waitForTimeout(2000);
@@ -142,7 +140,7 @@ export class SportsCollectiblesScraper {
         timeout: 10000,
         state: 'attached'
       }).catch(() => {
-        console.log('Product selector not found after 10s, continuing anyway...');
+        // console.log('Product selector not found after 10s, continuing anyway...');
       });
 
       // Reduced additional wait
@@ -154,7 +152,6 @@ export class SportsCollectiblesScraper {
         el => el.textContent?.trim() || ''
       ).catch(() => 'Sports Collectibles');
 
-      console.log(`Page Title: ${title}`);
 
       // Extract all items on the page - handle both new and old site structures
       const items = await this.page!.evaluate(() => {
@@ -297,7 +294,6 @@ export class SportsCollectiblesScraper {
         return collectibles;
       });
 
-      console.log(`Found ${items.length} items`);
 
       // If no items found, log page info for debugging
       if (items.length === 0) {
@@ -312,7 +308,7 @@ export class SportsCollectiblesScraper {
             sampleHTML: document.body?.innerHTML.substring(1000, 2000) || ''
           };
         });
-        console.log('Debug info - no products found:', debugInfo);
+        // console.log('Debug info - no products found:', debugInfo);
       }
 
       // Calculate statistics

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Send welcome email
     try {
-      const emailHtml = render(WelcomeEmail({
+      const emailHtml = await render(WelcomeEmail({
         userName: name || email.split('@')[0],
         userEmail: email,
       }));
@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
         { tags: ['welcome', 'registration'] }
       );
 
-      console.log(`Welcome email sent to ${email}`);
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
       // Don't fail registration if email fails

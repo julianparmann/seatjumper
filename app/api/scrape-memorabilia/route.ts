@@ -12,7 +12,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('Fetching URL:', url);
 
     // Add headers to avoid being blocked
     const response = await fetch(url, {
@@ -46,7 +45,6 @@ export async function POST(req: Request) {
     }
 
     const html = await response.text();
-    console.log('HTML fetched, length:', html.length);
 
     // Parse the HTML to extract memorabilia details
     // Using regex patterns to extract data from the HTML

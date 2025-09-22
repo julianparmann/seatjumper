@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         try {
           const unsubscribeUrl = `${process.env.NEXTAUTH_URL || 'https://seatjumper.com'}/unsubscribe?email=${encodeURIComponent(recipient.email)}`;
 
-          const emailHtml = render(MarketingEmail({
+          const emailHtml = await render(MarketingEmail({
             userName: recipient.name || recipient.email.split('@')[0],
             subject,
             content,

@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // Send password change confirmation email
     try {
-      const emailHtml = render(PasswordChangedEmail({
+      const emailHtml = await render(PasswordChangedEmail({
         userName: user.name || user.email.split('@')[0],
         userEmail: user.email,
         changedAt: new Date(),
@@ -82,7 +82,6 @@ export async function POST(req: NextRequest) {
         { tags: ['password-changed', 'security'] }
       );
 
-      console.log(`Password change confirmation email sent to ${user.email}`);
     } catch (emailError) {
       console.error('Failed to send password change email:', emailError);
       // Don't fail the password change if email fails

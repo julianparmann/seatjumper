@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Always return success to prevent email enumeration
     if (!user) {
-      console.log(`Password reset requested for non-existent email: ${email}`);
+      // console.log(`Password reset requested for non-existent email: ${email}`);
       return NextResponse.json({
         message: 'If an account exists with this email, you will receive a password reset link.',
       });
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Send password reset email
     try {
-      const emailHtml = render(PasswordResetEmail({
+      const emailHtml = await render(PasswordResetEmail({
         userName: user.name || email.split('@')[0],
         resetUrl,
         expiresInHours: 24,
@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
         { tags: ['password-reset', 'security'] }
       );
 
-      console.log(`Password reset email sent to ${email}`);
     } catch (emailError) {
       console.error('Failed to send password reset email:', emailError);
       // Delete the token if email fails

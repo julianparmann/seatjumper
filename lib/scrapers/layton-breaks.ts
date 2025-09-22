@@ -44,7 +44,6 @@ export class LaytonBreaksScraper {
     }
 
     try {
-      console.log(`Scraping Layton break: ${url}`);
 
       await this.page!.goto(url, {
         waitUntil: 'domcontentloaded',
@@ -60,7 +59,6 @@ export class LaytonBreaksScraper {
         el => el.textContent?.trim() || ''
       ).catch(() => 'Unknown Product');
 
-      console.log(`Title: ${title}`);
 
       // Extract teams and prices
       const teamsData = await this.page!.evaluate(() => {
@@ -114,9 +112,7 @@ export class LaytonBreaksScraper {
         return teams;
       });
 
-      console.log(`Found ${teamsData.length} available teams with prices`);
       teamsData.forEach(team => {
-        console.log(`  - ${team.teamName}: $${team.price}`);
       });
 
       // Calculate summary
@@ -132,7 +128,6 @@ export class LaytonBreaksScraper {
       else if (title.toLowerCase().includes('baseball')) productType = 'Baseball';
       else if (title.toLowerCase().includes('hockey')) productType = 'Hockey';
 
-      console.log(`Summary: ${availableTeams} available teams, avg price: $${averagePrice.toFixed(2)}`);
 
       return {
         title,

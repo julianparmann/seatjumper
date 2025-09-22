@@ -34,7 +34,6 @@ export class TickPickInternalAPI {
     try {
       const url = `${this.baseUrl}/listings/internal/event/${eventId}?mid=${eventId}`;
 
-      console.log('Fetching from TickPick internal API:', url);
 
       const response = await fetch(url, {
         headers: {
@@ -115,7 +114,6 @@ export async function getTicketsFromUrl(tickpickUrl: string) {
     throw new Error('Could not extract event ID from URL');
   }
 
-  console.log('Extracted event ID:', eventId);
 
   // Get listings from internal API
   const data = await api.getEventListings(eventId);
@@ -123,7 +121,6 @@ export async function getTicketsFromUrl(tickpickUrl: string) {
   // Parse the listings
   const listings = api.parseListings(data);
 
-  console.log(`Found ${listings.length} listings from TickPick API`);
 
   return {
     eventId,

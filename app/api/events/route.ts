@@ -62,14 +62,14 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform games to event format for compatibility
-    const events = games.map((game) => {
+    const events = games.map((game: any) => {
       // Calculate min and max prices from ticket groups
-      const ticketPrices = game.ticketGroups.map(tg => tg.pricePerSeat);
+      const ticketPrices = game.ticketGroups?.map((tg: any) => tg.pricePerSeat) || [];
       const minPrice = ticketPrices.length > 0 ? Math.min(...ticketPrices) : 0;
       const maxPrice = ticketPrices.length > 0 ? Math.max(...ticketPrices) : 0;
 
       // Count total available inventory
-      const inventoryCount = game.ticketGroups.reduce((sum, tg) => sum + tg.quantity, 0);
+      const inventoryCount = game.ticketGroups?.reduce((sum: number, tg: any) => sum + tg.quantity, 0) || 0;
 
       return {
         id: game.id,
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         spinPrice: game.spinPricePerBundle,
         currentEntries: game.currentEntries,
         maxEntries: game.maxEntries,
-        cardBreaksCount: game.cardBreaks.length,
+        cardBreaksCount: game.cardBreaks?.length || 0,
       };
     });
 

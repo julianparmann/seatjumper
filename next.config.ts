@@ -4,8 +4,6 @@ const nextConfig: NextConfig = {
   // Production optimizations for reduced memory usage
   output: 'standalone',
 
-  // Enable SWC minification for smaller bundles
-  swcMinify: true,
 
   // Optimize images with sharp (more memory efficient than default)
   images: {
@@ -18,11 +16,10 @@ const nextConfig: NextConfig = {
   experimental: {
     // Optimize CSS
     optimizeCss: true,
-    // Enable server components runtime
-    serverComponentsExternalPackages: ['playwright', '@prisma/client'],
-    // Memory-based cache handler
-    isrMemoryCacheSize: 0, // Disable in-memory cache to save memory
   },
+
+  // Server components external packages
+  serverExternalPackages: ['playwright', '@prisma/client'],
 
   // Webpack optimizations
   webpack: (config, { isServer }) => {

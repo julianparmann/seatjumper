@@ -35,8 +35,6 @@ export async function POST(req: NextRequest) {
     const scraper = new SportsCollectiblesScraper();
 
     try {
-      console.log(`Starting memorabilia scrape for game ${gameId}`);
-      console.log(`URLs to scrape: ${urls.join(', ')}`);
 
       await scraper.init();
 
@@ -45,7 +43,6 @@ export async function POST(req: NextRequest) {
 
       // Check if any pages actually returned items
       const totalScrapedItems = scrapedPages.reduce((sum, page) => sum + page.items.length, 0);
-      console.log(`Total items scraped: ${totalScrapedItems}`);
 
       if (totalScrapedItems === 0) {
         await scraper.close();

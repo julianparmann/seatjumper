@@ -167,12 +167,6 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       setCalculatedPrice(priceWithMargin);
     }
 
-    console.log('Price calculation:', {
-      spinPricePerBundle: game.spinPricePerBundle,
-      avgTicketPrice: game.avgTicketPrice,
-      avgBreakValue: game.avgBreakValue,
-      calculatedPrice
-    });
   }, [game, selectedLevels, bundleQuantity]);
 
   const calculateAvailableBundles = () => {

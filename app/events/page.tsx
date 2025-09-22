@@ -92,8 +92,6 @@ export default function EventsPage() {
 
       const response = await fetch('/api/events');
 
-      // Log the response for debugging
-      console.log('Events API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -102,7 +100,6 @@ export default function EventsPage() {
       }
 
       const data = await response.json();
-      console.log('Events data received:', data);
 
       // Convert datetime strings to Date objects
       const eventsWithDates = data.events?.map((event: any) => ({

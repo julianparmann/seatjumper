@@ -66,16 +66,18 @@ export default function StadiumsPage() {
       };
       reader.readAsDataURL(file);
 
-      // Get image dimensions
-      const img = new Image();
-      img.onload = () => {
-        setFormData({
-          ...formData,
-          imageWidth: img.width,
-          imageHeight: img.height
-        });
-      };
-      img.src = URL.createObjectURL(file);
+      // Get image dimensions (only in browser environment)
+      if (typeof window !== 'undefined') {
+        const img = new window.Image();
+        img.onload = () => {
+          setFormData({
+            ...formData,
+            imageWidth: img.width,
+            imageHeight: img.height
+          });
+        };
+        img.src = URL.createObjectURL(file);
+      }
     }
   };
 
@@ -88,7 +90,6 @@ export default function StadiumsPage() {
 
       // If there's an image file, upload it first
       if (imageFile) {
-        console.log('Uploading image to Cloudinary...');
         const uploadFormData = new FormData();
         uploadFormData.append('image', imageFile);
 
@@ -104,7 +105,6 @@ export default function StadiumsPage() {
 
         const { imagePath } = await uploadResponse.json();
         finalImagePath = imagePath;
-        console.log('Image uploaded successfully:', finalImagePath);
       }
 
       const url = editingId

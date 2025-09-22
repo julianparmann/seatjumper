@@ -43,7 +43,6 @@ export async function sendTicketTransferEmail(params: SendTicketTransferEmailPar
     );
 
     if (result.success) {
-      console.log(`Ticket transfer email sent to ${params.userEmail} for order ${params.orderNumber}`);
     }
 
     return result.success;
@@ -98,7 +97,6 @@ export async function sendShippingEmail(params: SendShippingEmailParams): Promis
     );
 
     if (result.success) {
-      console.log(`Shipping email sent to ${params.userEmail} for order ${params.orderNumber}`);
     }
 
     return result.success;

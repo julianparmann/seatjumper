@@ -90,7 +90,6 @@ export class HybridTicketSource {
         // Parse and return tickets
         return [];
       } catch (error) {
-        console.log('Proxy failed, using fallback');
       }
     }
     return [];

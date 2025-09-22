@@ -6,9 +6,10 @@ import { prisma } from '@/lib/db';
 // PUT - Update stadium
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -38,7 +39,7 @@ export async function PUT(
     } = body;
 
     const stadium = await prisma.stadium.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         displayName,
@@ -62,9 +63,10 @@ export async function PUT(
 // DELETE - Delete stadium
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -82,7 +84,7 @@ export async function DELETE(
 
     // Check if stadium has any associated games
     const gamesCount = await prisma.dailyGame.count({
-      where: { stadiumId: params.id }
+      where: { stadiumId: id }
     });
 
     if (gamesCount > 0) {
@@ -93,7 +95,7 @@ export async function DELETE(
     }
 
     await prisma.stadium.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });

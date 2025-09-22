@@ -53,7 +53,6 @@ export class SeatGeekAPI {
       });
     }
 
-    console.log('Fetching from SeatGeek:', url.toString());
 
     const response = await fetch(url.toString());
 

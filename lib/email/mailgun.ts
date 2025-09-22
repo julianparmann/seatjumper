@@ -35,13 +35,13 @@ class MailgunService {
     const fromEmail = process.env.MAILGUN_FROM_EMAIL?.replace(/^["']|["']$/g, '') || 'noreply@seatjumper.com';
     const fromName = process.env.MAILGUN_FROM_NAME?.replace(/^["']|["']$/g, '') || 'SeatJumper';
 
-    console.log('Mailgun constructor - checking configuration:', {
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length || 0,
-      domain: domain || 'NOT SET',
-      fromEmail,
-      fromName
-    });
+    // console.log('Mailgun constructor - checking configuration:', {
+    //   hasApiKey: !!apiKey,
+    //   apiKeyLength: apiKey?.length || 0,
+    //   domain: domain || 'NOT SET',
+    //   fromEmail,
+    //   fromName
+    // });
 
     this.domain = domain || '';
     this.fromEmail = fromEmail;
@@ -116,11 +116,6 @@ class MailgunService {
       // Send the email via Mailgun
       const result = await this.client.messages.create(this.domain, emailData);
 
-      console.log('✅ Email sent successfully:', {
-        messageId: result.id,
-        to: emailData.to,
-        subject: emailData.subject
-      });
 
       return {
         success: true,
@@ -199,5 +194,6 @@ class MailgunService {
 // Export singleton instance
 export const mailgunService = new MailgunService();
 
-// Export the class for testing
-export { MailgunService, EmailOptions, EmailResult };
+// Export the class and types for testing
+export { MailgunService };
+export type { EmailOptions, EmailResult };

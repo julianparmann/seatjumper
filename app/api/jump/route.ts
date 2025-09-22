@@ -346,7 +346,7 @@ export async function POST(req: NextRequest) {
           description: bundle.memorabilia.description
         }));
 
-        const emailHtml = render(OrderReceiptEmail({
+        const emailHtml = await render(OrderReceiptEmail({
           userName: spinResult.user.name || spinResult.user.email.split('@')[0],
           orderNumber: spinResult.id,
           eventName: spinResult.game.eventName,
@@ -368,7 +368,6 @@ export async function POST(req: NextRequest) {
           { tags: ['order-receipt', 'jump-complete'] }
         );
 
-        console.log(`Order receipt email sent to ${spinResult.user.email} for spin ${spinResult.id}`);
       } catch (emailError) {
         console.error('Failed to send order receipt email:', emailError);
         // Don't fail the jump if email fails

@@ -27,14 +27,14 @@ export async function GET(req: NextRequest) {
   try {
     switch (template) {
       case 'welcome':
-        emailHtml = render(WelcomeEmail({
+        emailHtml = await render(WelcomeEmail({
           userName: 'John Doe',
           userEmail: 'john.doe@example.com',
         }));
         break;
 
       case 'password-reset':
-        emailHtml = render(PasswordResetEmail({
+        emailHtml = await render(PasswordResetEmail({
           userName: 'John Doe',
           resetUrl: 'https://seatjumper.com/auth/reset-password?token=example-token',
           expiresInHours: 24,
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         break;
 
       case 'password-changed':
-        emailHtml = render(PasswordChangedEmail({
+        emailHtml = await render(PasswordChangedEmail({
           userName: 'John Doe',
           userEmail: 'john.doe@example.com',
           changedAt: new Date(),
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         break;
 
       case 'order-receipt':
-        emailHtml = render(OrderReceiptEmail({
+        emailHtml = await render(OrderReceiptEmail({
           userName: 'John Doe',
           orderNumber: 'ORD-2024-001234',
           eventName: 'Lakers vs Warriors',
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         break;
 
       case 'ticket-transfer':
-        emailHtml = render(TicketTransferEmail({
+        emailHtml = await render(TicketTransferEmail({
           userName: 'John Doe',
           orderNumber: 'ORD-2024-001234',
           eventName: 'Lakers vs Warriors',
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
         break;
 
       case 'shipping':
-        emailHtml = render(ShippingEmail({
+        emailHtml = await render(ShippingEmail({
           userName: 'John Doe',
           orderNumber: 'ORD-2024-001234',
           trackingNumber: '1Z999AA10123456784',
