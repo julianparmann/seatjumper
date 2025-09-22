@@ -90,7 +90,8 @@ export async function PUT(
               pricePerSeat: level.pricePerSeat || 0,
               viewImageUrl: level.viewImageUrl,
               sections: level.sections || [],
-              isSelectable: level.isSelectable !== false
+              isSelectable: level.isSelectable !== false,
+              availableUnits: level.availableUnits || [1, 2, 3, 4]
             }
           });
         } else if (level.id) {
@@ -104,7 +105,8 @@ export async function PUT(
               pricePerSeat: level.pricePerSeat,
               viewImageUrl: level.viewImageUrl,
               sections: level.sections,
-              isSelectable: level.isSelectable
+              isSelectable: level.isSelectable,
+              availableUnits: level.availableUnits || [1, 2, 3, 4]
             }
           });
         }
@@ -141,7 +143,8 @@ export async function PUT(
               quantity: prize.quantity || 0,
               imageUrl: prize.imageUrl,
               prizeType: prize.prizeType || 'EXPERIENCE',
-              metadata: prize.metadata
+              metadata: prize.metadata,
+              availableUnits: prize.availableUnits || [1, 2, 3, 4]
             }
           });
         } else if (prize.id) {
@@ -154,7 +157,8 @@ export async function PUT(
               value: prize.value,
               quantity: prize.quantity,
               imageUrl: prize.imageUrl,
-              prizeType: prize.prizeType
+              prizeType: prize.prizeType,
+              availableUnits: prize.availableUnits || [1, 2, 3, 4]
             }
           });
         }

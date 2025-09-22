@@ -27,6 +27,7 @@ interface TicketLevel {
   viewImageUrl?: string;
   sections: string[];
   isSelectable: boolean;
+  availableUnits?: number[];
 }
 
 interface SpecialPrize {
@@ -37,6 +38,7 @@ interface SpecialPrize {
   quantity: number;
   imageUrl?: string;
   prizeType: string;
+  availableUnits?: number[];
 }
 
 interface DailyGame {
@@ -766,6 +768,34 @@ export default function AdminGamesPage() {
                                       Delete
                                     </button>
                                   </div>
+                                  {/* Bundle Size Availability Checkboxes */}
+                                  <div className="mt-2">
+                                    <p className="text-xs text-gray-400 mb-1">Available for bundle sizes:</p>
+                                    <div className="flex gap-3">
+                                      {[1, 2, 3, 4].map(size => (
+                                        <label key={size} className="flex items-center gap-1 text-white text-xs cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={(level.availableUnits || [1, 2, 3, 4]).includes(size)}
+                                            onChange={(e) => {
+                                              const updatedLevels = [...(editedGame.ticketLevels || [])];
+                                              const currentUnits = level.availableUnits || [1, 2, 3, 4];
+                                              const newUnits = e.target.checked
+                                                ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
+                                                : currentUnits.filter(u => u !== size);
+                                              updatedLevels[idx] = { ...level, availableUnits: newUnits };
+                                              setEditedGames({
+                                                ...editedGames,
+                                                [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                              });
+                                            }}
+                                            className="w-3 h-3"
+                                          />
+                                          <span>{size}x</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
                                   {level.viewImageUrl && (
                                     <div className="mt-2">
                                       <img src={level.viewImageUrl} alt="Level view" className="h-20 rounded" />
@@ -927,6 +957,34 @@ export default function AdminGamesPage() {
                                     >
                                       Delete
                                     </button>
+                                  </div>
+                                  {/* Bundle Size Availability Checkboxes */}
+                                  <div className="mt-2">
+                                    <p className="text-xs text-gray-400 mb-1">Available for bundle sizes:</p>
+                                    <div className="flex gap-3">
+                                      {[1, 2, 3, 4].map(size => (
+                                        <label key={size} className="flex items-center gap-1 text-white text-xs cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={(prize.availableUnits || [1, 2, 3, 4]).includes(size)}
+                                            onChange={(e) => {
+                                              const updatedPrizes = [...(editedGame.specialPrizes || [])];
+                                              const currentUnits = prize.availableUnits || [1, 2, 3, 4];
+                                              const newUnits = e.target.checked
+                                                ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
+                                                : currentUnits.filter(u => u !== size);
+                                              updatedPrizes[idx] = { ...prize, availableUnits: newUnits };
+                                              setEditedGames({
+                                                ...editedGames,
+                                                [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                              });
+                                            }}
+                                            className="w-3 h-3"
+                                          />
+                                          <span>{size}x</span>
+                                        </label>
+                                      ))}
+                                    </div>
                                   </div>
                                   {prize.imageUrl && (
                                     <div className="mt-2">
