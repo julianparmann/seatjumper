@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser, Page, BrowserContext } from 'playwright';
 
 export interface CollectibleItem {
   name: string;
@@ -19,24 +19,102 @@ export interface CollectiblesPageData {
   averagePrice: number;
 }
 
-export class SportsCollectiblesScraper {
+// Browser pool for memory efficiency
+class BrowserPool {
+  private static instance: BrowserPool;
   private browser: Browser | null = null;
-  private page: Page | null = null;
+  private activeContexts: number = 0;
+  private maxContexts: number = 2; // Limit concurrent contexts
 
-  async init() {
+  static getInstance(): BrowserPool {
+    if (!BrowserPool.instance) {
+      BrowserPool.instance = new BrowserPool();
+    }
+    return BrowserPool.instance;
+  }
+
+  async getBrowser(): Promise<Browser> {
     if (!this.browser) {
       this.browser = await chromium.launch({
-        headless: true
+        headless: 'new', // Use new headless mode for better memory efficiency
+        args: [
+          '--disable-dev-shm-usage',
+          '--disable-setuid-sandbox',
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins',
+          '--disable-site-isolation-trials',
+          '--no-zygote',
+          '--single-process', // Run in single process to save memory
+          '--max_old_space_size=512', // Limit V8 memory
+        ],
       });
-      this.page = await this.browser.newPage();
+    }
+    return this.browser;
+  }
+
+  async createContext(): Promise<BrowserContext> {
+    // Wait if too many contexts are active
+    while (this.activeContexts >= this.maxContexts) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const browser = await this.getBrowser();
+    this.activeContexts++;
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    });
+
+    return context;
+  }
+
+  releaseContext() {
+    this.activeContexts = Math.max(0, this.activeContexts - 1);
+  }
+
+  async closeAll() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+      this.activeContexts = 0;
+    }
+  }
+}
+
+export class SportsCollectiblesScraper {
+  private context: BrowserContext | null = null;
+  private page: Page | null = null;
+  private pool: BrowserPool;
+
+  constructor() {
+    this.pool = BrowserPool.getInstance();
+  }
+
+  async init() {
+    if (!this.context) {
+      this.context = await this.pool.createContext();
+      this.page = await this.context.newPage();
+
+      // Set resource limits to save memory
+      await this.page.route('**/*.{png,jpg,jpeg,gif,svg,webp,ico,woff,woff2,ttf,mp4,avi,mov}', route => route.abort());
     }
   }
 
   async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-      this.page = null;
+    try {
+      if (this.page) {
+        await this.page.close();
+        this.page = null;
+      }
+      if (this.context) {
+        await this.context.close();
+        this.context = null;
+        this.pool.releaseContext();
+      }
+    } catch (error) {
+      console.error('Error closing scraper resources:', error);
     }
   }
 
@@ -48,27 +126,27 @@ export class SportsCollectiblesScraper {
     try {
       console.log(`Scraping Sports Collectibles: ${url}`);
 
-      // Navigate with longer timeout
+      // Navigate with optimized settings
       await this.page!.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout: 60000
+        timeout: 30000 // Reduced timeout
       });
 
       console.log('Page loaded, waiting for products to appear...');
 
-      // Wait longer for dynamic content to load
-      await this.page!.waitForTimeout(5000);
+      // Reduced wait time for efficiency
+      await this.page!.waitForTimeout(2000);
 
-      // Try to wait for product selectors with longer timeout
+      // Try to wait for product selectors with shorter timeout
       await this.page!.waitForSelector('.v65-productDisplay-cell, .v65-productDisplay-row, .v-product', {
-        timeout: 15000,
+        timeout: 10000,
         state: 'attached'
       }).catch(() => {
-        console.log('Product selector not found after 15s, continuing anyway...');
+        console.log('Product selector not found after 10s, continuing anyway...');
       });
 
-      // Additional wait to ensure prices load
-      await this.page!.waitForTimeout(2000);
+      // Reduced additional wait
+      await this.page!.waitForTimeout(1000);
 
       // Extract page title
       const title = await this.page!.$eval(
@@ -269,16 +347,32 @@ export class SportsCollectiblesScraper {
   async scrapeMultiplePages(urls: string[]): Promise<CollectiblesPageData[]> {
     const results: CollectiblesPageData[] = [];
 
-    for (const url of urls) {
-      try {
-        const data = await this.scrapeCollectiblesPage(url);
-        results.push(data);
-      } catch (error) {
-        console.error(`Failed to scrape ${url}:`, error);
+    try {
+      for (const url of urls) {
+        try {
+          const data = await this.scrapeCollectiblesPage(url);
+          results.push(data);
+
+          // Force garbage collection after each page (if available)
+          if (global.gc) {
+            global.gc();
+          }
+        } catch (error) {
+          console.error(`Failed to scrape ${url}:`, error);
+        }
       }
+    } finally {
+      // Always cleanup resources after scraping session
+      await this.close();
     }
 
     return results;
+  }
+
+  // Static method to close all browser instances
+  static async closeAllBrowsers() {
+    const pool = BrowserPool.getInstance();
+    await pool.closeAll();
   }
 }
 

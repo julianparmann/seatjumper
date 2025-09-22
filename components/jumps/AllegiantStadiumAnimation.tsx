@@ -17,12 +17,25 @@ interface CardBreakData {
   itemType?: string;
 }
 
+interface BundleData {
+  ticket: {
+    level?: string;
+    levelName?: string;
+    viewImageUrl?: string;
+    special?: boolean;
+    name?: string;
+    imageUrl?: string;
+  };
+  memorabilia: CardBreakData;
+}
+
 interface AllegiantStadiumAnimationProps {
   targetSection: string;
   targetRow: string;
   targetSeats?: string[];
   cardBreak?: CardBreakData;
   seatViewUrl?: string;
+  bundles?: BundleData[];  // New prop for multiple bundles
   onComplete?: () => void;
   isAnimating: boolean;
   stadium?: {
@@ -44,6 +57,7 @@ export default function AllegiantStadiumAnimation({
   targetSeats = [],
   cardBreak,
   seatViewUrl,
+  bundles,
   onComplete,
   isAnimating,
   stadium,
@@ -51,6 +65,13 @@ export default function AllegiantStadiumAnimation({
 }: AllegiantStadiumAnimationProps) {
   const [currentPhase, setCurrentPhase] = useState<'waiting' | 'video' | 'seat' | 'cardvideo' | 'memorabilia'>('waiting');
   const [videoError, setVideoError] = useState(false);
+  const [currentBundleIndex, setCurrentBundleIndex] = useState(0);
+
+  // Use bundles if provided, otherwise fall back to legacy single item
+  const allBundles = bundles || (cardBreak ? [{
+    ticket: { level: targetSection, levelName: targetRow, viewImageUrl: seatViewUrl },
+    memorabilia: cardBreak
+  }] : []);
 
   // Start animation sequence when isAnimating becomes true
   useEffect(() => {
@@ -92,6 +113,24 @@ export default function AllegiantStadiumAnimation({
   const handleSportsCardVideoEnd = () => {
     console.log('Sports card video ended, showing memorabilia');
     setCurrentPhase('memorabilia');
+  };
+
+  // Navigate to next bundle
+  const handleNextBundle = () => {
+    if (currentBundleIndex < allBundles.length - 1) {
+      setCurrentBundleIndex(currentBundleIndex + 1);
+      setCurrentPhase('memorabilia');
+    } else {
+      handleContinue();
+    }
+  };
+
+  // Navigate to previous bundle
+  const handlePrevBundle = () => {
+    if (currentBundleIndex > 0) {
+      setCurrentBundleIndex(currentBundleIndex - 1);
+      setCurrentPhase('memorabilia');
+    }
   };
 
   // Handle final continue
@@ -394,10 +433,10 @@ export default function AllegiantStadiumAnimation({
                     💫
                   </motion.div>
 
-                  {cardBreak?.imageUrl ? (
+                  {allBundles[currentBundleIndex]?.memorabilia?.imageUrl ? (
                     <motion.img
-                      src={cardBreak.imageUrl}
-                      alt={cardBreak.name || cardBreak.breakName || 'Sports Memorabilia'}
+                      src={allBundles[currentBundleIndex].memorabilia.imageUrl}
+                      alt={allBundles[currentBundleIndex].memorabilia.name || allBundles[currentBundleIndex].memorabilia.breakName || 'Sports Memorabilia'}
                       className="w-full h-96 object-contain rounded-lg"
                       initial={{ filter: "blur(20px)" }}
                       animate={{ filter: "blur(0px)" }}
@@ -430,12 +469,12 @@ export default function AllegiantStadiumAnimation({
                   className="text-white space-y-3 mb-6"
                 >
                   <h3 className="text-2xl font-bold text-yellow-400">
-                    {cardBreak?.name || cardBreak?.breakName || 'Exclusive Sports Card'}
+                    {allBundles[currentBundleIndex]?.memorabilia?.name || allBundles[currentBundleIndex]?.memorabilia?.breakName || 'Exclusive Sports Card'}
                   </h3>
                   <p className="text-gray-300">
-                    {cardBreak?.description || 'Authentic collectible sports memorabilia'}
+                    {allBundles[currentBundleIndex]?.memorabilia?.description || 'Authentic collectible sports memorabilia'}
                   </p>
-                  {cardBreak?.value && (
+                  {allBundles[currentBundleIndex]?.memorabilia?.value && (
                     <motion.div
                       className="flex items-center gap-2"
                       initial={{ scale: 0 }}
@@ -444,24 +483,48 @@ export default function AllegiantStadiumAnimation({
                     >
                       <span className="text-gray-400">Estimated Value:</span>
                       <span className="text-2xl font-bold text-green-400">
-                        ${cardBreak.value.toFixed(2)}
+                        ${(allBundles[currentBundleIndex].memorabilia.value || 0).toFixed(2)}
                       </span>
                     </motion.div>
                   )}
                 </motion.div>
 
-                {/* Continue Button */}
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.3 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleContinue}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-bold py-4 px-8 rounded-xl text-lg transition-all shadow-lg"
-                >
-                  Awesome! Continue
-                </motion.button>
+                {/* Navigation */}
+                {allBundles.length > 1 && (
+                  <div className="text-center mb-4">
+                    <p className="text-lg text-gray-300">
+                      Bundle {currentBundleIndex + 1} of {allBundles.length}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-4">
+                  {allBundles.length > 1 && currentBundleIndex > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1.3 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handlePrevBundle}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all shadow-lg"
+                    >
+                      Previous Bundle
+                    </motion.button>
+                  )}
+
+                  <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.3 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={allBundles.length > 1 && currentBundleIndex < allBundles.length - 1 ? handleNextBundle : handleContinue}
+                    className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-bold py-4 px-8 rounded-xl text-lg transition-all shadow-lg"
+                  >
+                    {allBundles.length > 1 && currentBundleIndex < allBundles.length - 1 ? 'Next Bundle' : 'Awesome! Continue'}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

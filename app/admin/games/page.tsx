@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import { Calendar, MapPin, DollarSign, Users, Play, Pause, Trash2, Edit, Ticket, Package, RefreshCw, Plus, Save, X, ChevronDown, ChevronUp, Copy, Gift } from 'lucide-react';
 import UnifiedScraper from '@/components/admin/UnifiedScraper';
 import ManualItemEntry from '@/components/admin/ManualItemEntry';
 import ImageUpload from '@/components/admin/ImageUpload';
@@ -78,10 +78,11 @@ export default function AdminGamesPage() {
 
   const fetchGames = async () => {
     try {
-      const res = await fetch('/api/admin/inventory');
+      const res = await fetch('/api/admin/inventory?limit=100');
       if (res.ok) {
         const data = await res.json();
-        setGames(data);
+        // Handle both old format (array) and new format (object with games property)
+        setGames(Array.isArray(data) ? data : data.games || []);
       }
     } catch (error) {
       console.error('Failed to fetch games:', error);
@@ -389,15 +390,15 @@ export default function AdminGamesPage() {
     // Sum tickets from special prizes that are ticket type
     const specialTickets = (game.specialPrizes || []).filter(p => p.prizeType === 'TICKET')
       .reduce((sum, prize) => sum + prize.quantity, 0);
-    // Legacy ticketGroups support
-    const groupTickets = game.ticketGroups.reduce((sum, group) => sum + (group.quantity || 0), 0);
+    // Legacy ticketGroups support - check if exists
+    const groupTickets = (game.ticketGroups || []).reduce((sum, group) => sum + (group.quantity || 0), 0);
     return levelTickets + specialTickets + groupTickets;
   };
 
   // Calculate available bundles
   const getAvailableBundles = (game: DailyGame) => {
     const totalTickets = getTotalTickets(game);
-    const totalBreaks = game.cardBreaks.filter((cb: any) => cb.status === 'AVAILABLE').length;
+    const totalBreaks = (game.cardBreaks || []).filter((cb: any) => cb.status === 'AVAILABLE').length;
     return Math.min(totalTickets, totalBreaks);
   };
 
@@ -643,12 +644,39 @@ export default function AdminGamesPage() {
                   {isExpanded && (
                     <div className="mt-6 space-y-6">
                       {/* Ticket Levels Section */}
-                      {game.ticketLevels && game.ticketLevels.length > 0 && (
+                      {(game.ticketLevels && game.ticketLevels.length > 0) || isEditing ? (
                         <div className="bg-white/5 rounded-lg p-4">
                           <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                               <Ticket className="w-5 h-5" /> Ticket Levels
                             </h3>
+                            {isEditing && (
+                              <button
+                                onClick={() => {
+                                  const newLevel: TicketLevel = {
+                                    id: `new-${Date.now()}`,
+                                    gameId: game.id,
+                                    level: '',
+                                    levelName: '',
+                                    quantity: 0,
+                                    pricePerSeat: 0,
+                                    viewImageUrl: null,
+                                    sections: [],
+                                    isSelectable: true
+                                  };
+                                  setEditedGames({
+                                    ...editedGames,
+                                    [game.id]: {
+                                      ...editedGame,
+                                      ticketLevels: [...(editedGame.ticketLevels || []), newLevel]
+                                    }
+                                  });
+                                }}
+                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+                              >
+                                + Add Level
+                              </button>
+                            )}
                           </div>
                           {editedGame.ticketLevels?.map((level: TicketLevel, idx: number) => (
                             <div key={level.id} className="bg-white/5 rounded p-3 mb-2">
@@ -725,6 +753,18 @@ export default function AdminGamesPage() {
                                       placeholder="Upload"
                                       folder="level-views"
                                     />
+                                    <button
+                                      onClick={() => {
+                                        const updatedLevels = editedGame.ticketLevels?.filter((_, i) => i !== idx) || [];
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, ticketLevels: updatedLevels }
+                                        });
+                                      }}
+                                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                    >
+                                      Delete
+                                    </button>
                                   </div>
                                   {level.viewImageUrl && (
                                     <div className="mt-2">
@@ -759,16 +799,46 @@ export default function AdminGamesPage() {
                               )}
                             </div>
                           ))}
+                          {(!editedGame.ticketLevels || editedGame.ticketLevels.length === 0) && !isEditing && (
+                            <p className="text-gray-400 text-center py-2">No ticket levels</p>
+                          )}
                         </div>
-                      )}
+                      ) : null}
 
                       {/* Special Prizes Section */}
-                      {game.specialPrizes && game.specialPrizes.length > 0 && (
+                      {(game.specialPrizes && game.specialPrizes.length > 0) || isEditing ? (
                         <div className="bg-white/5 rounded-lg p-4">
                           <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                              <Ticket className="w-5 h-5" /> Special Prizes
+                              <Gift className="w-5 h-5" /> Special Prizes
                             </h3>
+                            {isEditing && (
+                              <button
+                                onClick={() => {
+                                  const newPrize: SpecialPrize = {
+                                    id: `new-${Date.now()}`,
+                                    gameId: game.id,
+                                    name: '',
+                                    description: '',
+                                    value: 0,
+                                    quantity: 0,
+                                    imageUrl: null,
+                                    prizeType: 'EXPERIENCE',
+                                    metadata: null
+                                  };
+                                  setEditedGames({
+                                    ...editedGames,
+                                    [game.id]: {
+                                      ...editedGame,
+                                      specialPrizes: [...(editedGame.specialPrizes || []), newPrize]
+                                    }
+                                  });
+                                }}
+                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+                              >
+                                + Add Prize
+                              </button>
+                            )}
                           </div>
                           {editedGame.specialPrizes?.map((prize: SpecialPrize, idx: number) => (
                             <div key={prize.id} className="bg-white/5 rounded p-3 mb-2">
@@ -845,6 +915,18 @@ export default function AdminGamesPage() {
                                       placeholder="Upload"
                                       folder="special-prizes"
                                     />
+                                    <button
+                                      onClick={() => {
+                                        const updatedPrizes = editedGame.specialPrizes?.filter((_, i) => i !== idx) || [];
+                                        setEditedGames({
+                                          ...editedGames,
+                                          [game.id]: { ...editedGame, specialPrizes: updatedPrizes }
+                                        });
+                                      }}
+                                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                    >
+                                      Delete
+                                    </button>
                                   </div>
                                   {prize.imageUrl && (
                                     <div className="mt-2">
@@ -873,8 +955,11 @@ export default function AdminGamesPage() {
                               )}
                             </div>
                           ))}
+                          {(!editedGame.specialPrizes || editedGame.specialPrizes.length === 0) && !isEditing && (
+                            <p className="text-gray-400 text-center py-2">No special prizes</p>
+                          )}
                         </div>
-                      )}
+                      ) : null}
 
                       {/* Legacy Ticket Groups Section */}
                       {game.ticketGroups && game.ticketGroups.length > 0 && (
@@ -1269,7 +1354,8 @@ export default function AdminGamesPage() {
                         {/* Group breaks by unique item (name + value) */}
                         {(() => {
                           // Group by unique memorabilia items
-                          const uniqueItems = editedGame.cardBreaks?.reduce((acc: any, breakItem: any) => {
+                          const breaksToDisplay = isEditing ? editedGame.cardBreaks : game.cardBreaks;
+                          const uniqueItems = breaksToDisplay?.reduce((acc: any, breakItem: any) => {
                             // Normalize the name by removing "(copy)" suffix for grouping
                             const normalizedName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
                             const key = `${normalizedName}_${breakItem.breakValue}_${breakItem.imageUrl}`;

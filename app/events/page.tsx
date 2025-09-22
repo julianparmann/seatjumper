@@ -129,9 +129,17 @@ export default function EventsPage() {
     return matchesSearch && matchesSport;
   });
 
-  const calculateJumpPrice = (averagePrice: number) => {
-    // Simple calculation for display - actual calculation happens on backend
-    return Math.round(averagePrice * 0.35);
+  const getJumpPrice = (event: any) => {
+    // For daily games, use the pre-calculated spinPricePerBundle
+    if ('jumpPrice' in event && event.jumpPrice > 0) {
+      return event.jumpPrice;
+    }
+    // For API events, use spinPrice if available
+    if ('spinPrice' in event && event.spinPrice > 0) {
+      return event.spinPrice;
+    }
+    // Fallback estimate (shouldn't be used in production)
+    return Math.round((event.averagePrice || 0) * 0.35);
   };
 
   const formatDate = (date: Date) => {
@@ -321,7 +329,7 @@ export default function EventsPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Jump Price:</span>
                     <span className="text-yellow-400 font-bold text-xl">
-                      From ${calculateJumpPrice(event.averagePrice)}
+                      From ${getJumpPrice(event).toFixed(2)}
                     </span>
                   </div>
                 </div>

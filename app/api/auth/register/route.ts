@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { mailgunService } from '@/lib/email/mailgun';
+import { render } from '@react-email/render';
+import WelcomeEmail from '@/lib/email/templates/welcome';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +51,27 @@ export async function POST(request: NextRequest) {
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
+
+    // Send welcome email
+    try {
+      const emailHtml = render(WelcomeEmail({
+        userName: name || email.split('@')[0],
+        userEmail: email,
+      }));
+
+      await mailgunService.sendTemplatedEmail(
+        email,
+        'Welcome to SeatJumper!',
+        emailHtml,
+        undefined,
+        { tags: ['welcome', 'registration'] }
+      );
+
+      console.log(`Welcome email sent to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     return NextResponse.json(
       {

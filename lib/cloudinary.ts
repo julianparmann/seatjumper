@@ -12,13 +12,21 @@ export default cloudinary;
 // Helper function to upload image from base64
 export async function uploadImage(base64Image: string, folder: string = 'seatjumper') {
   try {
+    // For stadiums, use higher resolution
+    const transformation = folder === 'stadiums'
+      ? [
+          { width: 1920, height: 1080, crop: 'limit' },
+          { quality: 'auto:best' }
+        ]
+      : [
+          { width: 1200, height: 800, crop: 'limit' },
+          { quality: 'auto:good' }
+        ];
+
     const result = await cloudinary.uploader.upload(base64Image, {
       folder: folder,
       resource_type: 'image',
-      transformation: [
-        { width: 1200, height: 800, crop: 'limit' }, // Limit size but maintain aspect ratio
-        { quality: 'auto:good' }, // Optimize quality
-      ],
+      transformation: transformation,
     });
 
     return {

@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { mailgunService } from '@/lib/email/mailgun';
+import { render } from '@react-email/render';
+import PasswordChangedEmail from '@/lib/email/templates/password-changed';
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Get user from database
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, email: true, password: true }
+      select: { id: true, email: true, name: true, password: true }
     });
 
     if (!user) {
@@ -62,6 +65,28 @@ export async function POST(req: NextRequest) {
       where: { id: user.id },
       data: { password: hashedNewPassword }
     });
+
+    // Send password change confirmation email
+    try {
+      const emailHtml = render(PasswordChangedEmail({
+        userName: user.name || user.email.split('@')[0],
+        userEmail: user.email,
+        changedAt: new Date(),
+      }));
+
+      await mailgunService.sendTemplatedEmail(
+        user.email,
+        'Your SeatJumper Password Has Been Changed',
+        emailHtml,
+        undefined,
+        { tags: ['password-changed', 'security'] }
+      );
+
+      console.log(`Password change confirmation email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send password change email:', emailError);
+      // Don't fail the password change if email fails
+    }
 
     return NextResponse.json({ message: 'Password changed successfully' });
   } catch (error) {

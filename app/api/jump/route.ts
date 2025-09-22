@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { mailgunService } from '@/lib/email/mailgun';
+import { render } from '@react-email/render';
+import OrderReceiptEmail from '@/lib/email/templates/order-receipt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,8 +67,15 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Add all special prizes
+      // Add special prizes to pool (filter based on quantity requested)
       game.specialPrizes.forEach(prize => {
+        // If buying multiple bundles, only include special prizes that have enough quantity
+        // This ensures seats are together (all same level) for multi-bundle purchases
+        if (quantity > 1 && prize.quantity < quantity) {
+          // Skip this prize - not enough for all bundles
+          return;
+        }
+
         for (let i = 0; i < prize.quantity; i++) {
           inventoryPool.push({
             type: 'special',
@@ -109,14 +119,53 @@ export async function POST(req: NextRequest) {
         cardBreaks: [] as string[]
       };
 
+      // For multi-bundle purchases, ensure same ticket level for all (seats together)
+      let fixedTicketLevel: string | null = null;
+      let fixedSpecialPrize: string | null = null;
+
       for (let i = 0; i < quantity; i++) {
-        // Select a ticket or special prize
         let ticketItem = null;
-        let ticketIndex = shuffled.findIndex(item => item.type === 'ticket' || item.type === 'special');
 
-        if (ticketIndex !== -1) {
-          ticketItem = shuffled.splice(ticketIndex, 1)[0];
+        if (quantity > 1) {
+          // Multi-bundle: ensure same seating level for all bundles
+          if (i === 0) {
+            // First bundle: randomly select a level/prize
+            let ticketIndex = shuffled.findIndex(item => item.type === 'ticket' || item.type === 'special');
+            if (ticketIndex !== -1) {
+              ticketItem = shuffled.splice(ticketIndex, 1)[0];
+              if (ticketItem.type === 'ticket') {
+                fixedTicketLevel = ticketItem.level;
+              } else if (ticketItem.type === 'special') {
+                fixedSpecialPrize = ticketItem.id;
+              }
+            }
+          } else {
+            // Subsequent bundles: use same level/prize as first
+            if (fixedTicketLevel) {
+              let ticketIndex = shuffled.findIndex(item =>
+                item.type === 'ticket' && item.level === fixedTicketLevel
+              );
+              if (ticketIndex !== -1) {
+                ticketItem = shuffled.splice(ticketIndex, 1)[0];
+              }
+            } else if (fixedSpecialPrize) {
+              let ticketIndex = shuffled.findIndex(item =>
+                item.type === 'special' && item.id === fixedSpecialPrize
+              );
+              if (ticketIndex !== -1) {
+                ticketItem = shuffled.splice(ticketIndex, 1)[0];
+              }
+            }
+          }
+        } else {
+          // Single bundle: random selection as before
+          let ticketIndex = shuffled.findIndex(item => item.type === 'ticket' || item.type === 'special');
+          if (ticketIndex !== -1) {
+            ticketItem = shuffled.splice(ticketIndex, 1)[0];
+          }
+        }
 
+        if (ticketItem) {
           // Track inventory updates
           if (ticketItem.type === 'ticket') {
             itemsToUpdate.ticketLevels.set(
@@ -201,10 +250,43 @@ export async function POST(req: NextRequest) {
         return sum + ticketValue + memorabiliaValue;
       }, 0);
 
-      // Calculate the price based on average of entire pool
-      const poolTotalValue = inventoryPool.reduce((sum, item) => sum + item.value, 0);
-      const avgPricePerItem = poolTotalValue / inventoryPool.length;
-      const pricePerBundle = avgPricePerItem * 2; // Each bundle has 2 items
+      // Calculate the price based on what's actually available for selection
+      // Build the actual eligible pool (same logic as inventory building but filtered)
+      const eligiblePool = [];
+
+      // Add eligible tickets
+      game.ticketLevels.forEach(level => {
+        for (let i = 0; i < level.quantity; i++) {
+          eligiblePool.push({
+            type: 'ticket',
+            value: level.pricePerSeat
+          });
+        }
+      });
+
+      // Add eligible special prizes (only if quantity is sufficient for all bundles)
+      game.specialPrizes.forEach(prize => {
+        if (quantity <= 1 || prize.quantity >= quantity) {
+          for (let i = 0; i < prize.quantity; i++) {
+            eligiblePool.push({
+              type: 'special',
+              value: prize.value
+            });
+          }
+        }
+      });
+
+      // Add all memorabilia
+      game.cardBreaks.forEach(cardBreak => {
+        eligiblePool.push({
+          type: 'memorabilia',
+          value: cardBreak.breakValue
+        });
+      });
+
+      const poolTotalValue = eligiblePool.reduce((sum, item) => sum + item.value, 0);
+      const avgPricePerItem = poolTotalValue / eligiblePool.length;
+      const pricePerBundle = avgPricePerItem * 2 * 1.3; // Each bundle has 2 items + 30% margin
 
       // Create SpinResult record
       const spinResult = await tx.spinResult.create({
@@ -228,9 +310,69 @@ export async function POST(req: NextRequest) {
           }
         },
         include: {
-          bundles: true
+          bundles: true,
+          game: true,
+          user: true
         }
       });
+
+      // Send order receipt email
+      try {
+        // Prepare ticket details for email
+        const ticketDetails = bundles.map(bundle => {
+          if (bundle.ticket.level) {
+            // Regular ticket
+            return {
+              section: bundle.ticket.level,
+              row: bundle.ticket.levelName || 'TBD',
+              seat: 'TBD', // Specific seats assigned later
+              pricePerSeat: bundle.ticket.value || 0
+            };
+          } else {
+            // Special prize (not a regular ticket)
+            return {
+              section: 'Special Prize',
+              row: bundle.ticket.name,
+              seat: bundle.ticket.prizeType || '',
+              pricePerSeat: bundle.ticket.value || 0
+            };
+          }
+        });
+
+        // Prepare memorabilia details for email
+        const memorabiliaDetails = bundles.map(bundle => ({
+          name: bundle.memorabilia.name,
+          value: bundle.memorabilia.value || 0,
+          description: bundle.memorabilia.description
+        }));
+
+        const emailHtml = render(OrderReceiptEmail({
+          userName: spinResult.user.name || spinResult.user.email.split('@')[0],
+          orderNumber: spinResult.id,
+          eventName: spinResult.game.eventName,
+          eventDate: spinResult.game.eventDate,
+          venue: spinResult.game.venue,
+          city: spinResult.game.city,
+          state: spinResult.game.state,
+          pricePaid: pricePerBundle * quantity,
+          tickets: ticketDetails,
+          memorabilia: memorabiliaDetails,
+          orderDate: new Date()
+        }));
+
+        await mailgunService.sendTemplatedEmail(
+          spinResult.user.email,
+          `Order Confirmation - ${spinResult.game.eventName}`,
+          emailHtml,
+          undefined,
+          { tags: ['order-receipt', 'jump-complete'] }
+        );
+
+        console.log(`Order receipt email sent to ${spinResult.user.email} for spin ${spinResult.id}`);
+      } catch (emailError) {
+        console.error('Failed to send order receipt email:', emailError);
+        // Don't fail the jump if email fails
+      }
 
       // Return the bundle details
       return {

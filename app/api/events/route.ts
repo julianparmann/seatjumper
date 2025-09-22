@@ -11,33 +11,49 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city') || undefined;
     const state = searchParams.get('state') || undefined;
     const sportParam = searchParams.get('sport') || undefined;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const skip = (page - 1) * limit;
 
     // Validate and cast sport parameter to enum
     const sport = sportParam && Object.values(Sport).includes(sportParam as Sport)
       ? (sportParam as Sport)
       : undefined;
 
-    // Get active games from database
+    // Build where clause
+    const whereClause = {
+      status: 'ACTIVE',
+      ...(q && {
+        OR: [
+          { eventName: { contains: q, mode: 'insensitive' } },
+          { venue: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+        ],
+      }),
+      ...(city && { city: { contains: city, mode: 'insensitive' } }),
+      ...(state && { state: { contains: state, mode: 'insensitive' } }),
+      ...(sport && { sport }),
+    };
+
+    // Get total count for pagination
+    const totalCount = await prisma.dailyGame.count({
+      where: whereClause
+    });
+
+    // Get paginated active games from database
     const games = await prisma.dailyGame.findMany({
-      where: {
-        status: 'ACTIVE',
-        ...(q && {
-          OR: [
-            { eventName: { contains: q, mode: 'insensitive' } },
-            { venue: { contains: q, mode: 'insensitive' } },
-            { city: { contains: q, mode: 'insensitive' } },
-          ],
-        }),
-        ...(city && { city: { contains: city, mode: 'insensitive' } }),
-        ...(state && { state: { contains: state, mode: 'insensitive' } }),
-        ...(sport && { sport }),
-      },
+      skip,
+      take: limit,
+      where: whereClause,
       include: {
-        ticketGroups: true,
+        ticketGroups: {
+          take: 5 // Limit ticket groups to reduce memory
+        },
         cardBreaks: {
           where: {
             status: 'AVAILABLE'
-          }
+          },
+          take: 10 // Limit card breaks to reduce memory
         }
       },
       orderBy: {
@@ -78,10 +94,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       events,
       pagination: {
-        page: 1,
-        per_page: events.length,
-        total: events.length,
-        total_pages: 1,
+        page,
+        per_page: limit,
+        total: totalCount,
+        total_pages: Math.ceil(totalCount / limit),
       },
     });
   } catch (error) {

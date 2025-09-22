@@ -60,10 +60,41 @@ export async function PUT(
       }
     });
 
-    // Update ticket levels if provided
+    // Handle ticket levels: create, update, or delete
     if (ticketLevels && Array.isArray(ticketLevels)) {
+      // Get existing ticket levels
+      const existingLevels = await prisma.ticketLevel.findMany({
+        where: { gameId: id }
+      });
+
+      // Delete levels that are not in the update
+      const levelIdsToKeep = ticketLevels.filter(l => l.id && !l.id.startsWith('new-')).map(l => l.id);
+      const levelsToDelete = existingLevels.filter(l => !levelIdsToKeep.includes(l.id));
+
+      for (const levelToDelete of levelsToDelete) {
+        await prisma.ticketLevel.delete({
+          where: { id: levelToDelete.id }
+        });
+      }
+
+      // Update or create levels
       for (const level of ticketLevels) {
-        if (level.id) {
+        if (level.id && level.id.startsWith('new-')) {
+          // Create new level
+          await prisma.ticketLevel.create({
+            data: {
+              gameId: id,
+              level: level.level || '',
+              levelName: level.levelName || '',
+              quantity: level.quantity || 0,
+              pricePerSeat: level.pricePerSeat || 0,
+              viewImageUrl: level.viewImageUrl,
+              sections: level.sections || [],
+              isSelectable: level.isSelectable !== false
+            }
+          });
+        } else if (level.id) {
+          // Update existing level
           await prisma.ticketLevel.update({
             where: { id: level.id },
             data: {
@@ -80,10 +111,41 @@ export async function PUT(
       }
     }
 
-    // Update special prizes if provided
+    // Handle special prizes: create, update, or delete
     if (specialPrizes && Array.isArray(specialPrizes)) {
+      // Get existing special prizes
+      const existingPrizes = await prisma.specialPrize.findMany({
+        where: { gameId: id }
+      });
+
+      // Delete prizes that are not in the update
+      const prizeIdsToKeep = specialPrizes.filter(p => p.id && !p.id.startsWith('new-')).map(p => p.id);
+      const prizesToDelete = existingPrizes.filter(p => !prizeIdsToKeep.includes(p.id));
+
+      for (const prizeToDelete of prizesToDelete) {
+        await prisma.specialPrize.delete({
+          where: { id: prizeToDelete.id }
+        });
+      }
+
+      // Update or create prizes
       for (const prize of specialPrizes) {
-        if (prize.id) {
+        if (prize.id && prize.id.startsWith('new-')) {
+          // Create new prize
+          await prisma.specialPrize.create({
+            data: {
+              gameId: id,
+              name: prize.name || '',
+              description: prize.description || '',
+              value: prize.value || 0,
+              quantity: prize.quantity || 0,
+              imageUrl: prize.imageUrl,
+              prizeType: prize.prizeType || 'EXPERIENCE',
+              metadata: prize.metadata
+            }
+          });
+        } else if (prize.id) {
+          // Update existing prize
           await prisma.specialPrize.update({
             where: { id: prize.id },
             data: {

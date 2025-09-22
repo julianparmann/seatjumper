@@ -16,17 +16,23 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Building2,
+  Activity,
+  Send
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, color: 'text-purple-400' },
   { name: 'Orders', href: '/admin/orders', icon: Package, color: 'text-yellow-400' },
   { name: 'Leads', href: '/admin/leads', icon: Mail, color: 'text-blue-400' },
+  { name: 'Email Marketing', href: '/admin/email-marketing', icon: Send, color: 'text-indigo-400' },
   { name: 'Users', href: '/admin/users', icon: Users, color: 'text-green-400' },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3, color: 'text-orange-400' },
   { name: 'Games', href: '/admin/games', icon: Calendar, color: 'text-pink-400' },
+  { name: 'Stadiums', href: '/admin/stadiums', icon: Building2, color: 'text-indigo-400' },
   { name: 'Inventory', href: '/admin/inventory', icon: Package, color: 'text-cyan-400' },
+  { name: 'Health Monitor', href: '/admin/health', icon: Activity, color: 'text-red-400' },
   { name: 'Audit Log', href: '/admin/audit', icon: FileText, color: 'text-gray-400' },
   { name: 'Settings', href: '/admin/settings', icon: Settings, color: 'text-gray-400' },
 ];

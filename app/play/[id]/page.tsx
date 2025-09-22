@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Calendar, MapPin, Ticket, Package, Loader2, DollarSign, LogIn, Filter, Check, X } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Package, Loader2, DollarSign, LogIn, Filter, Check, X, Info } from 'lucide-react';
 import AllegiantStadiumAnimation from '@/components/jumps/AllegiantStadiumAnimation';
 import Link from 'next/link';
 
@@ -111,10 +111,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
             .map((level: TicketLevel) => level.level);
           setSelectedLevels(selectableLevels);
         }
-        // Use pre-calculated price if available
-        if (data.spinPricePerBundle) {
-          setCalculatedPrice(data.spinPricePerBundle);
-        }
+        // Don't use pre-calculated price - will calculate dynamically in useEffect
       } else {
         router.push('/events');
       }
@@ -126,55 +123,57 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  // Calculate pool value based on selected levels
+  // Use consistent pricing from backend
   useEffect(() => {
     if (!game) return;
 
-    // Check if user has customized level selection
-    const allSelectableLevels = game.ticketLevels
-      .filter((level: TicketLevel) => level.isSelectable && level.quantity > 0)
-      .map((level: TicketLevel) => level.level);
+    // Use the pre-calculated price from the backend for consistency
+    // This is already calculated with proper averages and 30% margin
+    const basePrice = game.spinPricePerBundle || 0;
 
-    const isDefaultSelection = selectedLevels.length === allSelectableLevels.length &&
-      selectedLevels.every(level => allSelectableLevels.includes(level));
+    // If we have a valid pre-calculated price, use it
+    if (basePrice > 0) {
+      setCalculatedPrice(basePrice);
+    } else {
+      // Fallback calculation if spinPricePerBundle is not set
+      // Calculate average ticket price from selected levels
+      let ticketValue = 0;
+      let ticketCount = 0;
 
-    // If using default selection and we have a pre-calculated price, use it
-    if (game.spinPricePerBundle && isDefaultSelection) {
-      setCalculatedPrice(game.spinPricePerBundle);
-      return;
+      game.ticketLevels
+        .filter(level => selectedLevels.includes(level.level))
+        .forEach(level => {
+          ticketValue += level.pricePerSeat * level.quantity;
+          ticketCount += level.quantity;
+        });
+
+      // Add special prizes
+      game.specialPrizes.forEach(prize => {
+        ticketValue += prize.value * prize.quantity;
+        ticketCount += prize.quantity;
+      });
+
+      const avgTicketPrice = ticketCount > 0 ? ticketValue / ticketCount : 0;
+
+      // Calculate average memorabilia value
+      const availableBreaks = game.cardBreaks.filter(cb => cb.status === 'AVAILABLE');
+      const breakValue = availableBreaks.reduce((sum, cb) => sum + (cb.breakValue || 0), 0);
+      const avgBreakValue = availableBreaks.length > 0 ? breakValue / availableBreaks.length : 0;
+
+      // Bundle = 1 ticket + 1 memorabilia, with 30% margin
+      const bundleValue = avgTicketPrice + avgBreakValue;
+      const priceWithMargin = bundleValue * 1.3;
+
+      setCalculatedPrice(priceWithMargin);
     }
 
-    // Otherwise recalculate based on selected levels
-    let totalValue = 0;
-    let totalItems = 0;
-
-    // Add selected ticket levels to calculation
-    game.ticketLevels
-      .filter(level => selectedLevels.includes(level.level))
-      .forEach(level => {
-        totalValue += level.pricePerSeat * level.quantity;
-        totalItems += level.quantity;
-      });
-
-    // ALWAYS add all special prizes (they're always in the pool regardless of level selection)
-    game.specialPrizes.forEach(prize => {
-      totalValue += prize.value * prize.quantity;
-      totalItems += prize.quantity;
+    console.log('Price calculation:', {
+      spinPricePerBundle: game.spinPricePerBundle,
+      avgTicketPrice: game.avgTicketPrice,
+      avgBreakValue: game.avgBreakValue,
+      calculatedPrice
     });
-
-    // Add all memorabilia
-    game.cardBreaks
-      .filter(cb => cb.status === 'AVAILABLE')
-      .forEach(cb => {
-        totalValue += cb.breakValue || 0;
-        totalItems += 1;
-      });
-
-    // Calculate price per bundle (2 items per bundle)
-    const avgPricePerItem = totalItems > 0 ? totalValue / totalItems : 0;
-    const pricePerBundle = avgPricePerItem * 2 * 1.3; // Apply 30% margin like in pricing.ts
-    setCalculatedPrice(pricePerBundle);
-  }, [game, selectedLevels]);
+  }, [game, selectedLevels, bundleQuantity]);
 
   const calculateAvailableBundles = () => {
     if (!game) return 0;
@@ -487,6 +486,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 targetSeats={[]}
                 cardBreak={animationResult.bundles?.[0]?.memorabilia}
                 seatViewUrl={animationResult.bundles?.[0]?.ticket?.viewImageUrl || animationResult.bundles?.[0]?.ticket?.imageUrl}
+                bundles={animationResult.bundles}
                 onComplete={onAnimationComplete}
                 isAnimating={showAnimation}
                 stadium={game.stadium}
@@ -519,7 +519,24 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                       </button>
                       <div className="text-center">
                         <div className="text-white text-3xl font-bold">{bundleQuantity}</div>
-                        <div className="text-gray-400 text-sm">bundle{bundleQuantity > 1 ? 's' : ''}</div>
+                        <div className="text-gray-400 text-sm flex items-center gap-1 justify-center group relative">
+                          <span>bundle{bundleQuantity > 1 ? 's' : ''}</span>
+                          <Info className="w-3 h-3" />
+                          {/* Tooltip */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                            <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl border border-gray-700 whitespace-nowrap">
+                              <p className="font-semibold mb-1">Each bundle includes:</p>
+                              <p>• 1 game ticket</p>
+                              <p>• 1 memorabilia item</p>
+                              {bundleQuantity > 1 && (
+                                <p className="mt-1 text-yellow-400">✓ Seats will be together</p>
+                              )}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                                <div className="border-8 border-transparent border-t-gray-800"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <button
                         onClick={() => setBundleQuantity(Math.min(availableBundles, bundleQuantity + 1))}

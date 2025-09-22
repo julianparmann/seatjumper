@@ -5,15 +5,26 @@ import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
-    // Fetch all games with their ticket groups and card breaks
+    // Get pagination parameters from query string
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination info
+    const totalCount = await prisma.dailyGame.count();
+
+    // Fetch paginated games with necessary includes for admin page
     const games = await prisma.dailyGame.findMany({
+      skip,
+      take: limit,
       include: {
         ticketGroups: true,
         ticketLevels: true,
         specialPrizes: true,
-        cardBreaks: true,
-        entries: true,
-        spinResults: true,
+        cardBreaks: true, // Include all card breaks
+        entries: false, // Don't include entries to save memory
+        spinResults: false, // Don't include spin results to save memory
         stadium: true
       },
       orderBy: {
@@ -21,7 +32,15 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json(games);
+    return NextResponse.json({
+      games,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount
+      }
+    });
   } catch (error) {
     console.error('Error fetching games:', error);
     return NextResponse.json(
