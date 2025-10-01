@@ -128,7 +128,7 @@ export default function NeedVerificationPage() {
                       Didn't receive the email?
                     </p>
                     <button
-                      onClick={handleResendEmail}
+                      onClick={() => handleResendEmail()}
                       disabled={isResending}
                       className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-semibold px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
