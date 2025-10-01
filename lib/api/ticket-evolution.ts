@@ -1,188 +1,249 @@
 import crypto from 'crypto';
-import axios, { AxiosInstance } from 'axios';
-import { TicketEvolutionEvent, TicketEvolutionTicket, EventDetails, Sport } from '@/types';
+
+interface TEEvent {
+  id: number;
+  name: string;
+  occurs_at: string;
+  venue: {
+    id: number;
+    name: string;
+    city: string;
+    state: string;
+    country: string;
+  };
+  category: {
+    id: number;
+    name: string;
+  };
+  performers: Array<{
+    id: number;
+    name: string;
+    category: string;
+  }>;
+  popularity_score: number;
+}
+
+interface TETicketGroup {
+  id: number;
+  section: string;
+  row: string;
+  quantity: number;
+  price: number;
+  retail_price?: number;
+  format: string;
+  delivery_methods: string[];
+  splits: number[];
+}
 
 export class TicketEvolutionAPI {
-  private client: AxiosInstance;
   private apiToken: string;
   private apiSecret: string;
   private officeId: string;
+  private baseUrl: string;
 
   constructor() {
-    const env = process.env.TICKET_EVOLUTION_ENV || 'sandbox';
-    const baseURL = env === 'production'
-      ? 'https://api.ticketevolution.com/v9'
-      : 'https://api.sandbox.ticketevolution.com/v9';
+    this.apiToken = process.env.TICKET_EVOLUTION_API_TOKEN || '';
+    this.apiSecret = process.env.TICKET_EVOLUTION_API_SECRET || '';
+    this.officeId = process.env.TICKET_EVOLUTION_OFFICE_ID || '';
 
-    this.apiToken = process.env.TICKET_EVOLUTION_API_TOKEN!;
-    this.apiSecret = process.env.TICKET_EVOLUTION_API_SECRET!;
-    this.officeId = process.env.TICKET_EVOLUTION_OFFICE_ID!;
-
-    this.client = axios.create({
-      baseURL,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Add request interceptor for authentication
-    this.client.interceptors.request.use((config) => {
-      const signature = this.generateSignature(
-        config.method!.toUpperCase(),
-        config.url!,
-        config.params || {}
-      );
-
-      config.headers['X-Token'] = this.apiToken;
-      config.headers['X-Signature'] = signature;
-
-      return config;
-    });
+    // Use sandbox for testing, production URL would be: https://api.ticketevolution.com
+    this.baseUrl = process.env.TICKET_EVOLUTION_ENV === 'production'
+      ? 'https://api.ticketevolution.com'
+      : 'https://api.sandbox.ticketevolution.com';
   }
 
-  private generateSignature(method: string, path: string, params: any): string {
-    // Sort params alphabetically
+  private generateSignature(method: string, path: string, params: any = {}): string {
+    // Sort parameters alphabetically
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => `${key}=${params[key]}`)
       .join('&');
 
+    // Create base string for signature
     const baseString = [
-      method,
+      method.toUpperCase(),
       path,
       sortedParams
-    ].filter(Boolean).join(' ');
+    ].filter(Boolean).join('&');
 
-    // Create HMAC-SHA256 signature
+    // Generate HMAC SHA256 signature
     const hmac = crypto.createHmac('sha256', this.apiSecret);
     hmac.update(baseString);
-
     return Buffer.from(hmac.digest()).toString('base64');
+  }
+
+  private async makeRequest(method: string, path: string, params: any = {}, body?: any) {
+    const signature = this.generateSignature(method, path, params);
+
+    const headers: any = {
+      'X-Token': this.apiToken,
+      'X-Signature': signature,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+
+    const url = new URL(`${this.baseUrl}${path}`);
+    Object.keys(params).forEach(key => {
+      url.searchParams.append(key, params[key]);
+    });
+
+    try {
+      const response = await fetch(url.toString(), {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Ticket Evolution API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Request failed:', error);
+      throw error;
+    }
   }
 
   async searchEvents(params: {
     q?: string;
     category_id?: number;
     venue_id?: number;
+    performer_id?: number;
+    city?: string;
+    state?: string;
     occurs_at_gte?: string;
     occurs_at_lte?: string;
     page?: number;
     per_page?: number;
-  }): Promise<TicketEvolutionEvent[]> {
-    try {
-      const response = await this.client.get('/events', { params });
-      return response.data.events || [];
-    } catch (error) {
-      console.error('Error searching events:', error);
-      throw error;
-    }
+    order_by?: string;
+  }) {
+    // Filter out undefined values
+    const cleanParams = Object.entries(params)
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+    const response = await this.makeRequest('GET', '/v9/events', cleanParams);
+    return response;
   }
 
-  async getEvent(eventId: string): Promise<TicketEvolutionEvent> {
-    try {
-      const response = await this.client.get(`/events/${eventId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching event:', error);
-      throw error;
-    }
+  async getEvent(eventId: number) {
+    const response = await this.makeRequest('GET', `/v9/events/${eventId}`);
+    return response;
   }
 
-  async getTicketsForEvent(eventId: string): Promise<TicketEvolutionTicket[]> {
+  async getTicketGroups(eventId: number, params: {
+    quantity?: number;
+    section?: string;
+    order_by?: string;
+    page?: number;
+    per_page?: number;
+  } = {}) {
+    const cleanParams = Object.entries(params)
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+    const response = await this.makeRequest('GET', `/v9/ticket_groups`, {
+      event_id: eventId,
+      ...cleanParams
+    });
+    return response;
+  }
+
+  async calculateAveragePrice(eventId: number): Promise<number> {
     try {
-      const response = await this.client.get('/tickets', {
-        params: {
-          event_id: eventId,
-          order_by: 'price',
-        }
+      const ticketGroups = await this.getTicketGroups(eventId, {
+        per_page: 100,
+        order_by: 'price'
       });
-      return response.data.tickets || [];
+
+      if (!ticketGroups.ticket_groups || ticketGroups.ticket_groups.length === 0) {
+        return 0;
+      }
+
+      const prices = ticketGroups.ticket_groups.map((group: TETicketGroup) => group.price);
+      const total = prices.reduce((sum: number, price: number) => sum + price, 0);
+      return Math.round(total / prices.length);
     } catch (error) {
-      console.error('Error fetching tickets:', error);
-      throw error;
+      console.error('Error calculating average price:', error);
+      return 0;
     }
   }
 
-  async getAverageTicketPrice(eventId: string, quantity: number = 2): Promise<number> {
-    const tickets = await this.getTicketsForEvent(eventId);
-
-    // Filter tickets that match the requested quantity
-    const validTickets = tickets.filter(t =>
-      t.quantity >= quantity &&
-      t.splits.includes(quantity)
-    );
-
-    if (validTickets.length === 0) {
-      throw new Error('No tickets available for requested quantity');
-    }
-
-    // Calculate average price
-    const totalPrice = validTickets.reduce((sum, ticket) => sum + (ticket.price * quantity), 0);
-    return totalPrice / validTickets.length;
-  }
-
-  async purchaseTickets(ticketGroupId: number, quantity: number, price: number): Promise<any> {
+  async getPriceRange(eventId: number): Promise<{ min: number; max: number; average: number }> {
     try {
-      const response = await this.client.post('/orders', {
-        orders: [{
-          ticket_group_id: ticketGroupId,
-          quantity: quantity,
-          price: price,
-          office_id: this.officeId,
-        }]
+      const ticketGroups = await this.getTicketGroups(eventId, {
+        per_page: 100,
+        order_by: 'price'
       });
-      return response.data;
+
+      if (!ticketGroups.ticket_groups || ticketGroups.ticket_groups.length === 0) {
+        return { min: 0, max: 0, average: 0 };
+      }
+
+      const prices = ticketGroups.ticket_groups.map((group: TETicketGroup) => group.price);
+
+      return {
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+        average: Math.round(prices.reduce((sum: number, price: number) => sum + price, 0) / prices.length)
+      };
     } catch (error) {
-      console.error('Error purchasing tickets:', error);
-      throw error;
+      console.error('Error getting price range:', error);
+      return { min: 0, max: 0, average: 0 };
     }
   }
 
-  mapSportCategory(categoryName: string): Sport {
-    const normalized = categoryName.toLowerCase();
+  // Map Ticket Evolution categories to our Sport enum
+  mapCategoryToSport(category: string): string {
+    const mapping: { [key: string]: string } = {
+      'football': 'NFL',
+      'basketball': 'NBA',
+      'baseball': 'MLB',
+      'hockey': 'NHL',
+      'soccer': 'SOCCER',
+      'mma': 'UFC',
+      'auto racing': 'F1',
+      'nfl': 'NFL',
+      'nba': 'NBA',
+      'mlb': 'MLB',
+      'nhl': 'NHL',
+      'ncaa football': 'NFL',
+      'ncaa basketball': 'NBA',
+    };
 
-    if (normalized.includes('football') || normalized.includes('nfl')) return Sport.NFL;
-    if (normalized.includes('basketball') || normalized.includes('nba')) return Sport.NBA;
-    if (normalized.includes('baseball') || normalized.includes('mlb')) return Sport.MLB;
-    if (normalized.includes('hockey') || normalized.includes('nhl')) return Sport.NHL;
-    if (normalized.includes('soccer') || normalized.includes('mls')) return Sport.SOCCER;
-    if (normalized.includes('ufc') || normalized.includes('mma')) return Sport.UFC;
-    if (normalized.includes('f1') || normalized.includes('formula')) return Sport.F1;
-
-    return Sport.OTHER;
+    const lowerCategory = category.toLowerCase();
+    return mapping[lowerCategory] || 'OTHER';
   }
 
-  async convertToEventDetails(teEvent: TicketEvolutionEvent): Promise<EventDetails> {
-    const tickets = await this.getTicketsForEvent(teEvent.id.toString());
-
-    const prices = tickets.map(t => t.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    const averagePrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-
+  // Create a purchase/hold a ticket group
+  async holdTickets(ticketGroupId: number, quantity: number) {
+    // This would integrate with TE's checkout API
+    // For now, return mock response
     return {
-      id: teEvent.id.toString(),
-      name: teEvent.name,
-      sport: this.mapSportCategory(teEvent.category.name),
-      venue: teEvent.venue.name,
-      city: teEvent.venue.city,
-      state: teEvent.venue.state,
-      datetime: new Date(teEvent.occurs_at),
-      minPrice,
-      maxPrice,
-      averagePrice,
-      inventoryCount: tickets.length,
-      tickets: tickets.map(t => ({
-        id: t.id.toString(),
-        section: t.section,
-        row: t.row,
-        seatNumbers: t.seat_numbers.split(','),
-        price: t.price,
-        quantity: t.quantity,
-      }))
+      success: true,
+      hold_id: `hold_${ticketGroupId}_${Date.now()}`,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    };
+  }
+
+  // Complete a ticket purchase
+  async purchaseTickets(holdId: string, paymentInfo: any) {
+    // This would complete the purchase through TE
+    // For now, return mock response
+    return {
+      success: true,
+      order_id: `order_${Date.now()}`,
+      tickets: [],
     };
   }
 }
 
+// Singleton instance
 export const ticketEvolution = new TicketEvolutionAPI();

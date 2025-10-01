@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-08-27.basil',
   typescript: true,
 });
 
@@ -51,7 +51,8 @@ export async function createCheckoutSession(
   lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
   successUrl: string,
   cancelUrl: string,
-  metadata?: any
+  metadata?: any,
+  customerEmail?: string
 ) {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -61,6 +62,9 @@ export async function createCheckoutSession(
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata,
+      customer_email: customerEmail,
+      billing_address_collection: 'required',
+      allow_promotion_codes: true, // Enable coupon/promo codes
     });
 
     return session;
@@ -84,6 +88,18 @@ export async function constructWebhookEvent(
     return event;
   } catch (error) {
     console.error('Error constructing webhook event:', error);
+    throw error;
+  }
+}
+
+export async function retrieveCheckoutSession(sessionId: string) {
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items', 'payment_intent']
+    });
+    return session;
+  } catch (error) {
+    console.error('Error retrieving checkout session:', error);
     throw error;
   }
 }
