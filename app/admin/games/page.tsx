@@ -592,8 +592,8 @@ export default function AdminGamesPage() {
                           });
 
                           const avg = count > 0 ? prices.reduce((a, b) => a + b, 0) / count : 0;
-                          // Recommended price is 135% of average value (35% margin)
-                          const recommendedPrice = avg * 1.35;
+                          // Recommended price is 130% of average value (30% margin)
+                          const recommendedPrice = avg * 1.3;
                           return recommendedPrice.toFixed(2);
                         })()}
                       </p>
@@ -752,7 +752,7 @@ export default function AdminGamesPage() {
                                   const totalValue = bluePrices.reduce((sum, price, i) => sum + price * blueQuantities[i], 0);
                                   const totalQty = blueQuantities.reduce((sum, qty) => sum + qty, 0);
                                   const avgValue = totalQty > 0 ? totalValue / totalQty : 0;
-                                  return Math.round(avgValue * 1.35);
+                                  return Math.round(avgValue * 1.3);
                                 })()})</h4>
                               </div>
                               {(() => {
@@ -785,7 +785,7 @@ export default function AdminGamesPage() {
 
                                 const avgValue = blueCount > 0 ? bluePrices.reduce((a, b) => a + b, 0) / blueCount : 0;
                                 const margin = avgValue > 0 ? ((500 - avgValue) / 500 * 100) : 0;
-                                const recommendedPrice = avgValue * 1.35;
+                                const recommendedPrice = avgValue * 1.3;
 
                                 return (
                                   <div className="space-y-2 text-sm">
@@ -830,7 +830,7 @@ export default function AdminGamesPage() {
                                   const totalValue = redPrices.reduce((sum, price, i) => sum + price * redQuantities[i], 0);
                                   const totalQty = redQuantities.reduce((sum, qty) => sum + qty, 0);
                                   const avgValue = totalQty > 0 ? totalValue / totalQty : 0;
-                                  return Math.round(avgValue * 1.35);
+                                  return Math.round(avgValue * 1.3);
                                 })()})</h4>
                               </div>
                               {(() => {
@@ -863,7 +863,7 @@ export default function AdminGamesPage() {
 
                                 const avgValue = redCount > 0 ? redPrices.reduce((a, b) => a + b, 0) / redCount : 0;
                                 const margin = avgValue > 0 ? ((1000 - avgValue) / 1000 * 100) : 0;
-                                const recommendedPrice = avgValue * 1.35;
+                                const recommendedPrice = avgValue * 1.3;
 
                                 return (
                                   <div className="space-y-2 text-sm">
@@ -908,7 +908,7 @@ export default function AdminGamesPage() {
                                   const totalValue = goldPrices.reduce((sum, price, i) => sum + price * goldQuantities[i], 0);
                                   const totalQty = goldQuantities.reduce((sum, qty) => sum + qty, 0);
                                   const avgValue = totalQty > 0 ? totalValue / totalQty : 0;
-                                  return Math.round(avgValue * 1.35);
+                                  return Math.round(avgValue * 1.3);
                                 })()})</h4>
                               </div>
                               {(() => {
@@ -954,7 +954,7 @@ export default function AdminGamesPage() {
                                     </div>
                                     <div className="flex justify-between text-gray-300">
                                       <span>Rec. Price:</span>
-                                      <span className="font-semibold">${(avgValue * 1.35).toFixed(0)}</span>
+                                      <span className="font-semibold">${(avgValue * 1.3).toFixed(0)}</span>
                                     </div>
                                     <div className={`flex justify-between font-semibold ${margin > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                       <span>Margin:</span>
