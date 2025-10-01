@@ -784,8 +784,8 @@ export default function AdminGamesPage() {
                                 });
 
                                 const avgValue = blueCount > 0 ? bluePrices.reduce((a, b) => a + b, 0) / blueCount : 0;
-                                const margin = avgValue > 0 ? ((500 - avgValue) / 500 * 100) : 0;
                                 const recommendedPrice = avgValue * 1.3;
+                                const margin = recommendedPrice > 0 ? ((recommendedPrice - avgValue) / recommendedPrice * 100) : 0;
 
                                 return (
                                   <div className="space-y-2 text-sm">
@@ -862,8 +862,8 @@ export default function AdminGamesPage() {
                                 });
 
                                 const avgValue = redCount > 0 ? redPrices.reduce((a, b) => a + b, 0) / redCount : 0;
-                                const margin = avgValue > 0 ? ((1000 - avgValue) / 1000 * 100) : 0;
                                 const recommendedPrice = avgValue * 1.3;
+                                const margin = recommendedPrice > 0 ? ((recommendedPrice - avgValue) / recommendedPrice * 100) : 0;
 
                                 return (
                                   <div className="space-y-2 text-sm">
@@ -940,7 +940,8 @@ export default function AdminGamesPage() {
                                 });
 
                                 const avgValue = goldCount > 0 ? goldPrices.reduce((a, b) => a + b, 0) / goldCount : 0;
-                                const margin = avgValue > 0 ? ((1500 - avgValue) / 1500 * 100) : 0;
+                                const recommendedPrice = avgValue * 1.3;
+                                const margin = recommendedPrice > 0 ? ((recommendedPrice - avgValue) / recommendedPrice * 100) : 0;
 
                                 return (
                                   <div className="space-y-2 text-sm">
