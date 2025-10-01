@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Mail, CheckCircle, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 
-export default function NeedVerificationPage() {
+function NeedVerificationContent() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const email = searchParams.get('email') || session?.user?.email || '';
@@ -185,5 +185,17 @@ export default function NeedVerificationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NeedVerificationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <NeedVerificationContent />
+    </Suspense>
   );
 }
