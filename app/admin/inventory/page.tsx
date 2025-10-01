@@ -8,7 +8,7 @@ import ImageUpload from '@/components/admin/ImageUpload';
 import BulkTicketUploadWithImages from '@/components/admin/BulkTicketUploadWithImages';
 import { classifyTicketTier } from '@/lib/utils/ticket-classifier';
 import { TierLevel } from '@prisma/client';
-// import BulkMemorabiliaUploadWithImages from '@/components/admin/BulkMemorabiliaUploadWithImages'; // Commented out - tickets only
+import BulkMemorabiliaUploadWithImages from '@/components/admin/BulkMemorabiliaUploadWithImages';
 
 interface TicketLevelInput {
   id: string;
@@ -24,15 +24,18 @@ interface TicketLevelInput {
 }
 
 
-// Memorabilia interface commented out - tickets only
-// interface MemorabiliaItem {
-//   id: string;
-//   name: string;
-//   description: string;
-//   value: number;
-//   quantity: number;
-//   imageUrl: string;
-// }
+interface MemorabiliaItem {
+  id: string;
+  name: string;
+  description: string;
+  value: number;
+  quantity: number;
+  imageUrl: string;
+  tierLevel?: TierLevel;
+  tierPriority?: number;
+  availableUnits?: number[];
+  availablePacks?: string[];
+}
 
 interface Stadium {
   id: string;
@@ -69,7 +72,7 @@ interface GameForm {
   stadiumId: string;
   ticketLevels: TicketLevelInput[];
   ticketGroups: TicketGroupInput[];
-  // memorabiliaItems: MemorabiliaItem[]; // Commented out - tickets only
+  memorabiliaItems: MemorabiliaItem[];
 }
 
 // Predefined level configurations for common stadiums
@@ -94,7 +97,7 @@ export default function AdminInventoryPage() {
   const [loading, setLoading] = useState(false);
   const [stadiums, setStadiums] = useState<Stadium[]>([]);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  // const [showBulkMemorabiliaImport, setShowBulkMemorabiliaImport] = useState(false); // Commented out - tickets only
+  const [showBulkMemorabiliaImport, setShowBulkMemorabiliaImport] = useState(false);
   const [form, setForm] = useState<GameForm>({
     eventName: '',
     eventDate: '',
@@ -105,7 +108,7 @@ export default function AdminInventoryPage() {
     stadiumId: '',
     ticketLevels: [],
     ticketGroups: [],
-    // memorabiliaItems: [] // Commented out - tickets only
+    memorabiliaItems: []
   });
 
   useEffect(() => {
@@ -188,42 +191,46 @@ export default function AdminInventoryPage() {
   };
 
 
-  // Memorabilia functions commented out - tickets only
-  // const addMemorabiliaItem = () => {
-  //   const newItem: MemorabiliaItem = {
-  //     id: Date.now().toString(),
-  //     name: '',
-  //     description: '',
-  //     value: 0,
-  //     quantity: 1,
-  //     imageUrl: ''
-  //   };
-  //   setForm({
-  //     ...form,
-  //     memorabiliaItems: [...form.memorabiliaItems, newItem]
-  //   });
-  // };
+  // Memorabilia functions
+  const addMemorabiliaItem = () => {
+    const newItem: MemorabiliaItem = {
+      id: Date.now().toString(),
+      name: '',
+      description: '',
+      value: 0,
+      quantity: 1,
+      imageUrl: '',
+      tierLevel: undefined,
+      tierPriority: undefined,
+      availableUnits: [1, 2, 3, 4],
+      availablePacks: ['blue', 'red', 'gold']
+    };
+    setForm({
+      ...form,
+      memorabiliaItems: [...form.memorabiliaItems, newItem]
+    });
+  };
 
-  // const removeMemorabiliaItem = (id: string) => {
-  //   setForm({
-  //     ...form,
-  //     memorabiliaItems: form.memorabiliaItems.filter(item => item.id !== id)
-  //   });
-  // };
+  const removeMemorabiliaItem = (id: string) => {
+    setForm({
+      ...form,
+      memorabiliaItems: form.memorabiliaItems.filter(item => item.id !== id)
+    });
+  };
 
-  // const updateMemorabiliaItem = (id: string, field: keyof MemorabiliaItem, value: any) => {
-  //   setForm({
-  //     ...form,
-  //     memorabiliaItems: form.memorabiliaItems.map(item =>
-  //       item.id === id ? { ...item, [field]: value } : item
-  //     )
-  //   });
-  // };
+  const updateMemorabiliaItem = (id: string, field: keyof MemorabiliaItem, value: any) => {
+    setForm({
+      ...form,
+      memorabiliaItems: form.memorabiliaItems.map(item =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    });
+  };
 
   const totalInventory = () => {
     const ticketTotal = form.ticketLevels.reduce((sum, level) => sum + level.quantity, 0);
-    // const memorabiliaTotal = form.memorabiliaItems.reduce((sum, item) => sum + item.quantity, 0); // Commented out - tickets only
-    return ticketTotal; // + memorabiliaTotal;
+    const memorabiliaTotal = form.memorabiliaItems.reduce((sum, item) => sum + item.quantity, 0);
+    return { tickets: ticketTotal, memorabilia: memorabiliaTotal, total: ticketTotal + memorabiliaTotal };
   };
 
   const averagePoolValue = () => {
@@ -236,11 +243,11 @@ export default function AdminInventoryPage() {
       totalItems += level.quantity;
     });
 
-    // Add memorabilia - COMMENTED OUT (tickets only)
-    // form.memorabiliaItems.forEach(item => {
-    //   totalValue += item.value * item.quantity;
-    //   totalItems += item.quantity;
-    // });
+    // Add memorabilia
+    form.memorabiliaItems.forEach(item => {
+      totalValue += item.value * item.quantity;
+      totalItems += item.quantity;
+    });
 
     return totalItems > 0 ? totalValue / totalItems : 0;
   };
@@ -822,8 +829,8 @@ export default function AdminInventoryPage() {
         )}
 
 
-        {/* Memorabilia Items - COMMENTED OUT (tickets only) */}
-        {/* <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6">
+        {/* Memorabilia Items */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
               <Trophy className="w-6 h-6" />
@@ -868,7 +875,21 @@ export default function AdminInventoryPage() {
                     type="number"
                     step="0.01"
                     value={item.value}
-                    onChange={(e) => updateMemorabiliaItem(item.id, 'value', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      updateMemorabiliaItem(item.id, 'value', value);
+                      // Auto-classify tier based on value
+                      if (value >= 500) {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.VIP_ITEM);
+                        updateMemorabiliaItem(item.id, 'availablePacks', ['gold']);
+                      } else if (value >= 200) {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.GOLD_LEVEL);
+                        updateMemorabiliaItem(item.id, 'availablePacks', ['red', 'gold']);
+                      } else {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.UPPER_DECK);
+                        updateMemorabiliaItem(item.id, 'availablePacks', ['blue', 'red', 'gold']);
+                      }
+                    }}
                     className="w-full p-2 bg-white/20 rounded text-white text-sm"
                     placeholder="150.00"
                     required
@@ -908,15 +929,37 @@ export default function AdminInventoryPage() {
                 </div>
               </div>
 
-              <div className="mt-2">
-                <label className="block text-white text-xs mb-1">Description</label>
-                <input
-                  type="text"
-                  value={item.description}
-                  onChange={(e) => updateMemorabiliaItem(item.id, 'description', e.target.value)}
-                  className="w-full p-2 bg-white/20 rounded text-white text-sm"
-                  placeholder="Game-worn jersey signed by the player"
-                />
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-white text-xs mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => updateMemorabiliaItem(item.id, 'description', e.target.value)}
+                    className="w-full p-2 bg-white/20 rounded text-white text-sm"
+                    placeholder="Game-worn jersey signed by the player"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white text-xs mb-1">Tier & Packs</label>
+                  <div className="flex items-center gap-2">
+                    {item.tierLevel && <TierBadge tierLevel={item.tierLevel} size="sm" />}
+                    {item.availablePacks && (
+                      <div className="flex gap-1">
+                        {item.availablePacks.includes('blue') && (
+                          <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 text-xs rounded">B</span>
+                        )}
+                        {item.availablePacks.includes('red') && (
+                          <span className="px-2 py-0.5 bg-red-600/20 text-red-400 text-xs rounded">R</span>
+                        )}
+                        {item.availablePacks.includes('gold') && (
+                          <span className="px-2 py-0.5 bg-yellow-600/20 text-yellow-400 text-xs rounded">G</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -924,7 +967,7 @@ export default function AdminInventoryPage() {
           {form.memorabiliaItems.length === 0 && (
             <p className="text-gray-400 text-center py-4">No memorabilia items added yet</p>
           )}
-        </div> */}
+        </div>
 
         {/* Pricing Summary */}
         <div className="bg-gradient-to-r from-yellow-600/20 to-purple-600/20 rounded-lg p-6 border-2 border-yellow-400/50">
@@ -932,7 +975,9 @@ export default function AdminInventoryPage() {
           <div className="grid grid-cols-4 gap-4 text-white">
             <div>
               <p className="text-sm text-gray-300">Total Inventory</p>
-              <p className="text-3xl font-bold">{totalInventory()}</p>
+              <p className="text-3xl font-bold">
+                {totalInventory().tickets} 🎟️ + {totalInventory().memorabilia} 🏆
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-300">Avg Item Value</p>
@@ -950,7 +995,7 @@ export default function AdminInventoryPage() {
             </div>
           </div>
           <p className="text-gray-300 text-sm mt-4">
-            With equal probability, each item has a {((1 / totalInventory()) * 100).toFixed(2)}% chance of being selected.
+            With equal probability, each item has a {((1 / totalInventory().total) * 100).toFixed(2)}% chance of being selected.
           </p>
         </div>
       </form>
@@ -971,18 +1016,22 @@ export default function AdminInventoryPage() {
       )}
 
       {/* Bulk Memorabilia Import Modal with Images - COMMENTED OUT (tickets only) */}
-      {/* {showBulkMemorabiliaImport && (
+      {showBulkMemorabiliaImport && (
         <BulkMemorabiliaUploadWithImages
           onImport={(importedMemorabiliaItems) => {
             console.log('Imported memorabilia items:', importedMemorabiliaItems);
-            // Add imported memorabilia items to form
+            // Add imported memorabilia items to form - they already have tier info from parser
             const mappedItems = importedMemorabiliaItems.map(item => ({
               id: Date.now() + Math.random().toString(36),
               name: item.name,
               description: item.description || '',
-              value: item.value, // Changed from item.price to item.value
+              value: item.value,
               quantity: item.quantity,
-              imageUrl: item.imageUrl || ''
+              imageUrl: item.imageUrl || '',
+              tierLevel: item.tierLevel,
+              tierPriority: item.tierPriority,
+              availableUnits: item.availableUnits || [1, 2, 3, 4],
+              availablePacks: item.availablePacks || ['blue', 'red', 'gold']
             }));
             console.log('Mapped items for form:', mappedItems);
             setForm({
@@ -993,7 +1042,7 @@ export default function AdminInventoryPage() {
           }}
           onCancel={() => setShowBulkMemorabiliaImport(false)}
         />
-      )} */}
+      )}
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { TierLevel } from '@prisma/client';
+
 export interface ParsedMemorabiliaItem {
   name: string;
   description: string;
@@ -15,6 +17,10 @@ export interface MemorabiliaItemInput {
   value: number;
   quantity: number;
   imageUrl?: string;
+  tierLevel?: TierLevel;
+  tierPriority?: number;
+  availableUnits?: number[];
+  availablePacks?: string[];
 }
 
 // Parse memorabilia/card data
@@ -123,16 +129,62 @@ function completeMemorabiliaItem(partial: Partial<ParsedMemorabiliaItem>): Parse
   };
 }
 
+// Classify memorabilia tier based on value
+export function classifyMemorabiliaier(value: number): {
+  tierLevel: TierLevel;
+  tierPriority: number;
+} {
+  if (value >= 500) {
+    return {
+      tierLevel: TierLevel.VIP_ITEM,
+      tierPriority: 1
+    };
+  } else if (value >= 200) {
+    return {
+      tierLevel: TierLevel.GOLD_LEVEL,
+      tierPriority: 1
+    };
+  } else {
+    return {
+      tierLevel: TierLevel.UPPER_DECK,
+      tierPriority: 1
+    };
+  }
+}
+
+// Determine available packs based on tier
+export function getMemorabiliaPacksByTier(tierLevel: TierLevel): string[] {
+  switch (tierLevel) {
+    case TierLevel.VIP_ITEM:
+      return ['gold']; // VIP items only in Gold packs
+    case TierLevel.GOLD_LEVEL:
+      return ['red', 'gold']; // Gold level in Red and Gold packs
+    case TierLevel.UPPER_DECK:
+      return ['blue', 'red', 'gold']; // Upper deck in all packs
+    default:
+      return ['blue', 'red', 'gold'];
+  }
+}
+
 // Convert to memorabilia inputs for the form
 export function generateMemorabiliaInputs(items: ParsedMemorabiliaItem[]): MemorabiliaItemInput[] {
-  return items.map((item, idx) => ({
-    id: `bulk-mem-${idx}-${Date.now()}`,
-    name: item.name,
-    description: item.description,
-    value: item.price,
-    quantity: item.quantity,
-    imageUrl: item.imageUrl
-  }));
+  return items.map((item, idx) => {
+    const classification = classifyMemorabiliaier(item.price);
+    const availablePacks = getMemorabiliaPacksByTier(classification.tierLevel);
+
+    return {
+      id: `bulk-mem-${idx}-${Date.now()}`,
+      name: item.name,
+      description: item.description,
+      value: item.price,
+      quantity: item.quantity,
+      imageUrl: item.imageUrl,
+      tierLevel: classification.tierLevel,
+      tierPriority: classification.tierPriority,
+      availableUnits: [1, 2, 3, 4], // Default to all bundle sizes
+      availablePacks
+    };
+  });
 }
 
 // Group items by price range for preview

@@ -12,12 +12,11 @@ interface PoolBundle {
     row?: string;
     value: number;
   };
-  // memorabilia removed - tickets only
-  // memorabilia: {
-  //   id?: string;
-  //   name: string;
-  //   value: number;
-  // };
+  memorabilia: {
+    id?: string;
+    name: string;
+    value: number;
+  };
 }
 
 /**
@@ -38,9 +37,10 @@ export async function markItemsAsSold(poolId: string): Promise<void> {
 
   // Track which items to mark as sold
   const ticketGroupIds: string[] = [];
-  // const cardBreakIds: string[] = []; // Commented out - tickets only
+  const cardBreakIds: string[] = [];
   const ticketLevelUpdates: Map<string, number> = new Map();
   const specialPrizeUpdates: Map<string, number> = new Map();
+  const cardBreakUpdates: Map<string, number> = new Map();
 
   // Process each bundle to identify items
   for (const bundle of bundles) {
@@ -87,20 +87,27 @@ export async function markItemsAsSold(poolId: string): Promise<void> {
       }
     }
 
-    // Handle memorabilia - COMMENTED OUT (tickets only)
-    // if (bundle.memorabilia && bundle.memorabilia.name) {
-    //   // Find the CardBreak by name and mark as sold
-    //   const cardBreak = await prisma.cardBreak.findFirst({
-    //     where: {
-    //       gameId: pool.gameId,
-    //       breakName: bundle.memorabilia.name,
-    //       status: 'AVAILABLE'
-    //     }
-    //   });
-    //   if (cardBreak) {
-    //     cardBreakIds.push(cardBreak.id);
-    //   }
-    // }
+    // Handle memorabilia
+    if (bundle.memorabilia) {
+      if (bundle.memorabilia.id) {
+        // Use ID directly if available
+        const current = cardBreakUpdates.get(bundle.memorabilia.id) || 0;
+        cardBreakUpdates.set(bundle.memorabilia.id, current + 1);
+      } else if (bundle.memorabilia.name) {
+        // Fallback to name matching for legacy data
+        const cardBreak = await prisma.cardBreak.findFirst({
+          where: {
+            gameId: pool.gameId,
+            breakName: bundle.memorabilia.name,
+            status: 'AVAILABLE'
+          }
+        });
+        if (cardBreak) {
+          const current = cardBreakUpdates.get(cardBreak.id) || 0;
+          cardBreakUpdates.set(cardBreak.id, current + 1);
+        }
+      }
+    }
   }
 
   // Execute all updates in a transaction
@@ -117,17 +124,35 @@ export async function markItemsAsSold(poolId: string): Promise<void> {
       });
     }
 
-    // Mark CardBreaks as SOLD - COMMENTED OUT (tickets only)
-    // if (cardBreakIds.length > 0) {
-    //   await tx.cardBreak.updateMany({
-    //     where: {
-    //       id: { in: cardBreakIds }
-    //     },
-    //     data: {
-    //       status: BreakStatus.SOLD
-    //     }
-    //   });
-    // }
+    // Decrement CardBreak quantities
+    for (const [breakId, decrementBy] of cardBreakUpdates) {
+      const cardBreak = await tx.cardBreak.findUnique({
+        where: { id: breakId }
+      });
+
+      if (cardBreak) {
+        if (cardBreak.quantity <= decrementBy) {
+          // If quantity will be 0 or less, mark as SOLD
+          await tx.cardBreak.update({
+            where: { id: breakId },
+            data: {
+              quantity: 0,
+              status: BreakStatus.SOLD
+            }
+          });
+        } else {
+          // Otherwise just decrement
+          await tx.cardBreak.update({
+            where: { id: breakId },
+            data: {
+              quantity: {
+                decrement: decrementBy
+              }
+            }
+          });
+        }
+      }
+    }
 
     // Decrement TicketLevel quantities
     for (const [levelId, decrementBy] of ticketLevelUpdates) {
@@ -156,7 +181,7 @@ export async function markItemsAsSold(poolId: string): Promise<void> {
 
   console.log(`Marked items as sold for pool ${poolId}:`, {
     ticketGroups: ticketGroupIds.length,
-    // cardBreaks: cardBreakIds.length, // Commented out - tickets only
+    cardBreaks: cardBreakUpdates.size,
     ticketLevels: ticketLevelUpdates.size,
     specialPrizes: specialPrizeUpdates.size
   });
@@ -166,7 +191,7 @@ export async function markItemsAsSold(poolId: string): Promise<void> {
  * Check if there's enough inventory available for a game
  */
 export async function hasAvailableInventory(gameId: string, bundleSize: number): Promise<boolean> {
-  const [ticketGroups, ticketLevels, specialPrizes] = await Promise.all([
+  const [ticketGroups, ticketLevels, specialPrizes, cardBreaks] = await Promise.all([
     prisma.ticketGroup.count({
       where: {
         gameId,
@@ -176,7 +201,6 @@ export async function hasAvailableInventory(gameId: string, bundleSize: number):
         }
       }
     }),
-    // Removed cardBreak count - tickets only
     prisma.ticketLevel.findMany({
       where: {
         gameId,
@@ -188,6 +212,16 @@ export async function hasAvailableInventory(gameId: string, bundleSize: number):
         gameId,
         quantity: { gt: 0 }
       }
+    }),
+    prisma.cardBreak.findMany({
+      where: {
+        gameId,
+        status: 'AVAILABLE',
+        quantity: { gt: 0 },
+        availableUnits: {
+          array_contains: bundleSize
+        }
+      }
     })
   ]);
 
@@ -196,6 +230,9 @@ export async function hasAvailableInventory(gameId: string, bundleSize: number):
     ticketLevels.reduce((sum, level) => sum + level.quantity, 0) +
     specialPrizes.reduce((sum, prize) => sum + prize.quantity, 0);
 
-  // Need at least bundleSize tickets (removed memorabilia requirement)
-  return totalTickets >= bundleSize;
+  // Calculate total available memorabilia
+  const totalMemorabilia = cardBreaks.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Need at least bundleSize of both tickets and memorabilia
+  return totalTickets >= bundleSize && totalMemorabilia >= bundleSize;
 }

@@ -111,8 +111,12 @@ model CardBreak {
   category      String?
   description   String?
   imageUrl      String?
-  itemType      String?     @default("break")
+  itemType      String?     @default("memorabilia")
   quantity      Int         @default(1)
+  tierLevel     TierLevel?
+  tierPriority  Int?
+  availableUnits Json       @default("[1, 2, 3, 4]")
+  availablePacks Json       @default("[\"blue\", \"red\", \"gold\"]")
   game          DailyGame   @relation(fields: [gameId], references: [id], onDelete: Cascade)
 }
 

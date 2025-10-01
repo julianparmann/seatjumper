@@ -24,7 +24,7 @@ interface BundleItem {
 
 interface GeneratedBundle {
   ticket: any;
-  // memorabilia: any; // Removed - tickets only
+  memorabilia: any;
 }
 
 /**
@@ -92,9 +92,20 @@ async function generatePoolsForBundleSize(gameId: string, bundleSize: number, co
           ]
         }
       },
-      // cardBreaks: {
-      //   where: { status: 'AVAILABLE' }
-      // } // Commented out - no memorabilia
+      cardBreaks: {
+        where: {
+          status: 'AVAILABLE',
+          OR: [
+            { tierLevel: { not: 'VIP_ITEM' } },  // Include all non-VIP memorabilia
+            {
+              AND: [
+                { tierLevel: 'VIP_ITEM' },
+                { tierPriority: 1 }  // Only include primary VIP memorabilia (not backups)
+              ]
+            }
+          ]
+        }
+      }
     }
   });
 
@@ -197,30 +208,44 @@ function generateSinglePool(game: any, quantity: number): any {
     });
   }
 
-  // Build memorabilia pool - COMMENTED OUT
-  // const memorabiliaPool: BundleItem[] = [];
-  // game.cardBreaks?.forEach((breakItem: any) => {
-  //   memorabiliaPool.push({
-  //     type: 'memorabilia',
-  //     id: breakItem.id,
-  //     name: breakItem.breakName,
-  //     value: breakItem.breakValue,
-  //     details: {
-  //       imageUrl: breakItem.imageUrl,
-  //       description: breakItem.description,
-  //       itemType: breakItem.itemType
-  //     }
-  //   });
-  // });
+  // Build memorabilia pool with tier filtering
+  const memorabiliaPool: BundleItem[] = [];
+  if (game.cardBreaks) {
+    const eligibleMemorabilia = game.cardBreaks.filter((item: any) => {
+      // Filter by available units
+      const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
+      return availableUnits.includes(quantity);
+    });
+
+    eligibleMemorabilia.forEach((breakItem: any) => {
+      // Add memorabilia items based on quantity
+      for (let i = 0; i < breakItem.quantity; i++) {
+        memorabiliaPool.push({
+          type: 'memorabilia',
+          id: breakItem.id,
+          name: breakItem.breakName,
+          value: breakItem.breakValue,
+          details: {
+            imageUrl: breakItem.imageUrl,
+            description: breakItem.description,
+            itemType: breakItem.itemType || 'memorabilia',
+            tierLevel: breakItem.tierLevel,
+            tierPriority: breakItem.tierPriority,
+            availablePacks: breakItem.availablePacks
+          }
+        });
+      }
+    });
+  }
 
   // Check if we have enough items
   const ticketCount = inventoryPool.filter(item =>
     item.type === 'ticket' || item.type === 'ticketGroup' || item.type === 'special'
   ).length;
-  // const memorabiliaCount = memorabiliaPool.length; // Not needed - tickets only
+  const memorabiliaCount = memorabiliaPool.length;
 
-  if (ticketCount < quantity) {
-    console.log(`Not enough inventory for bundle size ${quantity}. Tickets: ${ticketCount}`);
+  if (ticketCount < quantity || memorabiliaCount < quantity) {
+    console.log(`Not enough inventory for bundle size ${quantity}. Tickets: ${ticketCount}, Memorabilia: ${memorabiliaCount}`);
     return null;
   }
 
@@ -245,35 +270,37 @@ function generateSinglePool(game: any, quantity: number): any {
 
   // Shuffle pools using Fisher-Yates algorithm for true randomness
   const shuffledTickets = fisherYatesShuffle([...inventoryPool]);
-  // const shuffledMemorabillia = [...memorabiliaPool].sort(() => Math.random() - 0.5); // Not needed - tickets only
+  const shuffledMemorabilia = fisherYatesShuffle([...memorabiliaPool]);
 
   // Create bundles - ensure same tickets for multi-quantity
   const bundles: GeneratedBundle[] = [];
   let totalValue = 0;
 
   if (quantity > 1) {
-    // For multi-quantity, select ONE ticket type and use it for ALL bundles
-    // This ensures people sit together
+    // For multi-quantity, select ONE ticket type and ONE memorabilia type
+    // This ensures people sit together and get matching memorabilia
     const ticketItem = shuffledTickets.shift();
+    const memorabiliaItem = shuffledMemorabilia.shift();
 
-    if (ticketItem) {
-      // Use the SAME ticket for all bundles in this pool
+    if (ticketItem && memorabiliaItem) {
+      // Use the SAME ticket and memorabilia for all bundles in this pool
       for (let i = 0; i < quantity; i++) {
-        bundles.push(createBundle(ticketItem));
-        totalValue += ticketItem.value;
+        bundles.push(createBundle(ticketItem, memorabiliaItem));
+        totalValue += ticketItem.value + memorabiliaItem.value;
       }
     }
   } else {
-    // Single ticket - just take one
+    // Single bundle - just take one of each
     const ticketItem = shuffledTickets.shift();
+    const memorabiliaItem = shuffledMemorabilia.shift();
 
-    if (ticketItem) {
-      bundles.push(createBundle(ticketItem));
-      totalValue += ticketItem.value;
+    if (ticketItem && memorabiliaItem) {
+      bundles.push(createBundle(ticketItem, memorabiliaItem));
+      totalValue += ticketItem.value + memorabiliaItem.value;
     }
   }
 
-  // Calculate price with margin (tickets only now)
+  // Calculate price with margin (includes tickets + memorabilia)
   const avgValue = totalValue / quantity; // Average per bundle
   const pricePerBundle = avgValue * 1.3; // 30% margin
   const totalPrice = pricePerBundle * quantity;
@@ -290,11 +317,13 @@ function generateSinglePool(game: any, quantity: number): any {
 }
 
 /**
- * Create a bundle from ticket item only (memorabilia removed)
+ * Create a bundle from ticket and memorabilia items
  */
-function createBundle(ticketItem: BundleItem): GeneratedBundle {
+function createBundle(ticketItem: BundleItem, memorabiliaItem: BundleItem): GeneratedBundle {
   let ticket: any;
+  let memorabilia: any;
 
+  // Process ticket item
   if (ticketItem.type === 'ticket') {
     ticket = {
       level: ticketItem.details.level,
@@ -326,8 +355,20 @@ function createBundle(ticketItem: BundleItem): GeneratedBundle {
     };
   }
 
-  // Memorabilia removed - tickets only
-  return { ticket };
+  // Process memorabilia item
+  memorabilia = {
+    id: memorabiliaItem.id,
+    name: memorabiliaItem.name,
+    value: memorabiliaItem.value,
+    description: memorabiliaItem.details.description,
+    imageUrl: memorabiliaItem.details.imageUrl,
+    itemType: memorabiliaItem.details.itemType,
+    tierLevel: memorabiliaItem.details.tierLevel,
+    tierPriority: memorabiliaItem.details.tierPriority,
+    availablePacks: memorabiliaItem.details.availablePacks
+  };
+
+  return { ticket, memorabilia };
 }
 
 /**
@@ -397,27 +438,30 @@ async function storeBestPrizes(gameId: string) {
     };
   }
 
-  // Get best memorabilia - COMMENTED OUT (tickets only)
-  // const bestMemorabillia = game.cardBreaks[0] ? {
-  //   name: game.cardBreaks[0].breakName,
-  //   value: game.cardBreaks[0].breakValue,
-  //   imageUrl: game.cardBreaks[0].imageUrl,
-  //   description: game.cardBreaks[0].description
-  // } : null;
+  // Get best memorabilia
+  const bestMemorabilia = game.cardBreaks[0] ? {
+    id: game.cardBreaks[0].id,
+    name: game.cardBreaks[0].breakName,
+    value: game.cardBreaks[0].breakValue,
+    imageUrl: game.cardBreaks[0].imageUrl,
+    description: game.cardBreaks[0].description,
+    tierLevel: game.cardBreaks[0].tierLevel,
+    tierPriority: game.cardBreaks[0].tierPriority
+  } : null;
 
-  // Store or update best prizes (tickets only now)
+  // Store or update best prizes
   await prisma.bestPrizes.upsert({
     where: { gameId },
     create: {
       id: `bp_${gameId}`,
       gameId,
       bestTicket: bestTicket || {},
-      bestMemorabillia: {}, // Empty object for now - tickets only
+      bestMemorabillia: bestMemorabilia || {},
       updatedAt: new Date()
     },
     update: {
       bestTicket: bestTicket || {},
-      bestMemorabillia: {}, // Empty object for now - tickets only
+      bestMemorabillia: bestMemorabilia || {},
       updatedAt: new Date()
     }
   });

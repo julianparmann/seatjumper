@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileImage, AlertCircle, X } from 'lucide-react';
-import { MemorabiliaItemInput } from '@/lib/utils/memorabilia-parser';
+import { Upload, FileImage, AlertCircle, X, Crown, Star, Ticket } from 'lucide-react';
+import { MemorabiliaItemInput, classifyMemorabiliaier, getMemorabiliaPacksByTier } from '@/lib/utils/memorabilia-parser';
 import { processMemorabiliaHTMLFolder, uploadMemorabiliaImagesToCloudinary } from '@/lib/utils/memorabilia-html-parser';
+import { TierLevel } from '@prisma/client';
+import TierBadge from '@/components/tickets/TierBadge';
 
 interface BulkMemorabiliaUploadWithImagesProps {
   onImport: (items: MemorabiliaItemInput[]) => void;
@@ -36,7 +38,7 @@ export default function BulkMemorabiliaUploadWithImages({ onImport, onCancel }: 
       // Upload images to Cloudinary
       const uploadedImageUrls = await uploadMemorabiliaImagesToCloudinary(folderContent.imageFiles);
 
-      // Map parsed items to MemorabiliaItemInput format
+      // Map parsed items to MemorabiliaItemInput format with tier classification
       const memorabiliaItems: MemorabiliaItemInput[] = folderContent.items.map((item, index) => {
         const imageDataUrl = folderContent.imageMapping.get(index);
         const imageName = imageDataUrl ? `image${index + 1}.png` : undefined;
@@ -44,13 +46,20 @@ export default function BulkMemorabiliaUploadWithImages({ onImport, onCancel }: 
           ? uploadedImageUrls.get(imageName)
           : imageDataUrl;
 
+        const classification = classifyMemorabiliaier(item.price);
+        const availablePacks = getMemorabiliaPacksByTier(classification.tierLevel);
+
         return {
           id: `new-${Date.now()}-${index}`,
           name: item.name,
           description: item.description || '',
           value: item.price,
           quantity: item.quantity,
-          imageUrl: cloudinaryUrl || ''
+          imageUrl: cloudinaryUrl || '',
+          tierLevel: classification.tierLevel,
+          tierPriority: classification.tierPriority,
+          availableUnits: [1, 2, 3, 4],
+          availablePacks
         };
       });
 
@@ -166,10 +175,26 @@ export default function BulkMemorabiliaUploadWithImages({ onImport, onCancel }: 
                         </div>
                       )}
                       <div className="flex-grow">
-                        <div className="font-medium text-white">{item.name}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-white">{item.name}</div>
+                          {item.tierLevel && <TierBadge tierLevel={item.tierLevel} size="sm" />}
+                        </div>
                         <div className="text-sm text-gray-400 mt-1">
                           ${item.value.toFixed(2)} - Qty: {item.quantity}
                         </div>
+                        {item.availablePacks && (
+                          <div className="flex gap-1 mt-2">
+                            {item.availablePacks.includes('blue') && (
+                              <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 text-xs rounded">Blue</span>
+                            )}
+                            {item.availablePacks.includes('red') && (
+                              <span className="px-2 py-0.5 bg-red-600/20 text-red-400 text-xs rounded">Red</span>
+                            )}
+                            {item.availablePacks.includes('gold') && (
+                              <span className="px-2 py-0.5 bg-yellow-600/20 text-yellow-400 text-xs rounded">Gold</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

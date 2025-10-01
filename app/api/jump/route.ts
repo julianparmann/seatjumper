@@ -84,8 +84,14 @@ export async function POST(req: NextRequest) {
               ticketRow: bundle.ticket.levelName || bundle.ticket.row || bundle.ticket.prizeType || '',
               ticketValue: bundle.ticket.value,
               ticketQuantity: 1,
-              breaks: [], // Memorabilia removed - tickets only
-              bundleValue: bundle.ticket.value // Tickets only value
+              breaks: bundle.memorabilia ? [{
+                id: bundle.memorabilia.id,
+                name: bundle.memorabilia.name,
+                value: bundle.memorabilia.value,
+                description: bundle.memorabilia.description,
+                imageUrl: bundle.memorabilia.imageUrl
+              }] : [],
+              bundleValue: bundle.ticket.value + (bundle.memorabilia?.value || 0)
             }))
           }
         },
@@ -127,13 +133,12 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        // Prepare memorabilia details for email - COMMENTED OUT (tickets only)
-        // const memorabiliaDetails = bundles.map(bundle => ({
-        //   name: bundle.memorabilia.name,
-        //   value: bundle.memorabilia.value || 0,
-        //   description: bundle.memorabilia.description
-        // }));
-        const memorabiliaDetails: any[] = []; // Empty array for now - tickets only
+        // Prepare memorabilia details for email
+        const memorabiliaDetails = bundles.map(bundle => ({
+          name: bundle.memorabilia?.name || 'Memorabilia Item',
+          value: bundle.memorabilia?.value || 0,
+          description: bundle.memorabilia?.description || ''
+        }));
 
         const emailHtml = await render(OrderReceiptEmail({
           userName: spinResult.user.name || spinResult.user.email.split('@')[0],
