@@ -94,6 +94,7 @@ export async function PUT(
               sections: level.sections || [],
               isSelectable: level.isSelectable !== false,
               availableUnits: level.availableUnits || [1, 2, 3, 4],
+              availablePacks: level.availablePacks || ['blue', 'red', 'gold'],
               tierLevel: level.tierLevel || null,
               tierPriority: level.tierPriority || null,
             }
@@ -111,6 +112,7 @@ export async function PUT(
               sections: level.sections,
               isSelectable: level.isSelectable,
               availableUnits: level.availableUnits || [1, 2, 3, 4],
+              availablePacks: level.availablePacks || ['blue', 'red', 'gold'],
               tierLevel: level.tierLevel || null,
               tierPriority: level.tierPriority || null
             }
@@ -194,7 +196,8 @@ export async function PUT(
             primaryImageIndex: group.primaryImageIndex,
             tierLevel: group.tierLevel || null,
             tierPriority: group.tierPriority || null,
-            availableUnits: group.availableUnits || [1, 2, 3, 4]
+            availableUnits: group.availableUnits || [1, 2, 3, 4],
+            availablePacks: group.availablePacks || ['blue', 'red', 'gold']
           }
         });
       }
@@ -215,7 +218,8 @@ export async function PUT(
           primaryImageIndex: group.primaryImageIndex || 1,
           tierLevel: group.tierLevel || null,
           tierPriority: group.tierPriority || null,
-          availableUnits: group.availableUnits || [1, 2, 3, 4]
+          availableUnits: group.availableUnits || [1, 2, 3, 4],
+          availablePacks: group.availablePacks || ['blue', 'red', 'gold']
         }));
 
         await prisma.ticketGroup.createMany({
