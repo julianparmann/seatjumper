@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  spins         Spin[]
+  orders        Order[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id               String    @id @default(cuid())
+  ticketEvolutionId String   @unique
+  name             String
+  sport            Sport
+  venue            String
+  city             String
+  state            String?
+  datetime         DateTime
+  minPrice         Float?
+  maxPrice         Float?
+  averagePrice     Float?
+  inventoryCount   Int?
+  lastUpdated      DateTime  @default(now())
+
+  // Relations
+  spins            Spin[]
+}
+
+model Break {
+  id               String    @id @default(cuid())
+  externalId       String?   @unique
+  sport            Sport
+  productName      String
+  breakDate        DateTime
+  price            Float
+  spotsAvailable   Int?
+  spotsTotal       Int?
+  breaker          String    @default("Layton Sports Cards")
+  streamUrl        String?
+  lastUpdated      DateTime  @default(now())
+
+  // Relations
+  spins            Spin[]
+}
+
+model Spin {
+  id               String    @id @default(cuid())
+  userId           String
+  eventId          String
+  breakId          String
+  status           SpinStatus @default(PENDING)
+
+  // Pricing
+  ticketQuantity   Int
+  breakQuantity    Int
+  totalCost        Float
+
+  // Results
+  ticketsWon       Json?     // Store ticket details as JSON
+  breaksWon        Json?     // Store break details as JSON
+
+  // User preferences
+  riskProfile      Json?     // Store risk preferences as JSON
+
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  // Relations
+  user             User      @relation(fields: [userId], references: [id])
+  event            Event     @relation(fields: [eventId], references: [id])
+  break            Break     @relation(fields: [breakId], references: [id])
+  order            Order?
+}
+
+model Order {
+  id               String    @id @default(cuid())
+  userId           String
+  spinId           String    @unique
+
+  // Payment
+  stripePaymentId  String?
+  paymentStatus    PaymentStatus @default(PENDING)
+  amount           Float
+
+  // Fulfillment
+  ticketOrderId    String?   // Ticket Evolution order ID
+  breakOrderId     String?   // Layton order ID
+  fulfillmentStatus FulfillmentStatus @default(PENDING)
+
+  // Shipping info
+  shippingName     String?
+  shippingAddress  Json?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  user             User      @relation(fields: [userId], references: [id])
+  spin             Spin      @relation(fields: [spinId], references: [id])
+}
+
+// Enums
+enum Sport {
+  NFL
+  NBA
+  MLB
+  NHL
+  SOCCER
+  UFC
+  F1
+  OTHER
+}
+
+enum SpinStatus {
+  PENDING
+  SPINNING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  PROCESSING
+  TICKETS_PURCHASED
+  BREAKS_PURCHASED
+  COMPLETED
+  FAILED
+}

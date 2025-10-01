@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "public"."DailyGame" ADD COLUMN     "spinPrice1x" DOUBLE PRECISION,
+ADD COLUMN     "spinPrice2x" DOUBLE PRECISION,
+ADD COLUMN     "spinPrice3x" DOUBLE PRECISION,
+ADD COLUMN     "spinPrice4x" DOUBLE PRECISION;
