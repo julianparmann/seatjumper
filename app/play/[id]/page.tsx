@@ -24,6 +24,7 @@ interface TicketLevel {
   availableUnits?: number[];
   tierLevel?: TierLevel | null;
   tierPriority?: number | null;
+  availablePacks?: string[];
 }
 
 interface SpecialPrize {
@@ -63,7 +64,21 @@ interface Game {
   spinPrice2x?: number;
   spinPrice3x?: number;
   spinPrice4x?: number;
-  ticketGroups?: any[];
+  ticketGroups?: Array<{
+    id: string;
+    section: string;
+    row: string;
+    quantity: number;
+    pricePerSeat: number;
+    status: string;
+    seatViewUrl?: string;
+    seatViewUrl2?: string;
+    availableUnits?: number[];
+    tierLevel?: TierLevel | null;
+    tierPriority?: number | null;
+    notes?: string;
+    availablePacks?: string[];
+  }>;
   ticketLevels: TicketLevel[];
   cardBreaks: CardBreak[];
   bestPrizes?: {
@@ -147,29 +162,57 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  // Use database-calculated pricing (30% margin) for consistency
+  // Calculate pack-specific pricing based on available inventory
   const calculateTierPrices = () => {
     if (!game) return { blue: 500, red: 1000, gold: 1500 };
 
-    // Use pre-calculated bundle-specific pricing from database
-    const prices = {
-      blue: game.spinPrice1x || 500,
-      red: game.spinPrice1x || 1000, // All packs use same base price for now
-      gold: game.spinPrice1x || 1500  // Can be customized later if needed
-    };
+    const margin = 1.3; // 30% margin
+    const allItems = [...(game.ticketLevels || []), ...(game.ticketGroups || [])];
 
-    return prices;
+    // Calculate Blue Pack price - includes items available in blue pack
+    const blueItems = allItems.filter(item => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      return packs.includes('blue') && item.quantity > 0;
+    });
+    const blueTotal = blueItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const blueQty = blueItems.reduce((sum, item) => sum + item.quantity, 0);
+    const blueAvg = blueQty > 0 ? blueTotal / blueQty : 500 / margin;
+
+    // Calculate Red Pack price - includes items available in red pack
+    const redItems = allItems.filter(item => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      return packs.includes('red') && item.quantity > 0;
+    });
+    const redTotal = redItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const redQty = redItems.reduce((sum, item) => sum + item.quantity, 0);
+    const redAvg = redQty > 0 ? redTotal / redQty : 1000 / margin;
+
+    // Calculate Gold Pack price - includes items available in gold pack
+    const goldItems = allItems.filter(item => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      return packs.includes('gold') && item.quantity > 0;
+    });
+    const goldTotal = goldItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const goldQty = goldItems.reduce((sum, item) => sum + item.quantity, 0);
+    const goldAvg = goldQty > 0 ? goldTotal / goldQty : 1500 / margin;
+
+    // Apply margin and multiply by bundle quantity to get final prices
+    return {
+      blue: Math.round(blueAvg * margin * bundleQuantity),
+      red: Math.round(redAvg * margin * bundleQuantity),
+      gold: Math.round(goldAvg * margin * bundleQuantity)
+    };
   };
 
   // Use dynamic pricing based on tier levels
   useEffect(() => {
     if (!game) return;
 
-    // Calculate dynamic prices based on tier levels
+    // Calculate dynamic prices based on tier levels and bundle quantity
     const prices = calculateTierPrices();
     setDynamicPrices(prices);
 
-    // Set calculated price based on selected pack
+    // Set calculated price based on selected pack (already includes bundle quantity)
     const packPriceMap: { [key: string]: number } = prices;
     setCalculatedPrice(packPriceMap[selectedPack] || prices.blue);
 
@@ -498,7 +541,15 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
           {/* Pack Selection - Moved to top */}
           {availableBundles > 0 && (
             <div className="mb-8">
-              <PackSelection selectedPack={selectedPack} onPackSelect={setSelectedPack} dynamicPrices={dynamicPrices} />
+              <PackSelection
+                selectedPack={selectedPack}
+                onPackSelect={setSelectedPack}
+                dynamicPrices={{
+                  blue: Math.round((dynamicPrices.blue || 500) / bundleQuantity),
+                  red: Math.round((dynamicPrices.red || 1000) / bundleQuantity),
+                  gold: Math.round((dynamicPrices.gold || 1500) / bundleQuantity)
+                }}
+              />
             </div>
           )}
 
@@ -573,13 +624,13 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 {availableBundleSizes.length > 0 && (
                   <div className="border-t border-white/20 pt-4 mt-4">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-400">Price per pack:</span>
-                      <span className="text-white">${dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500}</span>
+                      <span className="text-gray-400">Price per ticket:</span>
+                      <span className="text-white">${Math.round((dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500) / bundleQuantity)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400 font-semibold">Total ({bundleQuantity} {bundleQuantity === 1 ? 'pack' : 'packs'}):</span>
+                      <span className="text-gray-400 font-semibold">Total ({bundleQuantity} {bundleQuantity === 1 ? 'ticket' : 'tickets'}):</span>
                       <span className="text-yellow-400 text-2xl font-bold">
-                        ${(dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500) * bundleQuantity}
+                        ${dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500}
                       </span>
                     </div>
                   </div>
@@ -599,7 +650,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 ) : (
                   <>
                     <DollarSign className="w-6 h-6" />
-                    Checkout ${(dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500) * bundleQuantity}
+                    Checkout ${dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500}
                   </>
                 )}
               </button>

@@ -55,7 +55,8 @@ export async function GET(
             isSelectable: true,
             availableUnits: true,
             tierLevel: true,
-            tierPriority: true
+            tierPriority: true,
+            availablePacks: true
           }
         },
         ticketGroups: {
@@ -72,7 +73,8 @@ export async function GET(
             availableUnits: true,
             tierLevel: true,
             tierPriority: true,
-            notes: true
+            notes: true,
+            availablePacks: true
           }
         },
         specialPrizes: {

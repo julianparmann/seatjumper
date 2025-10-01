@@ -404,6 +404,7 @@ model TicketLevel {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   availableUnits Json       @default("[1, 2, 3, 4]")
+  availablePacks Json?      @default("[\"blue\", \"red\", \"gold\"]")
   tierLevel      TierLevel?
   tierPriority   Int?
   game           DailyGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
