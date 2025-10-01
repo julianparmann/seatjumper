@@ -11,7 +11,11 @@ export async function POST(req: NextRequest) {
       description,
       imageUrl,
       itemType,
-      quantity = 1
+      quantity = 1,
+      tierLevel,
+      tierPriority,
+      availableUnits,
+      availablePacks
     } = body;
 
     if (!gameId || !breakName) {
@@ -34,7 +38,11 @@ export async function POST(req: NextRequest) {
         imageUrl: imageUrl || null,
         description: description || breakName,
         category: 'card',
-        quantity: quantity
+        quantity: quantity,
+        tierLevel: tierLevel || null,
+        tierPriority: tierPriority || null,
+        availableUnits: availableUnits || [1, 2, 3, 4],
+        availablePacks: availablePacks || ['blue', 'red', 'gold']
       }
     });
 

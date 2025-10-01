@@ -8,9 +8,11 @@ import ManualItemEntry from '@/components/admin/ManualItemEntry';
 import ImageUpload from '@/components/admin/ImageUpload';
 import TicketImageManager from '@/components/admin/TicketImageManager';
 import BulkTicketUploadWithImages from '@/components/admin/BulkTicketUploadWithImages';
+import BulkMemorabiliaUploadWithImages from '@/components/admin/BulkMemorabiliaUploadWithImages';
 import TierBadge from '@/components/tickets/TierBadge';
 import { TierLevel } from '@prisma/client';
 import { classifyTicketTier } from '@/lib/utils/ticket-classifier';
+import { classifyMemorabiliaier, getMemorabiliaPacksByTier } from '@/lib/utils/memorabilia-parser';
 
 interface TicketGroup {
   id: string;
@@ -77,6 +79,7 @@ export default function AdminGamesPage() {
   const [newMemorabiliaItems, setNewMemorabiliaItems] = useState<{ [gameId: string]: any[] }>({});
   const [showAddMemorabiliaForm, setShowAddMemorabiliaForm] = useState<{ [gameId: string]: boolean }>({});
   const [showBulkUpload, setShowBulkUpload] = useState<{ [gameId: string]: boolean }>({});
+  const [showBulkMemorabiliaUpload, setShowBulkMemorabiliaUpload] = useState<{ [gameId: string]: boolean }>({});
   const [showImageManager, setShowImageManager] = useState<{ [ticketId: string]: boolean }>({});
 
   useEffect(() => {
@@ -443,6 +446,58 @@ export default function AdminGamesPage() {
     const totalTickets = getTotalTickets(game);
     const totalBreaks = (game.cardBreaks || []).filter((cb: any) => cb.status === 'AVAILABLE').length;
     return Math.min(totalTickets, totalBreaks);
+  };
+
+  const handleBulkMemorabiliaImport = async (gameId: string, items: any[]) => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const item of items) {
+        if (!item.name || item.quantity < 1) continue;
+
+        // Create individual card breaks for each quantity
+        for (let i = 0; i < item.quantity; i++) {
+          try {
+            const res = await fetch('/api/admin/add-memorabilia', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gameId,
+                breakName: item.name,
+                breakValue: item.value || 0,
+                description: item.description || item.name,
+                imageUrl: item.imageUrl,
+                itemType: 'memorabilia',
+                quantity: 1,
+                tierLevel: item.tierLevel,
+                tierPriority: item.tierPriority,
+                availableUnits: item.availableUnits || [1, 2, 3, 4],
+                availablePacks: item.availablePacks || ['blue', 'red', 'gold']
+              })
+            });
+            if (res.ok) {
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          } catch (error) {
+            errorCount++;
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`Successfully added ${successCount} memorabilia items${errorCount > 0 ? ` (${errorCount} failed)` : ''}`);
+        setShowBulkMemorabiliaUpload({ ...showBulkMemorabiliaUpload, [gameId]: false });
+        fetchGames();
+      } else {
+        alert('Failed to add memorabilia items');
+      }
+    } catch (error) {
+      console.error('Failed to import memorabilia:', error);
+      alert('Failed to import memorabilia');
+    }
   };
 
   // Helper to get total prizes
@@ -1908,9 +1963,13 @@ export default function AdminGamesPage() {
                                         id: Date.now().toString(),
                                         name: '',
                                         description: '',
-                                        value: 0,
+                                        value: '',
                                         quantity: 1,
-                                        imageUrl: ''
+                                        imageUrl: '',
+                                        tierLevel: null,
+                                        tierPriority: 1,
+                                        availableUnits: [1, 2, 3, 4],
+                                        availablePacks: ['blue', 'red', 'gold']
                                       }]
                                     });
                                   }
@@ -1918,6 +1977,12 @@ export default function AdminGamesPage() {
                                 className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
                               >
                                 <Plus className="w-4 h-4" /> Add Items
+                              </button>
+                              <button
+                                onClick={() => setShowBulkMemorabiliaUpload({ ...showBulkMemorabiliaUpload, [game.id]: true })}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                              >
+                                <Upload className="w-4 h-4" /> Bulk Upload
                               </button>
                             </div>
                           )}
@@ -1960,7 +2025,17 @@ export default function AdminGamesPage() {
                                     value={item.value || ''}
                                     onChange={(e) => {
                                       const updated = [...(newMemorabiliaItems[game.id] || [])];
-                                      updated[index] = { ...updated[index], value: parseFloat(e.target.value) || 0 };
+                                      const value = parseFloat(e.target.value) || '';
+                                      updated[index] = { ...updated[index], value };
+
+                                      // Auto-classify tier based on value
+                                      if (value && typeof value === 'number') {
+                                        const classification = classifyMemorabiliaier(value);
+                                        updated[index].tierLevel = classification.tierLevel;
+                                        updated[index].tierPriority = classification.tierPriority;
+                                        updated[index].availablePacks = getMemorabiliaPacksByTier(classification.tierLevel);
+                                      }
+
                                       setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
                                     }}
                                     className="p-2 bg-white/20 rounded text-white text-sm"
@@ -1987,6 +2062,151 @@ export default function AdminGamesPage() {
                                     placeholder="Upload Image"
                                     folder="memorabilia"
                                   />
+                                </div>
+
+                                {/* Tier and Pack Controls */}
+                                <div className="mt-3 p-3 bg-white/5 rounded">
+                                  {/* Tier Selection */}
+                                  <div className="mb-3">
+                                    <label className="text-xs text-gray-400 block mb-1">Tier Level</label>
+                                    <div className="flex gap-2">
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="radio"
+                                          checked={item.tierLevel === 'VIP_ITEM'}
+                                          onChange={() => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            updated[index] = {
+                                              ...updated[index],
+                                              tierLevel: 'VIP_ITEM',
+                                              tierPriority: 1,
+                                              availablePacks: ['gold']
+                                            };
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        <Crown className="w-3 h-3 text-yellow-400" /> VIP
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="radio"
+                                          checked={item.tierLevel === 'GOLD_LEVEL'}
+                                          onChange={() => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            updated[index] = {
+                                              ...updated[index],
+                                              tierLevel: 'GOLD_LEVEL',
+                                              tierPriority: 1,
+                                              availablePacks: ['red', 'gold']
+                                            };
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        <Star className="w-3 h-3 text-amber-400" /> Gold
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="radio"
+                                          checked={item.tierLevel === 'UPPER_DECK'}
+                                          onChange={() => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            updated[index] = {
+                                              ...updated[index],
+                                              tierLevel: 'UPPER_DECK',
+                                              tierPriority: 1,
+                                              availablePacks: ['blue', 'red', 'gold']
+                                            };
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        <Ticket className="w-3 h-3 text-gray-400" /> Upper
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  {/* Pack Availability */}
+                                  <div className="mb-3">
+                                    <label className="text-xs text-gray-400 block mb-1">Available in Packs</label>
+                                    <div className="flex gap-2">
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="checkbox"
+                                          checked={item.availablePacks?.includes('blue')}
+                                          onChange={(e) => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            const packs = updated[index].availablePacks || [];
+                                            if (e.target.checked) {
+                                              updated[index].availablePacks = [...new Set([...packs, 'blue'])];
+                                            } else {
+                                              updated[index].availablePacks = packs.filter(p => p !== 'blue');
+                                            }
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        Blue
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="checkbox"
+                                          checked={item.availablePacks?.includes('red')}
+                                          onChange={(e) => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            const packs = updated[index].availablePacks || [];
+                                            if (e.target.checked) {
+                                              updated[index].availablePacks = [...new Set([...packs, 'red'])];
+                                            } else {
+                                              updated[index].availablePacks = packs.filter(p => p !== 'red');
+                                            }
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        Red
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs">
+                                        <input
+                                          type="checkbox"
+                                          checked={item.availablePacks?.includes('gold')}
+                                          onChange={(e) => {
+                                            const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                            const packs = updated[index].availablePacks || [];
+                                            if (e.target.checked) {
+                                              updated[index].availablePacks = [...new Set([...packs, 'gold'])];
+                                            } else {
+                                              updated[index].availablePacks = packs.filter(p => p !== 'gold');
+                                            }
+                                            setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                          }}
+                                        />
+                                        Gold
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  {/* Bundle Size Availability */}
+                                  <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Available for Bundle Sizes</label>
+                                    <div className="flex gap-2">
+                                      {[1, 2, 3, 4].map(size => (
+                                        <label key={size} className="flex items-center gap-1 text-xs">
+                                          <input
+                                            type="checkbox"
+                                            checked={item.availableUnits?.includes(size)}
+                                            onChange={(e) => {
+                                              const updated = [...(newMemorabiliaItems[game.id] || [])];
+                                              const units = updated[index].availableUnits || [];
+                                              if (e.target.checked) {
+                                                updated[index].availableUnits = [...new Set([...units, size])];
+                                              } else {
+                                                updated[index].availableUnits = units.filter(u => u !== size);
+                                              }
+                                              setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
+                                            }}
+                                          />
+                                          {size}x
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
                                 </div>
                                 <button
                                   onClick={() => {
@@ -2037,11 +2257,15 @@ export default function AdminGamesPage() {
                                           body: JSON.stringify({
                                             gameId: game.id,
                                             breakName: item.name,
-                                            breakValue: item.value,
+                                            breakValue: item.value || 0,
                                             description: item.description || item.name,
                                             imageUrl: item.imageUrl,
                                             itemType: 'memorabilia',
-                                            quantity: 1
+                                            quantity: 1,
+                                            tierLevel: item.tierLevel,
+                                            tierPriority: item.tierPriority || 1,
+                                            availableUnits: item.availableUnits || [1, 2, 3, 4],
+                                            availablePacks: item.availablePacks || ['blue', 'red', 'gold']
                                           })
                                         });
                                         if (res.ok) {
@@ -2129,10 +2353,25 @@ export default function AdminGamesPage() {
                                     <div key={`${game.id}_memorabilia_${groupIndex}_${normalizedName}_${group.breakValue}`} className="bg-white/5 rounded-lg p-3">
                                       <div className="flex justify-between items-start">
                                         <div className="text-white flex-1">
-                                          <div className="text-sm font-medium">{group.teamName || group.breakName}</div>
+                                          <div className="flex items-center gap-2">
+                                            <div className="text-sm font-medium">{group.teamName || group.breakName}</div>
+                                            {group.tierLevel && (
+                                              <TierBadge tierLevel={group.tierLevel} size="sm" showLabel={false} />
+                                            )}
+                                          </div>
                                           <div className="text-xs text-gray-400 mt-1">
                                             {group.breaker} • {group.itemType || group.breakType}
                                           </div>
+                                          {group.availablePacks && group.availablePacks.length < 3 && (
+                                            <div className="text-xs text-gray-400 mt-1">
+                                              Packs: {group.availablePacks.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ')}
+                                            </div>
+                                          )}
+                                          {group.availableUnits && group.availableUnits.length < 4 && (
+                                            <div className="text-xs text-gray-400">
+                                              Bundle sizes: {group.availableUnits.map(u => `${u}x`).join(', ')}
+                                            </div>
+                                          )}
                                           {/* Image display/edit */}
                                           {isEditing ? (
                                             <div className="mt-2">
@@ -2341,6 +2580,20 @@ export default function AdminGamesPage() {
               }
             }}
             onCancel={() => setShowBulkUpload({ ...showBulkUpload, [gameId]: false })}
+          />
+        );
+      })}
+
+      {/* Bulk Memorabilia Upload Modals */}
+      {games.map(game => {
+        const gameId = game.id;
+        if (!showBulkMemorabiliaUpload[gameId]) return null;
+
+        return (
+          <BulkMemorabiliaUploadWithImages
+            key={`bulk-memorabilia-${gameId}`}
+            onImport={(items) => handleBulkMemorabiliaImport(gameId, items)}
+            onCancel={() => setShowBulkMemorabiliaUpload({ ...showBulkMemorabiliaUpload, [gameId]: false })}
           />
         );
       })}
