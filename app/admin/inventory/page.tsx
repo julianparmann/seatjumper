@@ -878,16 +878,19 @@ export default function AdminInventoryPage() {
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
                       updateMemorabiliaItem(item.id, 'value', value);
-                      // Auto-classify tier based on value
-                      if (value >= 500) {
-                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.VIP_ITEM);
-                        updateMemorabiliaItem(item.id, 'availablePacks', ['gold']);
-                      } else if (value >= 200) {
-                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.GOLD_LEVEL);
-                        updateMemorabiliaItem(item.id, 'availablePacks', ['red', 'gold']);
-                      } else {
-                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.UPPER_DECK);
-                        updateMemorabiliaItem(item.id, 'availablePacks', ['blue', 'red', 'gold']);
+                      // Only auto-classify if tier is not already set
+                      if (!item.tierLevel) {
+                        if (value >= 500) {
+                          updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.VIP_ITEM);
+                          updateMemorabiliaItem(item.id, 'tierPriority', 1);
+                          updateMemorabiliaItem(item.id, 'availablePacks', ['gold']);
+                        } else if (value >= 200) {
+                          updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.GOLD_LEVEL);
+                          updateMemorabiliaItem(item.id, 'availablePacks', ['red', 'gold']);
+                        } else {
+                          updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.UPPER_DECK);
+                          updateMemorabiliaItem(item.id, 'availablePacks', ['blue', 'red', 'gold']);
+                        }
                       }
                     }}
                     className="w-full p-2 bg-white/20 rounded text-white text-sm"
@@ -929,36 +932,174 @@ export default function AdminInventoryPage() {
                 </div>
               </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-white text-xs mb-1">Description</label>
-                  <input
-                    type="text"
-                    value={item.description}
-                    onChange={(e) => updateMemorabiliaItem(item.id, 'description', e.target.value)}
-                    className="w-full p-2 bg-white/20 rounded text-white text-sm"
-                    placeholder="Game-worn jersey signed by the player"
-                  />
-                </div>
+              <div className="mt-3">
+                <label className="block text-white text-xs mb-1">Description</label>
+                <input
+                  type="text"
+                  value={item.description}
+                  onChange={(e) => updateMemorabiliaItem(item.id, 'description', e.target.value)}
+                  className="w-full p-2 bg-white/20 rounded text-white text-sm"
+                  placeholder="Game-worn jersey signed by the player"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-white text-xs mb-1">Tier & Packs</label>
-                  <div className="flex items-center gap-2">
-                    {item.tierLevel && <TierBadge tierLevel={item.tierLevel} size="sm" />}
-                    {item.availablePacks && (
-                      <div className="flex gap-1">
-                        {item.availablePacks.includes('blue') && (
-                          <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 text-xs rounded">B</span>
-                        )}
-                        {item.availablePacks.includes('red') && (
-                          <span className="px-2 py-0.5 bg-red-600/20 text-red-400 text-xs rounded">R</span>
-                        )}
-                        {item.availablePacks.includes('gold') && (
-                          <span className="px-2 py-0.5 bg-yellow-600/20 text-yellow-400 text-xs rounded">G</span>
-                        )}
-                      </div>
-                    )}
+              {/* Tier Selection */}
+              <div className="mt-3 p-3 bg-white/10 rounded">
+                <label className="block text-white text-sm mb-2 font-semibold">Memorabilia Tier:</label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`mem-tier-${item.id}`}
+                      checked={item.tierLevel === 'VIP_ITEM'}
+                      onChange={() => {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.VIP_ITEM);
+                        updateMemorabiliaItem(item.id, 'tierPriority', item.tierPriority || 1);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Crown className="w-4 h-4 text-yellow-400" />
+                      VIP
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`mem-tier-${item.id}`}
+                      checked={item.tierLevel === 'GOLD_LEVEL'}
+                      onChange={() => {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.GOLD_LEVEL);
+                        updateMemorabiliaItem(item.id, 'tierPriority', undefined);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Star className="w-4 h-4 text-gray-300" />
+                      Gold
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`mem-tier-${item.id}`}
+                      checked={item.tierLevel === 'UPPER_DECK'}
+                      onChange={() => {
+                        updateMemorabiliaItem(item.id, 'tierLevel', TierLevel.UPPER_DECK);
+                        updateMemorabiliaItem(item.id, 'tierPriority', undefined);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Ticket className="w-4 h-4 text-blue-400" />
+                      Upper
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* VIP Priority Field */}
+              {item.tierLevel === 'VIP_ITEM' && (
+                <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded">
+                  <label className="block text-white text-sm mb-2 font-semibold">
+                    VIP Priority Level:
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.tierPriority || 1}
+                      onChange={(e) => updateMemorabiliaItem(item.id, 'tierPriority', parseInt(e.target.value) || 1)}
+                      className="w-20 p-2 bg-white/20 rounded text-white text-sm"
+                    />
+                    <div className={`text-xs p-2 rounded flex-1 ${item.tierPriority === 1 ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                      {item.tierPriority === 1 ? (
+                        <>✅ MAIN VIP MEMORABILIA - Will appear in prize pools</>
+                      ) : (
+                        <>🔄 BACKUP MEMORABILIA (Priority {item.tierPriority}) - Auto-activates when Priority {(item.tierPriority || 2) - 1} depletes</>
+                      )}
+                    </div>
                   </div>
+                </div>
+              )}
+
+              {/* Pack Availability */}
+              <div className="mt-3 p-3 bg-white/10 rounded">
+                <label className="block text-white text-sm mb-2 font-semibold">Pack Availability:</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.availablePacks?.includes('blue')}
+                      onChange={(e) => {
+                        const packs = item.availablePacks || [];
+                        if (e.target.checked) {
+                          updateMemorabiliaItem(item.id, 'availablePacks', [...packs.filter(p => p !== 'blue'), 'blue'].sort());
+                        } else {
+                          updateMemorabiliaItem(item.id, 'availablePacks', packs.filter(p => p !== 'blue'));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded">Blue Pack</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.availablePacks?.includes('red')}
+                      onChange={(e) => {
+                        const packs = item.availablePacks || [];
+                        if (e.target.checked) {
+                          updateMemorabiliaItem(item.id, 'availablePacks', [...packs.filter(p => p !== 'red'), 'red'].sort());
+                        } else {
+                          updateMemorabiliaItem(item.id, 'availablePacks', packs.filter(p => p !== 'red'));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-red-600/20 text-red-400 rounded">Red Pack</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.availablePacks?.includes('gold')}
+                      onChange={(e) => {
+                        const packs = item.availablePacks || [];
+                        if (e.target.checked) {
+                          updateMemorabiliaItem(item.id, 'availablePacks', [...packs.filter(p => p !== 'gold'), 'gold'].sort());
+                        } else {
+                          updateMemorabiliaItem(item.id, 'availablePacks', packs.filter(p => p !== 'gold'));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-yellow-600/20 text-yellow-400 rounded">Gold Pack</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Bundle Size Availability */}
+              <div className="mt-3 p-3 bg-white/10 rounded">
+                <label className="block text-white text-sm mb-2 font-semibold">Available for Bundle Sizes:</label>
+                <div className="flex gap-4">
+                  {[1, 2, 3, 4].map(size => (
+                    <label key={size} className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={item.availableUnits?.includes(size)}
+                        onChange={(e) => {
+                          const units = item.availableUnits || [];
+                          if (e.target.checked) {
+                            updateMemorabiliaItem(item.id, 'availableUnits', [...units.filter(u => u !== size), size].sort());
+                          } else {
+                            updateMemorabiliaItem(item.id, 'availableUnits', units.filter(u => u !== size));
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span>{size}x</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>
