@@ -157,19 +157,115 @@ export interface BundleSpecificPricing {
   spinPrice4x: number;
 }
 
-export function calculateBundleSpecificPricing(
+export interface PackSpecificPricing {
+  blue: BundleSpecificPricing;
+  red: BundleSpecificPricing;
+  gold: BundleSpecificPricing;
+}
+
+/**
+ * Calculate pack-specific pricing based on available inventory
+ * Each pack (blue, red, gold) has different available items based on availablePacks field
+ */
+export function calculatePackSpecificPricing(
   ticketLevels: TicketLevel[],
   ticketGroups: TicketGroup[],
   specialPrizes: SpecialPrize[],
   cardBreaks: CardBreak[],
   marginPercentage: number = 30
+): PackSpecificPricing {
+  const packs = ['blue', 'red', 'gold'];
+  const packPrices: any = {};
+
+  packs.forEach(pack => {
+    const bundleSizes = [1, 2, 3, 4];
+    const prices: any = {};
+
+    // Calculate memorabilia value for this pack
+    const packCardBreaks = cardBreaks.filter((item: any) => {
+      const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
+      return availablePacks.includes(pack) && item.status === 'AVAILABLE' && item.quantity > 0;
+    });
+    const breakPricing = calculateAvailableBreakValue(packCardBreaks);
+
+    bundleSizes.forEach(bundleSize => {
+      // Filter ticket levels for this pack and bundle size
+      const eligibleTicketLevels = ticketLevels.filter((level: any) => {
+        const availablePacks = level.availablePacks as string[] || ['blue', 'red', 'gold'];
+        const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
+        return availablePacks.includes(pack) &&
+               availableUnits.includes(bundleSize) &&
+               level.quantity >= bundleSize;
+      });
+
+      // Filter special prizes for this pack and bundle size
+      const eligibleSpecialPrizes = specialPrizes.filter((prize: any) => {
+        const availableUnits = prize.availableUnits as number[] || [1, 2, 3, 4];
+        return availableUnits.includes(bundleSize) &&
+               prize.quantity >= bundleSize;
+      });
+
+      // Filter ticket groups for this pack and bundle size
+      const eligibleTicketGroups = ticketGroups.filter((group: any) => {
+        const availablePacks = group.availablePacks as string[] || ['blue', 'red', 'gold'];
+        const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
+        return availablePacks.includes(pack) &&
+               group.status === 'AVAILABLE' &&
+               availableUnits.includes(bundleSize) &&
+               group.quantity >= bundleSize;
+      });
+
+      // Calculate ticket pricing for this pack and bundle size
+      let ticketPricing;
+      if (eligibleTicketLevels.length > 0 || eligibleSpecialPrizes.length > 0) {
+        ticketPricing = calculateLevelBasedTicketPrice(eligibleTicketLevels, eligibleSpecialPrizes);
+      } else {
+        // Fallback to ticket groups
+        ticketPricing = calculateAvailableTicketPrice(eligibleTicketGroups);
+      }
+
+      // Calculate total bundle value (tickets + memorabilia, multiply by bundle size)
+      const totalBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
+
+      // Apply margin
+      const marginMultiplier = 1 + (marginPercentage / 100);
+      const spinPrice = totalBundleValue * marginMultiplier;
+
+      prices[`spinPrice${bundleSize}x`] = spinPrice;
+    });
+
+    packPrices[pack] = prices;
+  });
+
+  return packPrices as PackSpecificPricing;
+}
+
+export function calculateBundleSpecificPricing(
+  ticketLevels: TicketLevel[],
+  ticketGroups: TicketGroup[],
+  specialPrizes: SpecialPrize[],
+  cardBreaks: CardBreak[],
+  marginPercentage: number = 30,
+  pack?: string // Optional pack parameter for pack-specific pricing
 ): BundleSpecificPricing {
+  // If pack is specified, calculate pack-specific pricing
+  if (pack && ['blue', 'red', 'gold'].includes(pack)) {
+    const packPricing = calculatePackSpecificPricing(
+      ticketLevels,
+      ticketGroups,
+      specialPrizes,
+      cardBreaks,
+      marginPercentage
+    );
+    return packPricing[pack as keyof PackSpecificPricing];
+  }
+
+  // Otherwise, calculate general pricing (all inventory)
   const bundleSizes = [1, 2, 3, 4];
   const prices: any = {};
 
-  // Memorabilia removed - no break pricing
-  // const breakPricing = calculateAvailableBreakValue(cardBreaks);
-  const breakPricing = { avgValue: 0 };
+  // Include memorabilia in general pricing
+  const breakPricing = calculateAvailableBreakValue(cardBreaks);
 
   bundleSizes.forEach(bundleSize => {
     // Filter ticket levels that can support this bundle size
@@ -203,8 +299,8 @@ export function calculateBundleSpecificPricing(
       ticketPricing = calculateAvailableTicketPrice(eligibleTicketGroups);
     }
 
-    // Calculate total bundle value (tickets only, multiply by bundle size)
-    const totalBundleValue = ticketPricing.avgPrice * bundleSize; // Multiply by bundle size
+    // Calculate total bundle value (tickets + memorabilia, multiply by bundle size)
+    const totalBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
 
     // Apply margin
     const marginMultiplier = 1 + (marginPercentage / 100);

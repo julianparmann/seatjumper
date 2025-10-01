@@ -71,12 +71,15 @@ export default function EventsPage() {
             .map((game: any) => ({
               ...game,
               eventDate: new Date(game.eventDate),
-              // Map the data to expected fields
-              entryPrice: game.spinPrice1x || game.spinPricePerBundle || 0,
+              // Map the data to expected fields with dynamic pricing
+              entryPrice: game.bluePricePerBundle || game.spinPrice1x || game.spinPricePerBundle || 0,
               totalValue: game.avgTicketPrice || 0,
               inventoryCount: game.ticketGroupsCount || 0,
               // cardBreaksCount: game.cardBreaksCount || 0, // Commented out - tickets only
-              jumpPrice: game.spinPrice1x || game.spinPricePerBundle || 0
+              jumpPrice: game.bluePricePerBundle || game.spinPrice1x || game.spinPricePerBundle || 0,
+              bluePrice: game.bluePricePerBundle,
+              redPrice: game.redPricePerBundle,
+              goldPrice: game.goldPricePerBundle
             }));
           setDailyGames(gamesWithDates);
         }
@@ -261,9 +264,9 @@ export default function EventsPage() {
                     {/* Entry Price */}
                     <div className="border-t border-white/20 pt-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Entry Price:</span>
+                        <span className="text-gray-400 text-sm">Jump Price:</span>
                         <span className="text-yellow-400 font-bold text-2xl">
-                          ${Math.round(game.entryPrice)}
+                          From ${Math.round(game.entryPrice)}
                         </span>
                       </div>
                     </div>

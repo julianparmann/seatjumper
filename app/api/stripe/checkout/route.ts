@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please sign in to continue' }, { status: 401 });
     }
 
-    const { gameId, quantity = 1, selectedLevels = [] } = await req.json();
+    const { gameId, quantity = 1, selectedLevels = [], selectedPack = 'blue' } = await req.json();
 
     if (!gameId) {
       return NextResponse.json({ error: 'Game ID required' }, { status: 400 });
@@ -39,13 +39,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
-    // Calculate dynamic pricing based on current inventory
+    // Calculate dynamic pricing based on current inventory and selected pack
     const bundleSpecificPricing = calculateBundleSpecificPricing(
       game.ticketLevels,
       game.ticketGroups,
       game.specialPrizes,
       game.cardBreaks,
-      30 // 30% margin
+      30, // 30% margin
+      selectedPack // Pass the selected pack for pack-specific pricing
     );
 
     // Get the price for the selected quantity
@@ -81,12 +82,13 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${game.eventName} - ${quantity}x Bundle${quantity > 1 ? 's' : ''}`,
-              description: `${quantity} ticket bundle${quantity > 1 ? 's' : ''} for ${game.eventName} on ${new Date(game.eventDate).toLocaleDateString()}`,
+              name: `${game.eventName} - ${quantity}x Bundle${quantity > 1 ? 's' : ''} (${selectedPack.charAt(0).toUpperCase() + selectedPack.slice(1)} Pack)`,
+              description: `${quantity} ticket bundle${quantity > 1 ? 's' : ''} for ${game.eventName} on ${new Date(game.eventDate).toLocaleDateString()} - ${selectedPack.charAt(0).toUpperCase() + selectedPack.slice(1)} Pack`,
               metadata: {
                 gameId,
                 quantity: quantity.toString(),
-                eventName: game.eventName
+                eventName: game.eventName,
+                selectedPack
               }
             },
             unit_amount: Math.round(bundlePrice * 100) // Convert to cents
@@ -101,6 +103,7 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         quantity: quantity.toString(),
         selectedLevels: selectedLevels.join(','),
+        selectedPack,
         spinResultId: pendingSpinResult.id
       },
       session.user.email || undefined
