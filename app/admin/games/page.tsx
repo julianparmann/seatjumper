@@ -1170,7 +1170,7 @@ export default function AdminGamesPage() {
                                               const currentUnits = level.availableUnits || [1, 2, 3, 4];
                                               const newUnits = e.target.checked
                                                 ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
-                                                : currentUnits.filter(u => u !== size);
+                                                : currentUnits.filter((u: number) => u !== size);
                                               updatedLevels[idx] = { ...level, availableUnits: newUnits };
                                               setEditedGames({
                                                 ...editedGames,
@@ -1202,7 +1202,7 @@ export default function AdminGamesPage() {
                                               const currentPacks = level.availablePacks || ['blue', 'red', 'gold'];
                                               const newPacks = e.target.checked
                                                 ? [...currentPacks, pack.id].filter((v, i, a) => a.indexOf(v) === i)
-                                                : currentPacks.filter(p => p !== pack.id);
+                                                : currentPacks.filter((p: string) => p !== pack.id);
                                               updatedLevels[idx] = { ...level, availablePacks: newPacks };
                                               setEditedGames({
                                                 ...editedGames,
@@ -1687,7 +1687,7 @@ export default function AdminGamesPage() {
                                               const currentUnits = group.availableUnits || [1, 2, 3, 4];
                                               const newUnits = e.target.checked
                                                 ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
-                                                : currentUnits.filter(u => u !== size);
+                                                : currentUnits.filter((u: number) => u !== size);
                                               updatedGroups[idx] = { ...group, availableUnits: newUnits };
                                               setEditedGames({
                                                 ...editedGames,
@@ -1814,7 +1814,7 @@ export default function AdminGamesPage() {
                                               const currentPacks = group.availablePacks || ['blue', 'red', 'gold'];
                                               const newPacks = e.target.checked
                                                 ? [...currentPacks, pack.id].filter((v, i, a) => a.indexOf(v) === i)
-                                                : currentPacks.filter(p => p !== pack.id);
+                                                : currentPacks.filter((p: string) => p !== pack.id);
                                               updatedGroups[idx] = { ...group, availablePacks: newPacks };
                                               setEditedGames({
                                                 ...editedGames,
@@ -1903,7 +1903,7 @@ export default function AdminGamesPage() {
                                 </div>
                                 {group.availableUnits && group.availableUnits.length < 4 && (
                                   <div className="text-xs text-gray-400 mt-1">
-                                    Available for: {group.availableUnits.map(u => `${u}x`).join(', ')}
+                                    Available for: {group.availableUnits.map((u: number) => `${u}x`).join(', ')}
                                   </div>
                                 )}
                                 {(group.seatViewUrl || group.seatViewUrl2 || group.seatViewUrl3) && (
@@ -2138,7 +2138,7 @@ export default function AdminGamesPage() {
                                             if (e.target.checked) {
                                               updated[index].availablePacks = [...new Set([...packs, 'blue'])];
                                             } else {
-                                              updated[index].availablePacks = packs.filter(p => p !== 'blue');
+                                              updated[index].availablePacks = packs.filter((p: string) => p !== 'blue');
                                             }
                                             setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
                                           }}
@@ -2155,7 +2155,7 @@ export default function AdminGamesPage() {
                                             if (e.target.checked) {
                                               updated[index].availablePacks = [...new Set([...packs, 'red'])];
                                             } else {
-                                              updated[index].availablePacks = packs.filter(p => p !== 'red');
+                                              updated[index].availablePacks = packs.filter((p: string) => p !== 'red');
                                             }
                                             setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
                                           }}
@@ -2172,7 +2172,7 @@ export default function AdminGamesPage() {
                                             if (e.target.checked) {
                                               updated[index].availablePacks = [...new Set([...packs, 'gold'])];
                                             } else {
-                                              updated[index].availablePacks = packs.filter(p => p !== 'gold');
+                                              updated[index].availablePacks = packs.filter((p: string) => p !== 'gold');
                                             }
                                             setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
                                           }}
@@ -2197,7 +2197,7 @@ export default function AdminGamesPage() {
                                               if (e.target.checked) {
                                                 updated[index].availableUnits = [...new Set([...units, size])];
                                               } else {
-                                                updated[index].availableUnits = units.filter(u => u !== size);
+                                                updated[index].availableUnits = units.filter((u: number) => u !== size);
                                               }
                                               setNewMemorabiliaItems({ ...newMemorabiliaItems, [game.id]: updated });
                                             }}
@@ -2364,12 +2364,12 @@ export default function AdminGamesPage() {
                                           </div>
                                           {group.availablePacks && group.availablePacks.length < 3 && (
                                             <div className="text-xs text-gray-400 mt-1">
-                                              Packs: {group.availablePacks.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ')}
+                                              Packs: {group.availablePacks.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(', ')}
                                             </div>
                                           )}
                                           {group.availableUnits && group.availableUnits.length < 4 && (
                                             <div className="text-xs text-gray-400">
-                                              Bundle sizes: {group.availableUnits.map(u => `${u}x`).join(', ')}
+                                              Bundle sizes: {group.availableUnits.map((u: number) => `${u}x`).join(', ')}
                                             </div>
                                           )}
                                           {/* Image display/edit */}
