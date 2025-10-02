@@ -2403,6 +2403,72 @@ export default function AdminGamesPage() {
                                           {/* Edit Mode Controls */}
                                           {isEditing && (
                                             <div className="mt-3 space-y-2">
+                                              {/* Tier Selection */}
+                                              <div className="bg-white/5 rounded p-2">
+                                                <p className="text-xs text-gray-400 mb-1">Tier Level:</p>
+                                                <div className="flex gap-2">
+                                                  {[
+                                                    { value: 'VIP_ITEM', label: 'VIP', icon: Crown },
+                                                    { value: 'GOLD_LEVEL', label: 'Gold', icon: Star },
+                                                    { value: 'UPPER_DECK', label: 'Upper', icon: Ticket }
+                                                  ].map(tier => {
+                                                    const Icon = tier.icon;
+                                                    return (
+                                                      <label key={tier.value} className="flex items-center gap-1 text-white text-xs cursor-pointer">
+                                                        <input
+                                                          type="radio"
+                                                          name={`memorabilia-tier-${group.breakName}-${group.breakValue}`}
+                                                          checked={group.tierLevel === tier.value}
+                                                          onChange={() => {
+                                                            let tierPriority: number | undefined;
+
+                                                            if (tier.value === 'VIP_ITEM') {
+                                                              // Find the highest existing VIP priority for memorabilia
+                                                              const existingVipMemorabilia = editedGame.cardBreaks.filter(
+                                                                (item: any) => item.tierLevel === 'VIP_ITEM'
+                                                              );
+                                                              const highestPriority = existingVipMemorabilia.reduce(
+                                                                (max: number, item: any) => Math.max(max, item.tierPriority || 1),
+                                                                0
+                                                              );
+                                                              tierPriority = existingVipMemorabilia.length === 0 ? 1 : highestPriority + 1;
+                                                            } else {
+                                                              tierPriority = undefined;
+                                                            }
+
+                                                            // Update all items in this group
+                                                            const updatedBreaks = editedGame.cardBreaks.map((breakItem: any) => {
+                                                              const normalizedBreakName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                              const normalizedGroupName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                              if (normalizedBreakName === normalizedGroupName && breakItem.breakValue === group.breakValue) {
+                                                                return {
+                                                                  ...breakItem,
+                                                                  tierLevel: tier.value as TierLevel,
+                                                                  tierPriority: tierPriority
+                                                                };
+                                                              }
+                                                              return breakItem;
+                                                            });
+                                                            setEditedGames({
+                                                              ...editedGames,
+                                                              [game.id]: { ...editedGame, cardBreaks: updatedBreaks }
+                                                            });
+                                                          }}
+                                                          className="w-3 h-3"
+                                                        />
+                                                        <Icon className="w-3 h-3" />
+                                                        <span>{tier.label}</span>
+                                                        {group.tierLevel === 'VIP_ITEM' && tier.value === 'VIP_ITEM' && group.tierPriority && (
+                                                          <span className="text-[10px] bg-yellow-500/30 px-1 rounded">
+                                                            #{group.tierPriority}
+                                                          </span>
+                                                        )}
+                                                      </label>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+
                                               {/* VIP Priority for VIP items */}
                                               {group.tierLevel === 'VIP_ITEM' && (
                                                 <div>
