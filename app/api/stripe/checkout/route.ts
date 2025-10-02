@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
     const priceKey = `spinPrice${quantity}x` as keyof typeof bundleSpecificPricing;
     const bundlePrice = bundleSpecificPricing[priceKey];
 
+    console.log('Stripe checkout pricing debug:', {
+      selectedPack,
+      quantity,
+      priceKey,
+      bundleSpecificPricing,
+      bundlePrice,
+      ticketLevelsCount: game.ticketLevels.length,
+      ticketGroupsCount: game.ticketGroups.length,
+      specialPrizesCount: game.specialPrizes.length,
+      cardBreaksCount: game.cardBreaks.length
+    });
+
     if (!bundlePrice || bundlePrice <= 0) {
       return NextResponse.json({ error: 'Unable to calculate price. Insufficient inventory.' }, { status: 400 });
     }

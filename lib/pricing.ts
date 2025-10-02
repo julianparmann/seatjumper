@@ -181,12 +181,12 @@ export function calculatePackSpecificPricing(
     const bundleSizes = [1, 2, 3, 4];
     const prices: any = {};
 
-    // Calculate memorabilia value for this pack
-    const packCardBreaks = cardBreaks.filter((item: any) => {
-      const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
-      return availablePacks.includes(pack) && item.status === 'AVAILABLE' && item.quantity > 0;
-    });
-    const breakPricing = calculateAvailableBreakValue(packCardBreaks);
+    // Memorabilia removed from pricing - not included anymore
+    // const packCardBreaks = cardBreaks.filter((item: any) => {
+    //   const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
+    //   return availablePacks.includes(pack) && item.status === 'AVAILABLE' && item.quantity > 0;
+    // });
+    // const breakPricing = calculateAvailableBreakValue(packCardBreaks);
 
     bundleSizes.forEach(bundleSize => {
       // Filter ticket levels for this pack and bundle size
@@ -224,8 +224,9 @@ export function calculatePackSpecificPricing(
         ticketPricing = calculateAvailableTicketPrice(eligibleTicketGroups);
       }
 
-      // Calculate total bundle value (tickets + memorabilia, multiply by bundle size)
-      const totalBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
+      // Calculate total bundle value (tickets only, multiply by bundle size)
+      // Memorabilia removed from pricing calculation
+      const totalBundleValue = ticketPricing.avgPrice * bundleSize;
 
       // Apply margin
       const marginMultiplier = 1 + (marginPercentage / 100);
@@ -264,8 +265,8 @@ export function calculateBundleSpecificPricing(
   const bundleSizes = [1, 2, 3, 4];
   const prices: any = {};
 
-  // Include memorabilia in general pricing
-  const breakPricing = calculateAvailableBreakValue(cardBreaks);
+  // Memorabilia removed from pricing - not included anymore
+  // const breakPricing = calculateAvailableBreakValue(cardBreaks);
 
   bundleSizes.forEach(bundleSize => {
     // Filter ticket levels that can support this bundle size
@@ -302,8 +303,9 @@ export function calculateBundleSpecificPricing(
       ticketPricing = calculateAvailableTicketPrice(eligibleTicketGroups);
     }
 
-    // Calculate total bundle value (tickets + memorabilia, multiply by bundle size)
-    const totalBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
+    // Calculate total bundle value (tickets only, multiply by bundle size)
+    // Memorabilia removed from pricing calculation
+    const totalBundleValue = ticketPricing.avgPrice * bundleSize;
 
     // Apply margin
     const marginMultiplier = 1 + (marginPercentage / 100);

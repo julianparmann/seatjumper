@@ -221,6 +221,15 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     const packPriceMap: { [key: string]: number } = prices;
     setCalculatedPrice(packPriceMap[selectedPack] || prices.blue);
 
+    console.log('Frontend pricing debug:', {
+      selectedPack,
+      bundleQuantity,
+      prices,
+      calculatedPrice: packPriceMap[selectedPack] || prices.blue,
+      ticketLevelsCount: game.ticketLevels?.length || 0,
+      ticketGroupsCount: game.ticketGroups?.length || 0
+    });
+
   }, [game, selectedLevels, bundleQuantity, selectedPack]);
 
   const calculateAvailableBundles = () => {
