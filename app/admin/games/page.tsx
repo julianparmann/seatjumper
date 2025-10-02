@@ -2411,21 +2411,22 @@ export default function AdminGamesPage() {
                                                     type="number"
                                                     min="1"
                                                     value={group.tierPriority || 1}
-                                                    onChange={async (e) => {
+                                                    onChange={(e) => {
                                                       const newPriority = parseInt(e.target.value) || 1;
-                                                      // Update all items in this group
-                                                      for (const item of group.items) {
-                                                        try {
-                                                          await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
-                                                            method: 'PUT',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ tierPriority: newPriority })
-                                                          });
-                                                        } catch (error) {
-                                                          console.error('Failed to update priority:', error);
+                                                      // Update local state for all items in this group
+                                                      const updatedBreaks = editedGame.cardBreaks.map((breakItem: any) => {
+                                                        // Check if this break item belongs to the current group
+                                                        const normalizedBreakName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                        const normalizedGroupName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                        if (normalizedBreakName === normalizedGroupName && breakItem.breakValue === group.breakValue) {
+                                                          return { ...breakItem, tierPriority: newPriority };
                                                         }
-                                                      }
-                                                      fetchGames();
+                                                        return breakItem;
+                                                      });
+                                                      setEditedGames({
+                                                        ...editedGames,
+                                                        [game.id]: { ...editedGame, cardBreaks: updatedBreaks }
+                                                      });
                                                     }}
                                                     className="w-16 px-2 py-1 bg-gray-800 text-white rounded text-xs"
                                                   />
@@ -2452,25 +2453,26 @@ export default function AdminGamesPage() {
                                                       <input
                                                         type="checkbox"
                                                         checked={(group.availablePacks || ['blue', 'red', 'gold']).includes(pack.id)}
-                                                        onChange={async (e) => {
+                                                        onChange={(e) => {
                                                           const currentPacks = group.availablePacks || ['blue', 'red', 'gold'];
                                                           const newPacks = e.target.checked
                                                             ? [...currentPacks, pack.id].filter((v, i, a) => a.indexOf(v) === i)
                                                             : currentPacks.filter((p: string) => p !== pack.id);
 
-                                                          // Update all items in this group
-                                                          for (const item of group.items) {
-                                                            try {
-                                                              await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
-                                                                method: 'PUT',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ availablePacks: newPacks })
-                                                              });
-                                                            } catch (error) {
-                                                              console.error('Failed to update packs:', error);
+                                                          // Update local state for all items in this group
+                                                          const updatedBreaks = editedGame.cardBreaks.map((breakItem: any) => {
+                                                            // Check if this break item belongs to the current group
+                                                            const normalizedBreakName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                            const normalizedGroupName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                            if (normalizedBreakName === normalizedGroupName && breakItem.breakValue === group.breakValue) {
+                                                              return { ...breakItem, availablePacks: newPacks };
                                                             }
-                                                          }
-                                                          fetchGames();
+                                                            return breakItem;
+                                                          });
+                                                          setEditedGames({
+                                                            ...editedGames,
+                                                            [game.id]: { ...editedGame, cardBreaks: updatedBreaks }
+                                                          });
                                                         }}
                                                         className="w-3 h-3"
                                                       />
@@ -2489,25 +2491,26 @@ export default function AdminGamesPage() {
                                                       <input
                                                         type="checkbox"
                                                         checked={(group.availableUnits || [1, 2, 3, 4]).includes(size)}
-                                                        onChange={async (e) => {
+                                                        onChange={(e) => {
                                                           const currentUnits = group.availableUnits || [1, 2, 3, 4];
                                                           const newUnits = e.target.checked
                                                             ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
                                                             : currentUnits.filter((u: number) => u !== size);
 
-                                                          // Update all items in this group
-                                                          for (const item of group.items) {
-                                                            try {
-                                                              await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
-                                                                method: 'PUT',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ availableUnits: newUnits })
-                                                              });
-                                                            } catch (error) {
-                                                              console.error('Failed to update units:', error);
+                                                          // Update local state for all items in this group
+                                                          const updatedBreaks = editedGame.cardBreaks.map((breakItem: any) => {
+                                                            // Check if this break item belongs to the current group
+                                                            const normalizedBreakName = (breakItem.breakName || breakItem.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                            const normalizedGroupName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                                            if (normalizedBreakName === normalizedGroupName && breakItem.breakValue === group.breakValue) {
+                                                              return { ...breakItem, availableUnits: newUnits };
                                                             }
-                                                          }
-                                                          fetchGames();
+                                                            return breakItem;
+                                                          });
+                                                          setEditedGames({
+                                                            ...editedGames,
+                                                            [game.id]: { ...editedGame, cardBreaks: updatedBreaks }
+                                                          });
                                                         }}
                                                         className="w-3 h-3"
                                                       />
