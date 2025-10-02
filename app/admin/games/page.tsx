@@ -2313,7 +2313,7 @@ export default function AdminGamesPage() {
                           </div>
                         )}
 
-                        {/* Group breaks by unique item (name + value) */}
+                        {/* Group breaks by unique item (name + value) and tier */}
                         {(() => {
                           // Group by unique memorabilia items
                           const breaksToDisplay = isEditing ? editedGame.cardBreaks : game.cardBreaks;
@@ -2334,23 +2334,51 @@ export default function AdminGamesPage() {
                             return acc;
                           }, {}) || {};
 
-                          const itemGroups = Object.values(uniqueItems);
+                          const itemGroups = Object.values(uniqueItems) as any[];
 
                           if (itemGroups.length === 0) {
                             return <p className="text-gray-400 text-center py-2">No memorabilia yet</p>;
                           }
 
+                          // Group items by tier
+                          const vipItems = itemGroups.filter(g => g.tierLevel === 'VIP_ITEM');
+                          const goldItems = itemGroups.filter(g => g.tierLevel === 'GOLD_LEVEL');
+                          const upperItems = itemGroups.filter(g => g.tierLevel === 'UPPER_DECK');
+                          const untieredItems = itemGroups.filter(g => !g.tierLevel);
+
+                          // Sort VIP items by priority
+                          vipItems.sort((a: any, b: any) => (a.tierPriority || 1) - (b.tierPriority || 1));
+
+                          // Combine all tier groups for display
+                          const tierGroups = [
+                            { items: vipItems, title: 'VIP Pool', icon: Crown, color: 'purple', borderColor: 'border-purple-500/30', bgColor: 'bg-purple-900/10', textColor: 'text-purple-400' },
+                            { items: goldItems, title: 'Gold Level', icon: Star, color: 'amber', borderColor: 'border-amber-500/30', bgColor: 'bg-amber-900/10', textColor: 'text-amber-400' },
+                            { items: upperItems, title: 'Upper Deck', icon: Ticket, color: 'gray', borderColor: 'border-gray-500/30', bgColor: 'bg-gray-900/10', textColor: 'text-gray-400' },
+                            { items: untieredItems, title: 'Unassigned', icon: null, color: 'gray', borderColor: 'border-gray-600/30', bgColor: 'bg-gray-800/10', textColor: 'text-gray-500' }
+                          ];
+
                           return (
                             <>
                               <div className="max-h-96 overflow-y-auto space-y-4">
-                                {itemGroups.map((group: any, groupIndex: number) => {
-                                  // Use the normalized name for the groupKey to ensure consistency
-                                  const normalizedName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
-                                  const groupKey = `${game.id}_${normalizedName}_${group.breakValue}`;
-                                  const currentQuantity = memorabiliaQuantities[groupKey] ?? group.quantity;
+                                {tierGroups.map((tierGroup, tierIndex) => {
+                                  if (tierGroup.items.length === 0) return null;
+                                  const Icon = tierGroup.icon;
 
                                   return (
-                                    <div key={`${game.id}_memorabilia_${groupIndex}_${normalizedName}_${group.breakValue}`} className="bg-white/5 rounded-lg p-3">
+                                    <div key={tierIndex} className={`border ${tierGroup.borderColor} rounded-lg p-3 ${tierGroup.bgColor}`}>
+                                      <h4 className={`text-sm font-bold ${tierGroup.textColor} mb-3 flex items-center gap-2`}>
+                                        {Icon && <Icon className="w-4 h-4" />}
+                                        {tierGroup.title} ({tierGroup.items.length} items)
+                                      </h4>
+                                      <div className="space-y-2">
+                                        {tierGroup.items.map((group: any, groupIndex: number) => {
+                                          // Use the normalized name for the groupKey to ensure consistency
+                                          const normalizedName = (group.breakName || group.teamName || '').replace(/\s*\(copy\)\s*/gi, '').trim();
+                                          const groupKey = `${game.id}_${normalizedName}_${group.breakValue}`;
+                                          const currentQuantity = memorabiliaQuantities[groupKey] ?? group.quantity;
+
+                                          return (
+                                            <div key={`${game.id}_memorabilia_${groupIndex}_${normalizedName}_${group.breakValue}`} className="bg-white/5 rounded-lg p-3">
                                       <div className="flex justify-between items-start">
                                         <div className="text-white flex-1">
                                           <div className="flex items-center gap-2">
@@ -2372,9 +2400,124 @@ export default function AdminGamesPage() {
                                               Bundle sizes: {group.availableUnits.map((u: number) => `${u}x`).join(', ')}
                                             </div>
                                           )}
-                                          {/* Image display/edit */}
-                                          {isEditing ? (
-                                            <div className="mt-2">
+                                          {/* Edit Mode Controls */}
+                                          {isEditing && (
+                                            <div className="mt-3 space-y-2">
+                                              {/* VIP Priority for VIP items */}
+                                              {group.tierLevel === 'VIP_ITEM' && (
+                                                <div>
+                                                  <p className="text-xs text-gray-400 mb-1">VIP Priority:</p>
+                                                  <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={group.tierPriority || 1}
+                                                    onChange={async (e) => {
+                                                      const newPriority = parseInt(e.target.value) || 1;
+                                                      // Update all items in this group
+                                                      for (const item of group.items) {
+                                                        try {
+                                                          await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ tierPriority: newPriority })
+                                                          });
+                                                        } catch (error) {
+                                                          console.error('Failed to update priority:', error);
+                                                        }
+                                                      }
+                                                      fetchGames();
+                                                    }}
+                                                    className="w-16 px-2 py-1 bg-gray-800 text-white rounded text-xs"
+                                                  />
+                                                  <p className="text-xs text-gray-400 mt-1">
+                                                    {group.tierPriority === 1 ? (
+                                                      <>✅ Main VIP - Appears in pools</>
+                                                    ) : (
+                                                      <>🔄 Backup (Priority {group.tierPriority})</>
+                                                    )}
+                                                  </p>
+                                                </div>
+                                              )}
+
+                                              {/* Pack Assignment Checkboxes */}
+                                              <div>
+                                                <p className="text-xs text-gray-400 mb-1">Available in packs:</p>
+                                                <div className="flex gap-3">
+                                                  {[
+                                                    { id: 'blue', label: 'Blue', color: 'text-blue-400' },
+                                                    { id: 'red', label: 'Red', color: 'text-red-400' },
+                                                    { id: 'gold', label: 'Gold', color: 'text-yellow-400' }
+                                                  ].map(pack => (
+                                                    <label key={pack.id} className={`flex items-center gap-1 ${pack.color} text-xs cursor-pointer`}>
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={(group.availablePacks || ['blue', 'red', 'gold']).includes(pack.id)}
+                                                        onChange={async (e) => {
+                                                          const currentPacks = group.availablePacks || ['blue', 'red', 'gold'];
+                                                          const newPacks = e.target.checked
+                                                            ? [...currentPacks, pack.id].filter((v, i, a) => a.indexOf(v) === i)
+                                                            : currentPacks.filter((p: string) => p !== pack.id);
+
+                                                          // Update all items in this group
+                                                          for (const item of group.items) {
+                                                            try {
+                                                              await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
+                                                                method: 'PUT',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ availablePacks: newPacks })
+                                                              });
+                                                            } catch (error) {
+                                                              console.error('Failed to update packs:', error);
+                                                            }
+                                                          }
+                                                          fetchGames();
+                                                        }}
+                                                        className="w-3 h-3"
+                                                      />
+                                                      <span>{pack.label}</span>
+                                                    </label>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {/* Bundle Size Checkboxes */}
+                                              <div>
+                                                <p className="text-xs text-gray-400 mb-1">Available for bundles:</p>
+                                                <div className="flex gap-3">
+                                                  {[1, 2, 3, 4].map(size => (
+                                                    <label key={size} className="flex items-center gap-1 text-white text-xs cursor-pointer">
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={(group.availableUnits || [1, 2, 3, 4]).includes(size)}
+                                                        onChange={async (e) => {
+                                                          const currentUnits = group.availableUnits || [1, 2, 3, 4];
+                                                          const newUnits = e.target.checked
+                                                            ? [...currentUnits, size].filter((v, i, a) => a.indexOf(v) === i).sort()
+                                                            : currentUnits.filter((u: number) => u !== size);
+
+                                                          // Update all items in this group
+                                                          for (const item of group.items) {
+                                                            try {
+                                                              await fetch(`/api/admin/games/${game.id}/breaks/${item.id}`, {
+                                                                method: 'PUT',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ availableUnits: newUnits })
+                                                              });
+                                                            } catch (error) {
+                                                              console.error('Failed to update units:', error);
+                                                            }
+                                                          }
+                                                          fetchGames();
+                                                        }}
+                                                        className="w-3 h-3"
+                                                      />
+                                                      <span>{size}x</span>
+                                                    </label>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {/* Image Upload */}
                                               <ImageUpload
                                                 value={group.imageUrl || ''}
                                                 onChange={async (newImageUrl) => {
@@ -2400,14 +2543,15 @@ export default function AdminGamesPage() {
                                                 folder="memorabilia"
                                               />
                                             </div>
-                                          ) : (
-                                            group.imageUrl && (
-                                              <img
-                                                src={group.imageUrl}
-                                                alt={group.breakName}
-                                                className="w-16 h-16 object-cover rounded mt-2"
-                                              />
-                                            )
+                                          )}
+
+                                          {/* Display image when not editing */}
+                                          {!isEditing && group.imageUrl && (
+                                            <img
+                                              src={group.imageUrl}
+                                              alt={group.breakName}
+                                              className="w-16 h-16 object-cover rounded mt-2"
+                                            />
                                           )}
                                         </div>
                                         <div className="text-right">
@@ -2487,6 +2631,10 @@ export default function AdminGamesPage() {
                                             </button>
                                           </div>
                                         </div>
+                                      </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   );
