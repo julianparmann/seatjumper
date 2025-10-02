@@ -125,12 +125,11 @@ export function calculateBundlePricing(
     ? calculateLevelBasedTicketPrice(ticketLevels, specialPrizes || [])
     : calculateAvailableTicketPrice(ticketGroups);
 
-  // Memorabilia removed - set to 0
-  // const breakPricing = calculateAvailableBreakValue(cardBreaks);
-  const breakPricing = { avgValue: 0, totalAvailable: 0, totalValue: 0 };
+  // Calculate memorabilia average value
+  const breakPricing = calculateAvailableBreakValue(cardBreaks);
 
-  // Calculate average bundle value (tickets only)
-  const totalBundleValue = ticketPricing.avgPrice; // No break value added
+  // Calculate average bundle value (tickets + memorabilia)
+  const totalBundleValue = ticketPricing.avgPrice + breakPricing.avgValue;
 
   // Apply margin for spin price (e.g., 30% markup)
   const marginMultiplier = 1 + (marginPercentage / 100);
@@ -138,11 +137,11 @@ export function calculateBundlePricing(
 
   return {
     avgTicketPrice: ticketPricing.avgPrice,
-    avgBreakValue: 0, // Memorabilia removed
+    avgBreakValue: breakPricing.avgValue, // Return actual memorabilia average value
     totalBundleValue,
     spinPricePerBundle,
     availableTickets: ticketPricing.totalAvailable,
-    availableBreaks: 0 // Memorabilia removed
+    availableBreaks: breakPricing.totalAvailable // Return actual memorabilia count
   };
 }
 
@@ -362,7 +361,7 @@ export async function recalculateGamePricing(
     where: { id: gameId },
     data: {
       avgTicketPrice: pricing.avgTicketPrice,
-      avgBreakValue: 0, // Memorabilia removed
+      avgBreakValue: pricing.avgBreakValue, // Save actual memorabilia average value
       spinPricePerBundle: pricing.spinPricePerBundle
     }
   });
