@@ -646,9 +646,30 @@ export default function AdminGamesPage() {
                             }
                           });
 
-                          const avg = count > 0 ? prices.reduce((a, b) => a + b, 0) / count : 0;
+                          const ticketAvg = count > 0 ? prices.reduce((a, b) => a + b, 0) / count : 0;
+
+                          // Calculate memorabilia average value
+                          const memorabiliaValues: number[] = [];
+                          let memorabiliaCount = 0;
+
+                          editedGame.cardBreaks?.forEach(item => {
+                            if (item.status === 'AVAILABLE' && item.quantity > 0) {
+                              for (let i = 0; i < item.quantity; i++) {
+                                memorabiliaValues.push(item.breakValue || 0);
+                                memorabiliaCount++;
+                              }
+                            }
+                          });
+
+                          const memorabiliaAvg = memorabiliaCount > 0
+                            ? memorabiliaValues.reduce((a, b) => a + b, 0) / memorabiliaCount
+                            : 0;
+
+                          // Total average value (tickets + memorabilia)
+                          const totalAvg = ticketAvg + memorabiliaAvg;
+
                           // Recommended price is 130% of average value (30% margin)
-                          const recommendedPrice = avg * 1.3;
+                          const recommendedPrice = totalAvg * 1.3;
                           return recommendedPrice.toFixed(2);
                         })()}
                       </p>
