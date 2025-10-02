@@ -167,45 +167,72 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     if (!game) return { blue: 500, red: 1000, gold: 1500 };
 
     const margin = 1.3; // 30% margin
-    const allItems = [...(game.ticketLevels || []), ...(game.ticketGroups || [])];
+    const allTicketItems = [...(game.ticketLevels || []), ...(game.ticketGroups || [])];
+    const memorabiliaItems = game.cardBreaks || [];
 
-    // Calculate Blue Pack price - includes items available in blue pack
-    const blueItems = allItems.filter(item => {
+    // Calculate Blue Pack price
+    const blueTickets = allTicketItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
       return packs.includes('blue') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
-    const blueTotal = blueItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
-    const blueQty = blueItems.reduce((sum, item) => sum + item.quantity, 0);
-    const blueAvg = blueQty > 0 ? blueTotal / blueQty : 500 / margin;
+    const blueTicketTotal = blueTickets.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const blueTicketQty = blueTickets.reduce((sum, item) => sum + item.quantity, 0);
+    const blueTicketAvg = blueTicketQty > 0 ? blueTicketTotal / blueTicketQty : 500 / margin;
 
-    // Calculate Red Pack price - includes items available in red pack
-    const redItems = allItems.filter(item => {
+    const blueMemorabilia = memorabiliaItems.filter((item: any) => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('blue') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+    });
+    const blueMemTotal = blueMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
+    const blueMemQty = blueMemorabilia.length;
+    const blueMemAvg = blueMemQty > 0 ? blueMemTotal / blueMemQty : 0;
+
+    // Calculate Red Pack price
+    const redTickets = allTicketItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
       return packs.includes('red') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
-    const redTotal = redItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
-    const redQty = redItems.reduce((sum, item) => sum + item.quantity, 0);
-    const redAvg = redQty > 0 ? redTotal / redQty : 1000 / margin;
+    const redTicketTotal = redTickets.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const redTicketQty = redTickets.reduce((sum, item) => sum + item.quantity, 0);
+    const redTicketAvg = redTicketQty > 0 ? redTicketTotal / redTicketQty : 1000 / margin;
 
-    // Calculate Gold Pack price - includes items available in gold pack
-    const goldItems = allItems.filter(item => {
+    const redMemorabilia = memorabiliaItems.filter((item: any) => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('red') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+    });
+    const redMemTotal = redMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
+    const redMemQty = redMemorabilia.length;
+    const redMemAvg = redMemQty > 0 ? redMemTotal / redMemQty : 0;
+
+    // Calculate Gold Pack price
+    const goldTickets = allTicketItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
       return packs.includes('gold') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
-    const goldTotal = goldItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
-    const goldQty = goldItems.reduce((sum, item) => sum + item.quantity, 0);
-    const goldAvg = goldQty > 0 ? goldTotal / goldQty : 1500 / margin;
+    const goldTicketTotal = goldTickets.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
+    const goldTicketQty = goldTickets.reduce((sum, item) => sum + item.quantity, 0);
+    const goldTicketAvg = goldTicketQty > 0 ? goldTicketTotal / goldTicketQty : 1500 / margin;
+
+    const goldMemorabilia = memorabiliaItems.filter((item: any) => {
+      const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('gold') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+    });
+    const goldMemTotal = goldMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
+    const goldMemQty = goldMemorabilia.length;
+    const goldMemAvg = goldMemQty > 0 ? goldMemTotal / goldMemQty : 0;
 
     // Apply margin and multiply by bundle quantity to get final prices
-    // NOTE: Backend calculatePackSpecificPricing already multiplies by bundle size,
-    // so we should match that logic here for consistency
+    // Include both ticket and memorabilia values
     return {
-      blue: Math.round(blueAvg * margin * bundleQuantity),
-      red: Math.round(redAvg * margin * bundleQuantity),
-      gold: Math.round(goldAvg * margin * bundleQuantity)
+      blue: Math.round((blueTicketAvg + blueMemAvg) * margin * bundleQuantity),
+      red: Math.round((redTicketAvg + redMemAvg) * margin * bundleQuantity),
+      gold: Math.round((goldTicketAvg + goldMemAvg) * margin * bundleQuantity)
     };
   };
 
