@@ -212,7 +212,7 @@ export function calculatePackSpecificPricing(
         return availablePacks.includes(pack) &&
                group.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
-               group.quantity >= bundleSize;
+               group.quantity > 0;  // Just need at least 1 ticket available
       });
 
       // Calculate ticket pricing for this pack and bundle size
@@ -286,8 +286,11 @@ export function calculateBundleSpecificPricing(
     });
 
     // Filter ticket groups if needed (for fallback)
-    const eligibleTicketGroups = ticketGroups.filter(group => {
-      return group.status === 'AVAILABLE' && group.quantity >= bundleSize;
+    const eligibleTicketGroups = ticketGroups.filter((group: any) => {
+      const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
+      return group.status === 'AVAILABLE' &&
+             availableUnits.includes(bundleSize) &&
+             group.quantity > 0;
     });
 
     // Calculate ticket pricing for this bundle size

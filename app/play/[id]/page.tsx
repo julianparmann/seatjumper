@@ -172,7 +172,8 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     // Calculate Blue Pack price - includes items available in blue pack
     const blueItems = allItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
-      return packs.includes('blue') && item.quantity > 0;
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('blue') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
     const blueTotal = blueItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
     const blueQty = blueItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -181,7 +182,8 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     // Calculate Red Pack price - includes items available in red pack
     const redItems = allItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
-      return packs.includes('red') && item.quantity > 0;
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('red') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
     const redTotal = redItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
     const redQty = redItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -190,13 +192,16 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     // Calculate Gold Pack price - includes items available in gold pack
     const goldItems = allItems.filter(item => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
-      return packs.includes('gold') && item.quantity > 0;
+      const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
+      return packs.includes('gold') && units.includes(bundleQuantity) && item.quantity >= bundleQuantity;
     });
     const goldTotal = goldItems.reduce((sum, item) => sum + (item.pricePerSeat * item.quantity), 0);
     const goldQty = goldItems.reduce((sum, item) => sum + item.quantity, 0);
     const goldAvg = goldQty > 0 ? goldTotal / goldQty : 1500 / margin;
 
     // Apply margin and multiply by bundle quantity to get final prices
+    // NOTE: Backend calculatePackSpecificPricing already multiplies by bundle size,
+    // so we should match that logic here for consistency
     return {
       blue: Math.round(blueAvg * margin * bundleQuantity),
       red: Math.round(redAvg * margin * bundleQuantity),
@@ -398,45 +403,65 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
   // Update available bundle sizes when game data changes - must be before early returns
   useEffect(() => {
     if (game) {
-      // Calculate which bundle sizes are available
+      // Calculate which bundle sizes are available based on selected pack
       const sizes: number[] = [];
 
       for (let size = 1; size <= 4; size++) {
-        let hasTickets = false;
+        let hasEnoughTickets = false;
 
-        // Check ticketGroups for this size
+        // Check ticketGroups for this size and selected pack
         if (game.ticketGroups) {
-          const hasGroupForSize = game.ticketGroups.some(group => {
-            if (group.status !== 'AVAILABLE') return false;
-            // If availableUnits is set, use it to determine availability
-            if (group.availableUnits && Array.isArray(group.availableUnits)) {
-              const availableUnits = group.availableUnits as number[];
-              return availableUnits.includes(size) && group.quantity >= size;
-            }
-            // If no availableUnits set, check if quantity is sufficient
-            return group.quantity >= size;
+          // Count total available tickets for this size and pack
+          let totalAvailableForSize = 0;
+
+          game.ticketGroups.forEach(group => {
+            if (group.status !== 'AVAILABLE') return;
+
+            // Check if this group is available for the selected pack
+            const availablePacks = (group.availablePacks as string[]) || ['blue', 'red', 'gold'];
+            if (!availablePacks.includes(selectedPack)) return;
+
+            // Check if this group supports this bundle size
+            const availableUnits = (group.availableUnits as number[]) || [1, 2, 3, 4];
+            if (!availableUnits.includes(size)) return;
+
+            // Add quantity to total
+            totalAvailableForSize += group.quantity;
           });
-          if (hasGroupForSize) hasTickets = true;
+
+          // Check if we have enough for at least one bundle of this size
+          if (totalAvailableForSize >= size) {
+            hasEnoughTickets = true;
+          }
         }
 
-        // Check ticketLevels for this size
-        if (!hasTickets && game.ticketLevels) {
-          const hasLevelForSize = game.ticketLevels.some(level => {
-            if (level.quantity <= 0) return false;
-            const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
-            return availableUnits.includes(size);
+        // Check ticketLevels for this size and selected pack
+        if (!hasEnoughTickets && game.ticketLevels) {
+          let totalAvailableForSize = 0;
+
+          game.ticketLevels.forEach(level => {
+            if (level.quantity <= 0) return;
+
+            // Check if this level is available for the selected pack
+            const availablePacks = (level.availablePacks as string[]) || ['blue', 'red', 'gold'];
+            if (!availablePacks.includes(selectedPack)) return;
+
+            // Check if this level supports this bundle size
+            const availableUnits = (level.availableUnits as number[]) || [1, 2, 3, 4];
+            if (!availableUnits.includes(size)) return;
+
+            // Add quantity to total
+            totalAvailableForSize += level.quantity;
           });
-          if (hasLevelForSize) hasTickets = true;
+
+          // Check if we have enough for at least one bundle of this size
+          if (totalAvailableForSize >= size) {
+            hasEnoughTickets = true;
+          }
         }
 
-
-        // Check if we have enough memorabilia for this size (optional)
-        const availableBreaks = game.cardBreaks?.filter(cb => cb.status === 'AVAILABLE').length || 0;
-        const hasMemorabiliaForSize = availableBreaks >= size;
-
-        // Add size if we have tickets (memorabilia is optional)
-        // We'll show bundles as long as tickets are available
-        if (hasTickets) {
+        // Add size only if we have enough tickets for this pack and size
+        if (hasEnoughTickets) {
           sizes.push(size);
         }
       }
@@ -448,7 +473,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
         setBundleQuantity(sizes[0]);
       }
     }
-  }, [game]);
+  }, [game, selectedPack]); // Also recalculate when selected pack changes
 
   if (loading) {
     return (
@@ -545,9 +570,9 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 selectedPack={selectedPack}
                 onPackSelect={setSelectedPack}
                 dynamicPrices={{
-                  blue: Math.round((dynamicPrices.blue || 500) / bundleQuantity),
-                  red: Math.round((dynamicPrices.red || 1000) / bundleQuantity),
-                  gold: Math.round((dynamicPrices.gold || 1500) / bundleQuantity)
+                  blue: dynamicPrices.blue || 500,
+                  red: dynamicPrices.red || 1000,
+                  gold: dynamicPrices.gold || 1500
                 }}
               />
             </div>
