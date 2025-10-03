@@ -257,8 +257,8 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       ticketGroupsCount: game.ticketGroups?.length || 0,
       memorabiliaCount: game.cardBreaks?.filter((item: any) => item.status === 'AVAILABLE')?.length || 0,
       // Detail for selected pack
-      [`${selectedPack}TicketAvg`]: prices[selectedPack] ? Math.round(prices[selectedPack] / bundleQuantity / 1.3) : 0,
-      [`${selectedPack}FinalPrice`]: prices[selectedPack]
+      [`${selectedPack}TicketAvg`]: prices[selectedPack as keyof typeof prices] ? Math.round(prices[selectedPack as keyof typeof prices] / bundleQuantity / 1.3) : 0,
+      [`${selectedPack}FinalPrice`]: prices[selectedPack as keyof typeof prices]
     });
 
   }, [game, selectedLevels, bundleQuantity, selectedPack]);
