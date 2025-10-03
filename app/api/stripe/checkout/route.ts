@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
         totalPrice: bundlePrice,
         totalValue: 0, // Will be calculated upon successful payment
         paymentStatus: 'PENDING',
-        adjacentSeats: false
+        adjacentSeats: false,
+        selectedPack
       }
     });
 

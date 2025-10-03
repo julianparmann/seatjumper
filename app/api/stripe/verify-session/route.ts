@@ -50,7 +50,8 @@ export async function GET(req: NextRequest) {
       totalValue: spinResult.totalValue,
       bundles: spinResult.bundles,
       paidAt: spinResult.paidAt,
-      paymentStatus: spinResult.paymentStatus || 'COMPLETED'
+      paymentStatus: spinResult.paymentStatus || 'COMPLETED',
+      selectedPack: spinResult.selectedPack || 'blue'
     });
 
   } catch (error: any) {

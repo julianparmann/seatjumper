@@ -128,8 +128,11 @@ export async function POST(req: NextRequest) {
                   ticketRow: bundle.ticket.levelName || bundle.ticket.row || bundle.ticket.prizeType || '',
                   ticketValue: bundle.ticket.value,
                   ticketQuantity: 1,
-                  breaks: [], // Memorabilia removed - tickets only
-                  bundleValue: bundle.ticket.value
+                  breaks: bundle.memorabilia ? [bundle.memorabilia] : [], // Keep for legacy
+                  memorabiliaName: bundle.memorabilia?.name || null,
+                  memorabiliaValue: bundle.memorabilia?.value || null,
+                  memorabiliaImageUrl: bundle.memorabilia?.imageUrl || null,
+                  bundleValue: bundle.ticket.value + (bundle.memorabilia?.value || 0)
                 }))
               }
             },
@@ -186,7 +189,12 @@ export async function POST(req: NextRequest) {
                 state: game.state,
                 pricePaid: totalPrice,
                 tickets: ticketDetails,
-                memorabilia: [], // No memorabilia (tickets only)
+                memorabilia: bundles
+                  .filter(bundle => bundle.memorabilia)
+                  .map(bundle => ({
+                    name: bundle.memorabilia.name,
+                    value: bundle.memorabilia.value || 0
+                  })),
                 orderDate: new Date()
               }) as any) as string;
 

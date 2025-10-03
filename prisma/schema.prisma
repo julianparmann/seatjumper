@@ -320,15 +320,18 @@ model Spin {
 }
 
 model SpinBundle {
-  id             String     @id @default(cuid())
-  spinResultId   String
-  ticketSection  String
-  ticketRow      String
-  ticketValue    Float
-  ticketQuantity Int        @default(1)
-  breaks         Json
-  bundleValue    Float
-  spinResult     SpinResult @relation(fields: [spinResultId], references: [id], onDelete: Cascade)
+  id                  String     @id @default(cuid())
+  spinResultId        String
+  ticketSection       String
+  ticketRow           String
+  ticketValue         Float
+  ticketQuantity      Int        @default(1)
+  breaks              Json
+  bundleValue         Float
+  memorabiliaName     String?
+  memorabiliaValue    Float?
+  memorabiliaImageUrl String?
+  spinResult          SpinResult @relation(fields: [spinResultId], references: [id], onDelete: Cascade)
 }
 
 model SpinResult {
@@ -351,6 +354,7 @@ model SpinResult {
   paymentStatus         PaymentStatus @default(PENDING)
   stripePaymentIntentId String?
   stripeSessionId       String?
+  selectedPack          String?       // blue, red, or gold
   bundles               SpinBundle[]
   game                  DailyGame     @relation(fields: [gameId], references: [id])
   user                  User          @relation(fields: [userId], references: [id])

@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, Loader2, Package, Ticket } from 'lucide-react';
 import Link from 'next/link';
-import MultiStageJump from '@/components/jumps/multi-stage-jump';
+import VideoReveal from '@/components/jumps/video-reveal';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -74,40 +74,30 @@ function SuccessContent() {
     );
   }
 
-  // Show jump animation if we have results
+  // Show reveal animation if we have results
   if (showAnimation && spinResult && spinResult.bundles && spinResult.bundles.length > 0) {
-    // Transform spinResult.bundles into the format MultiStageJump expects
-    const firstBundle = spinResult.bundles[0];
-    const jumpResult = {
-      tickets: {
-        section: firstBundle.ticketSection || '',
-        row: firstBundle.ticketRow || '',
-        seats: ['1'], // We don't have individual seat numbers
-        value: firstBundle.ticketValue || 0
+    // Transform spinResult.bundles into the format VideoReveal expects
+    const bundles = spinResult.bundles.map((bundle: any) => ({
+      ticket: {
+        level: bundle.ticketSection,
+        levelName: bundle.ticketRow,
+        value: bundle.ticketValue,
+        individual: !bundle.ticketSection, // If no section, it's individual seats
+        special: false
       },
-      breaks: {
-        name: '',
-        value: 0
-      },
-      totalValue: firstBundle.bundleValue || firstBundle.ticketValue || 0,
-      tier: 'club' as const, // Default tier
-      bundles: spinResult.bundles.map((bundle: any) => ({
-        ticket: {
-          level: bundle.ticketSection,
-          levelName: bundle.ticketRow,
-          value: bundle.ticketValue,
-          individual: false,
-          special: false
-        }
-      }))
-    };
+      memorabilia: bundle.memorabiliaName ? {
+        name: bundle.memorabiliaName,
+        value: bundle.memorabiliaValue || 0,
+        imageUrl: bundle.memorabiliaImageUrl
+      } : undefined
+    }));
 
     return (
-      <MultiStageJump
-        isJumping={true}
-        result={jumpResult}
+      <VideoReveal
+        bundles={bundles}
+        selectedPack={spinResult.selectedPack || 'blue'}
         onComplete={() => {
-          // After animation, could redirect to orders
+          // After animation, redirect to orders
           setTimeout(() => router.push('/dashboard/orders'), 3000);
         }}
       />
