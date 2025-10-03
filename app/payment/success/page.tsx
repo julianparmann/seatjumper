@@ -31,6 +31,7 @@ function SuccessContent() {
           throw new Error('Failed to verify payment');
         }
         const data = await res.json();
+        console.log('Spin result data:', data);
         setSpinResult(data);
         setLoading(false);
         // Auto-start animation after loading
@@ -74,48 +75,68 @@ function SuccessContent() {
     );
   }
 
-  // Show reveal animation if we have results
-  if (showAnimation && spinResult && spinResult.bundles && spinResult.bundles.length > 0) {
-    // Transform spinResult.bundles into the format VideoReveal expects
-    const bundles = spinResult.bundles.map((bundle: any) => ({
-      ticket: {
-        level: bundle.ticketSection,
-        levelName: bundle.ticketRow,
-        value: bundle.ticketValue,
-        individual: !bundle.ticketSection, // If no section, it's individual seats
-        special: false
-      },
-      memorabilia: bundle.memorabiliaName ? {
-        name: bundle.memorabiliaName,
-        value: bundle.memorabiliaValue || 0,
-        imageUrl: bundle.memorabiliaImageUrl
-      } : undefined
-    }));
+  // Check if we have valid data to show
+  if (spinResult) {
+    // Check for bundles
+    if (!spinResult.bundles || spinResult.bundles.length === 0) {
+      console.log('No bundles found in spin result');
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 py-20 px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-500/20 rounded-full mb-4">
+              <CheckCircle className="w-12 h-12 text-green-500" />
+            </div>
+            <h1 className="text-4xl font-bold text-white mb-2">Payment Successful!</h1>
+            <p className="text-xl text-gray-400 mb-6">Your order has been processed.</p>
+            <p className="text-gray-400 mb-4">Order ID: {spinResult.spinId}</p>
+            <Link
+              href="/dashboard/orders"
+              className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold inline-block"
+            >
+              View Your Orders
+            </Link>
+          </div>
+        </div>
+      );
+    }
 
-    return (
-      <VideoReveal
-        bundles={bundles}
-        selectedPack={spinResult.selectedPack || 'blue'}
-        onComplete={() => {
-          // After animation, redirect to orders
-          setTimeout(() => router.push('/dashboard/orders'), 3000);
-        }}
-      />
-    );
+    // Show reveal animation if we have results
+    if (showAnimation) {
+      // Transform spinResult.bundles into the format VideoReveal expects
+      const bundles = spinResult.bundles.map((bundle: any) => ({
+        ticket: {
+          level: bundle.ticketSection,
+          levelName: bundle.ticketRow,
+          value: bundle.ticketValue,
+          individual: !bundle.ticketSection, // If no section, it's individual seats
+          special: false
+        },
+        memorabilia: bundle.memorabiliaName ? {
+          name: bundle.memorabiliaName,
+          value: bundle.memorabiliaValue || 0,
+          imageUrl: bundle.memorabiliaImageUrl
+        } : undefined
+      }));
+
+      return (
+        <VideoReveal
+          bundles={bundles}
+          selectedPack={spinResult.selectedPack || 'blue'}
+          onComplete={() => {
+            // After animation, redirect to orders
+            setTimeout(() => router.push('/dashboard/orders'), 3000);
+          }}
+        />
+      );
+    }
   }
 
-  // Show success summary after animation or if no animation needed
+  // Loading state while waiting for animation to start
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 py-20 px-4">
-      <div className="max-w-3xl mx-auto">
-        {/* Success Icon */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-500/20 rounded-full mb-4">
-            <CheckCircle className="w-12 h-12 text-green-500" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Payment Successful!</h1>
-          <p className="text-xl text-gray-400">Loading your jump results...</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 animate-spin text-yellow-500 mx-auto mb-4" />
+        <p className="text-white text-lg">Preparing your results...</p>
       </div>
     </div>
   );
