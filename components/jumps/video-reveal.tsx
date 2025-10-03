@@ -31,8 +31,8 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   const [currentStage, setCurrentStage] = useState<'ticket' | 'memorabilia' | 'complete'>('ticket');
   const [videoEnded, setVideoEnded] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [videoKey, setVideoKey] = useState(0); // Force re-mount of video element
   const videoRef = useRef<HTMLVideoElement>(null);
-  const memorabiliaVideoRef = useRef<HTMLVideoElement>(null);
 
   // Check if there's memorabilia to show
   const hasMemorabillia = bundles.some(bundle => bundle.memorabilia);
@@ -52,26 +52,20 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   };
 
   useEffect(() => {
-    // Auto-play the ticket video when component mounts
-    if (videoRef.current) {
-      videoRef.current.play().catch(err => console.error('Error playing ticket video:', err));
-    }
-  }, []);
-
-  useEffect(() => {
-    // Auto-play memorabilia video when stage changes
-    if (currentStage === 'memorabilia' && memorabiliaVideoRef.current) {
-      console.log('Attempting to play memorabilia video');
+    // Auto-play video when stage changes or component mounts
+    if (videoRef.current && (currentStage === 'ticket' || currentStage === 'memorabilia')) {
+      console.log(`Playing video for stage: ${currentStage}`);
       // Small delay to ensure the video element is ready
       setTimeout(() => {
-        if (memorabiliaVideoRef.current) {
-          memorabiliaVideoRef.current.play()
-            .then(() => console.log('Memorabilia video started'))
-            .catch(err => console.error('Error playing memorabilia video:', err));
+        if (videoRef.current) {
+          videoRef.current.load(); // Force reload the video
+          videoRef.current.play()
+            .then(() => console.log(`${currentStage} video started`))
+            .catch(err => console.error(`Error playing ${currentStage} video:`, err));
         }
       }, 100);
     }
-  }, [currentStage]);
+  }, [currentStage, videoKey]);
 
   const handleTicketVideoEnd = () => {
     console.log('Ticket video ended, hasMemorabillia:', hasMemorabillia);
@@ -82,6 +76,7 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
     setTimeout(() => {
       if (hasMemorabillia) {
         console.log('Switching to memorabilia stage');
+        setVideoKey(prev => prev + 1); // Force video element to re-mount
         setCurrentStage('memorabilia');
         setVideoEnded(false);
         setShowResults(false);
@@ -131,11 +126,13 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
               {/* Video Player */}
               <div className="relative aspect-video bg-black">
                 <video
+                  key={`ticket-${videoKey}`}
                   ref={videoRef}
                   className="w-full h-full object-cover"
                   onEnded={handleTicketVideoEnd}
                   playsInline
                   muted
+                  autoPlay
                 >
                   <source src={getVideoPath()} type="video/mp4" />
                 </video>
@@ -200,11 +197,13 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
               {/* Video Player */}
               <div className="relative aspect-video bg-black">
                 <video
-                  ref={memorabiliaVideoRef}
+                  key={`memorabilia-${videoKey}`}
+                  ref={videoRef}
                   className="w-full h-full object-cover"
                   onEnded={handleMemorabiliaVideoEnd}
                   playsInline
                   muted
+                  autoPlay
                 >
                   <source src={getVideoPath()} type="video/mp4" />
                 </video>
