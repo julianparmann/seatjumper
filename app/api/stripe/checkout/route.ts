@@ -62,7 +62,12 @@ export async function POST(req: NextRequest) {
       ticketLevelsCount: game.ticketLevels.length,
       ticketGroupsCount: game.ticketGroups.length,
       specialPrizesCount: game.specialPrizes.length,
-      cardBreaksCount: game.cardBreaks.length
+      cardBreaksCount: game.cardBreaks.length,
+      availableCardBreaksCount: game.cardBreaks.filter((cb: any) => cb.status === 'AVAILABLE').length,
+      // Detailed pricing breakdown
+      calculatedValuePerBundle: bundlePrice ? Math.round(bundlePrice / 1.3) : 0,
+      margin: '30%',
+      finalPrice: bundlePrice
     });
 
     if (!bundlePrice || bundlePrice <= 0) {

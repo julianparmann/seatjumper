@@ -182,6 +182,7 @@ export function calculatePackSpecificPricing(
 
     bundleSizes.forEach(bundleSize => {
       // Filter ticket levels for this pack and bundle size
+      // Must have enough quantity for at least one bundle
       const eligibleTicketLevels = ticketLevels.filter((level: any) => {
         const availablePacks = level.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
@@ -204,7 +205,7 @@ export function calculatePackSpecificPricing(
         return availablePacks.includes(pack) &&
                group.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
-               group.quantity > 0;  // Just need at least 1 ticket available
+               group.quantity >= bundleSize;  // Must have enough for at least one bundle
       });
 
       // Calculate memorabilia value for this pack and bundle size
@@ -214,7 +215,7 @@ export function calculatePackSpecificPricing(
         return availablePacks.includes(pack) &&
                item.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
-               item.quantity > 0;
+               item.quantity >= bundleSize;  // Must have enough for at least one bundle
       });
       const breakPricing = calculateAvailableBreakValue(eligibleCardBreaks);
 
@@ -290,7 +291,7 @@ export function calculateBundleSpecificPricing(
       const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
       return group.status === 'AVAILABLE' &&
              availableUnits.includes(bundleSize) &&
-             group.quantity > 0;
+             group.quantity >= bundleSize;  // Must have enough for at least one bundle
     });
 
     // Calculate memorabilia value for this bundle size
@@ -298,7 +299,7 @@ export function calculateBundleSpecificPricing(
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
       return item.status === 'AVAILABLE' &&
              availableUnits.includes(bundleSize) &&
-             item.quantity > 0;
+             item.quantity >= bundleSize;  // Must have enough for at least one bundle
     });
     const breakPricing = calculateAvailableBreakValue(eligibleCardBreaks);
 

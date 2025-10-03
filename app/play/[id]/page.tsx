@@ -183,7 +183,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     const blueMemorabilia = memorabiliaItems.filter((item: any) => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
-      return packs.includes('blue') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+      return packs.includes('blue') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity >= bundleQuantity;
     });
     const blueMemTotal = blueMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
     const blueMemQty = blueMemorabilia.length;
@@ -202,7 +202,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     const redMemorabilia = memorabiliaItems.filter((item: any) => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
-      return packs.includes('red') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+      return packs.includes('red') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity >= bundleQuantity;
     });
     const redMemTotal = redMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
     const redMemQty = redMemorabilia.length;
@@ -221,7 +221,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     const goldMemorabilia = memorabiliaItems.filter((item: any) => {
       const packs = (item.availablePacks as string[]) || ['blue', 'red', 'gold'];
       const units = (item.availableUnits as number[]) || [1, 2, 3, 4];
-      return packs.includes('gold') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity > 0;
+      return packs.includes('gold') && units.includes(bundleQuantity) && item.status === 'AVAILABLE' && item.quantity >= bundleQuantity;
     });
     const goldMemTotal = goldMemorabilia.reduce((sum: number, item: any) => sum + (item.breakValue || 0), 0);
     const goldMemQty = goldMemorabilia.length;
@@ -254,7 +254,11 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       prices,
       calculatedPrice: packPriceMap[selectedPack] || prices.blue,
       ticketLevelsCount: game.ticketLevels?.length || 0,
-      ticketGroupsCount: game.ticketGroups?.length || 0
+      ticketGroupsCount: game.ticketGroups?.length || 0,
+      memorabiliaCount: game.cardBreaks?.filter((item: any) => item.status === 'AVAILABLE')?.length || 0,
+      // Detail for selected pack
+      [`${selectedPack}TicketAvg`]: prices[selectedPack] ? Math.round(prices[selectedPack] / bundleQuantity / 1.3) : 0,
+      [`${selectedPack}FinalPrice`]: prices[selectedPack]
     });
 
   }, [game, selectedLevels, bundleQuantity, selectedPack]);
