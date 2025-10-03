@@ -72,11 +72,11 @@ export default function EventsPage() {
               ...game,
               eventDate: new Date(game.eventDate),
               // Map the data to expected fields with dynamic pricing
-              entryPrice: game.bluePricePerBundle || game.spinPrice1x || game.spinPricePerBundle || 0,
+              entryPrice: game.spinPrice1x || game.bluePricePerBundle || game.spinPricePerBundle || 0,
               totalValue: game.avgTicketPrice || 0,
               inventoryCount: game.ticketGroupsCount || 0,
               // cardBreaksCount: game.cardBreaksCount || 0, // Commented out - tickets only
-              jumpPrice: game.bluePricePerBundle || game.spinPrice1x || game.spinPricePerBundle || 0,
+              jumpPrice: game.spinPrice1x || game.bluePricePerBundle || game.spinPricePerBundle || 0,
               bluePrice: game.bluePricePerBundle,
               redPrice: game.redPricePerBundle,
               goldPrice: game.goldPricePerBundle

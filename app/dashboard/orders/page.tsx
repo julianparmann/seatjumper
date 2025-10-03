@@ -135,7 +135,7 @@ export default function OrderHistoryPage() {
                       {spin.quantity} ticket{spin.quantity > 1 ? 's' : ''}
                     </div>
                     <div className="text-gray-300 text-sm">
-                      Jump Price: ${(spin.game.spinPricePerBundle * spin.quantity).toFixed(2)}
+                      Jump Price: ${spin.totalPrice.toFixed(2)}
                     </div>
                     <div className="text-gray-400 text-xs">
                       {new Date(spin.createdAt).toLocaleDateString()}
