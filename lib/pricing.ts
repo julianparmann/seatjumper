@@ -183,10 +183,13 @@ export function calculatePackSpecificPricing(
     bundleSizes.forEach(bundleSize => {
       // Filter ticket levels for this pack and bundle size
       // Must have enough quantity for at least one bundle
+      // Exclude VIP backup items (tierPriority > 1)
       const eligibleTicketLevels = ticketLevels.filter((level: any) => {
         const availablePacks = level.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
-        return availablePacks.includes(pack) &&
+        const isVipBackup = level.tierLevel === 'VIP_ITEM' && level.tierPriority > 1;
+        return !isVipBackup &&
+               availablePacks.includes(pack) &&
                availableUnits.includes(bundleSize) &&
                level.quantity >= bundleSize;
       });
@@ -199,20 +202,26 @@ export function calculatePackSpecificPricing(
       });
 
       // Filter ticket groups for this pack and bundle size
+      // Exclude VIP backup items (tierPriority > 1)
       const eligibleTicketGroups = ticketGroups.filter((group: any) => {
         const availablePacks = group.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
-        return availablePacks.includes(pack) &&
+        const isVipBackup = group.tierLevel === 'VIP_ITEM' && group.tierPriority > 1;
+        return !isVipBackup &&
+               availablePacks.includes(pack) &&
                group.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
                group.quantity >= bundleSize;  // Must have enough for at least one bundle
       });
 
       // Calculate memorabilia value for this pack and bundle size
+      // Exclude VIP backup items (tierPriority > 1)
       const eligibleCardBreaks = cardBreaks.filter((item: any) => {
         const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
-        return availablePacks.includes(pack) &&
+        const isVipBackup = item.tierLevel === 'VIP_ITEM' && item.tierPriority > 1;
+        return !isVipBackup &&
+               availablePacks.includes(pack) &&
                item.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
                item.quantity >= bundleSize;  // Must have enough for at least one bundle
@@ -280,12 +289,14 @@ export function calculateBundleSpecificPricing(
 
   bundleSizes.forEach(bundleSize => {
     // Filter ticket levels that can support this bundle size
+    // Exclude VIP backup items (tierPriority > 1)
     const eligibleTicketLevels = ticketLevels.filter((level: any) => {
       // Check availableUnits if it exists, otherwise check quantity
       const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
       const hasAvailableUnits = availableUnits.includes(bundleSize);
       const hasSufficientQuantity = level.quantity >= bundleSize;
-      return hasAvailableUnits && hasSufficientQuantity;
+      const isVipBackup = level.tierLevel === 'VIP_ITEM' && level.tierPriority > 1;
+      return !isVipBackup && hasAvailableUnits && hasSufficientQuantity;
     });
 
     // Filter special prizes that can support this bundle size
@@ -297,17 +308,23 @@ export function calculateBundleSpecificPricing(
     });
 
     // Filter ticket groups if needed (for fallback)
+    // Exclude VIP backup items (tierPriority > 1)
     const eligibleTicketGroups = ticketGroups.filter((group: any) => {
       const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
-      return group.status === 'AVAILABLE' &&
+      const isVipBackup = group.tierLevel === 'VIP_ITEM' && group.tierPriority > 1;
+      return !isVipBackup &&
+             group.status === 'AVAILABLE' &&
              availableUnits.includes(bundleSize) &&
              group.quantity >= bundleSize;  // Must have enough for at least one bundle
     });
 
     // Calculate memorabilia value for this bundle size
+    // Exclude VIP backup items (tierPriority > 1)
     const eligibleCardBreaks = cardBreaks.filter((item: any) => {
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
-      return item.status === 'AVAILABLE' &&
+      const isVipBackup = item.tierLevel === 'VIP_ITEM' && item.tierPriority > 1;
+      return !isVipBackup &&
+             item.status === 'AVAILABLE' &&
              availableUnits.includes(bundleSize) &&
              item.quantity >= bundleSize;  // Must have enough for at least one bundle
     });

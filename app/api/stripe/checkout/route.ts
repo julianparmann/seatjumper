@@ -24,13 +24,50 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch game details with pricing information
+    // Filter out VIP backup items (tierPriority > 1)
     const game = await prisma.dailyGame.findUnique({
       where: { id: gameId },
       include: {
-        ticketLevels: true,
-        ticketGroups: true,
+        ticketLevels: {
+          where: {
+            OR: [
+              { tierLevel: { not: 'VIP_ITEM' } },
+              {
+                AND: [
+                  { tierLevel: 'VIP_ITEM' },
+                  { tierPriority: 1 }
+                ]
+              }
+            ]
+          }
+        },
+        ticketGroups: {
+          where: {
+            OR: [
+              { tierLevel: { not: 'VIP_ITEM' } },
+              {
+                AND: [
+                  { tierLevel: 'VIP_ITEM' },
+                  { tierPriority: 1 }
+                ]
+              }
+            ]
+          }
+        },
         specialPrizes: true,
-        cardBreaks: true,
+        cardBreaks: {
+          where: {
+            OR: [
+              { tierLevel: { not: 'VIP_ITEM' } },
+              {
+                AND: [
+                  { tierLevel: 'VIP_ITEM' },
+                  { tierPriority: 1 }
+                ]
+              }
+            ]
+          }
+        },
         stadium: true
       }
     });
@@ -54,6 +91,7 @@ export async function POST(req: NextRequest) {
     const bundlePrice = bundleSpecificPricing[priceKey];
 
     // Validate inventory availability for selected quantity
+    // Note: VIP backup items are already filtered out in the query above
     const eligibleTicketLevels = game.ticketLevels.filter((item: any) => {
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
       const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
