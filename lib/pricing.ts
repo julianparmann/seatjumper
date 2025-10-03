@@ -235,6 +235,16 @@ export function calculatePackSpecificPricing(
       const marginMultiplier = 1 + (marginPercentage / 100);
       const spinPrice = totalBundleValue * marginMultiplier;
 
+      console.log(`[PRICING] Pack: ${pack}, Bundle size: ${bundleSize}x`, {
+        avgTicketPrice: ticketPricing.avgPrice,
+        avgMemorabiliaValue: breakPricing.avgValue,
+        bundleValue: totalBundleValue,
+        margin: `${marginPercentage}%`,
+        finalPrice: spinPrice,
+        eligibleTickets: ticketPricing.totalAvailable,
+        eligibleMemorabilia: breakPricing.totalAvailable
+      });
+
       prices[`spinPrice${bundleSize}x`] = spinPrice;
     });
 

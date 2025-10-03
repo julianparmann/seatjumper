@@ -272,22 +272,34 @@ function generateSinglePool(game: any, quantity: number): any {
   const shuffledTickets = fisherYatesShuffle([...inventoryPool]);
   const shuffledMemorabilia = fisherYatesShuffle([...memorabiliaPool]);
 
-  // Create bundles - ensure same tickets for multi-quantity
+  // Create bundles - ensure same tickets for multi-quantity but unique memorabilia
   const bundles: GeneratedBundle[] = [];
   let totalValue = 0;
 
   if (quantity > 1) {
-    // For multi-quantity, select ONE ticket type and ONE memorabilia type
-    // This ensures people sit together and get matching memorabilia
+    // For multi-quantity, select ONE ticket type for adjacent seating
+    // but DIFFERENT memorabilia items for variety
     const ticketItem = shuffledTickets.shift();
-    const memorabiliaItem = shuffledMemorabilia.shift();
 
-    if (ticketItem && memorabiliaItem) {
-      // Use the SAME ticket and memorabilia for all bundles in this pool
+    if (ticketItem) {
+      console.log(`[POOL] Multi-quantity bundle (${quantity}x) - Base ticket:`, {
+        type: ticketItem.type,
+        value: ticketItem.value,
+        details: ticketItem.type === 'ticket' ? ticketItem.details.level : ticketItem.details.section
+      });
+
+      // Get unique memorabilia items for each bundle
+      const selectedMemorabilia: string[] = [];
       for (let i = 0; i < quantity; i++) {
-        bundles.push(createBundle(ticketItem, memorabiliaItem));
-        totalValue += ticketItem.value + memorabiliaItem.value;
+        const memorabiliaItem = shuffledMemorabilia.shift();
+        if (memorabiliaItem) {
+          bundles.push(createBundle(ticketItem, memorabiliaItem));
+          totalValue += ticketItem.value + memorabiliaItem.value;
+          selectedMemorabilia.push(memorabiliaItem.name || memorabiliaItem.id);
+        }
       }
+
+      console.log(`[POOL] Selected ${selectedMemorabilia.length} unique memorabilia items:`, selectedMemorabilia);
     }
   } else {
     // Single bundle - just take one of each

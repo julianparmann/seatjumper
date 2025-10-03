@@ -53,12 +53,33 @@ export async function POST(req: NextRequest) {
     const priceKey = `spinPrice${quantity}x` as keyof typeof bundleSpecificPricing;
     const bundlePrice = bundleSpecificPricing[priceKey];
 
+    // Validate inventory availability for selected quantity
+    const eligibleTickets = [...game.ticketLevels, ...game.ticketGroups].filter((item: any) => {
+      const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
+      const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
+      const hasQuantity = item.quantity >= quantity;
+      const hasAvailableUnits = availableUnits.includes(quantity);
+      const hasAvailablePack = availablePacks.includes(selectedPack);
+      return hasQuantity && hasAvailableUnits && hasAvailablePack;
+    });
+
+    const eligibleMemorabilia = game.cardBreaks.filter((item: any) => {
+      const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
+      const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
+      const hasQuantity = item.quantity >= quantity;
+      const hasAvailableUnits = availableUnits.includes(quantity);
+      const hasAvailablePack = availablePacks.includes(selectedPack);
+      return item.status === 'AVAILABLE' && hasQuantity && hasAvailableUnits && hasAvailablePack;
+    });
+
     console.log('Stripe checkout pricing debug:', {
       selectedPack,
       quantity,
       priceKey,
       bundleSpecificPricing,
       bundlePrice,
+      eligibleTicketsCount: eligibleTickets.length,
+      eligibleMemorabiliaCount: eligibleMemorabilia.length,
       ticketLevelsCount: game.ticketLevels.length,
       ticketGroupsCount: game.ticketGroups.length,
       specialPrizesCount: game.specialPrizes.length,
@@ -69,6 +90,24 @@ export async function POST(req: NextRequest) {
       margin: '30%',
       finalPrice: bundlePrice
     });
+
+    // Check if we have sufficient inventory for the requested quantity
+    if (eligibleTickets.length === 0 || eligibleMemorabilia.length < quantity) {
+      console.error('Insufficient inventory for requested quantity:', {
+        quantity,
+        selectedPack,
+        eligibleTickets: eligibleTickets.length,
+        eligibleMemorabilia: eligibleMemorabilia.length
+      });
+      return NextResponse.json({
+        error: `Insufficient inventory for ${quantity}x ${selectedPack} bundle. Please try a smaller quantity or different pack.`,
+        details: {
+          requestedQuantity: quantity,
+          availableTickets: eligibleTickets.length,
+          availableMemorabilia: eligibleMemorabilia.length
+        }
+      }, { status: 400 });
+    }
 
     if (!bundlePrice || bundlePrice <= 0) {
       return NextResponse.json({ error: 'Unable to calculate price. Insufficient inventory.' }, { status: 400 });
