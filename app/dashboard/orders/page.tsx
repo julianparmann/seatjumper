@@ -160,9 +160,6 @@ export default function OrderHistoryPage() {
                             <p className="text-white font-semibold text-lg">
                               Ticket Set {idx + 1}
                             </p>
-                            <span className="ml-auto text-green-400 font-semibold">
-                              ${bundle.bundleValue.toFixed(2)}
-                            </span>
                           </div>
 
                           {/* Tickets Section */}
@@ -180,12 +177,6 @@ export default function OrderHistoryPage() {
                                   <p className="text-gray-400 text-sm">
                                     {bundle.ticketQuantity} ticket{bundle.ticketQuantity > 1 ? 's' : ''}
                                   </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-green-400 font-semibold">
-                                    ${bundle.ticketValue.toFixed(2)}
-                                  </p>
-                                  <p className="text-gray-500 text-xs">value</p>
                                 </div>
                               </div>
                             </div>
@@ -234,14 +225,6 @@ export default function OrderHistoryPage() {
                                           </p>
                                         )}
                                       </div>
-                                      {breakItem.breakValue && (
-                                        <div className="text-right">
-                                          <p className="text-green-400 font-semibold">
-                                            ${breakItem.breakValue}
-                                          </p>
-                                          <p className="text-gray-500 text-xs">value</p>
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 ))}

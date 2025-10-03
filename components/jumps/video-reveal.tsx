@@ -160,16 +160,9 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                             <p className="text-lg text-gray-300">{bundle.ticket.prizeType}</p>
                           </div>
                         ) : null}
-                        <p className="text-2xl font-bold text-yellow-400 mt-2">
-                          ${bundle.ticket.value || 0}
-                        </p>
                       </div>
                     )
                   ))}
-                  <div className="mt-4 pt-4 border-t border-gray-600">
-                    <p className="text-lg text-gray-400">Total Ticket Value</p>
-                    <p className="text-3xl font-bold text-yellow-400">${totalTicketValue}</p>
-                  </div>
                 </div>
               </div>
 
@@ -185,25 +178,13 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                       bundle.memorabilia && (
                         <div key={index} className="mb-4 last:mb-0">
                           <p className="text-xl font-bold text-white">{bundle.memorabilia.name}</p>
-                          <p className="text-2xl font-bold text-purple-400 mt-2">
-                            ${bundle.memorabilia.value || 0}
-                          </p>
                         </div>
                       )
                     ))}
-                    <div className="mt-4 pt-4 border-t border-gray-600">
-                      <p className="text-lg text-gray-400">Total Memorabilia Value</p>
-                      <p className="text-3xl font-bold text-purple-400">${totalMemorabiliaValue}</p>
-                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Total Value */}
-              <div className="text-center border-t border-gray-700 pt-6">
-                <p className="text-xl text-gray-400 mb-2">TOTAL BUNDLE VALUE</p>
-                <p className="text-5xl font-bold text-yellow-400">${totalValue}</p>
-              </div>
 
               {/* Continue Button */}
               <div className="text-center mt-8">
@@ -262,9 +243,6 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                         </div>
                       )
                     ))}
-                    <p className="text-2xl font-bold text-yellow-300 mt-4">
-                      ${totalTicketValue}
-                    </p>
                   </div>
 
                   {/* Memorabilia Summary */}
@@ -281,18 +259,9 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                     {totalMemorabiliaValue === 0 && (
                       <p className="text-white/70">No memorabilia in this bundle</p>
                     )}
-                    <p className="text-2xl font-bold text-yellow-300 mt-4">
-                      ${totalMemorabiliaValue}
-                    </p>
                   </div>
                 </div>
 
-                <div className="text-center border-t border-gray-700 pt-6">
-                  <p className="text-gray-400 mb-2">TOTAL BUNDLE VALUE</p>
-                  <p className="text-5xl font-bold text-yellow-400">
-                    ${totalValue}
-                  </p>
-                </div>
 
                 <div className="flex justify-center gap-2 mt-6">
                   {Array.from({ length: 5 }).map((_, i) => (

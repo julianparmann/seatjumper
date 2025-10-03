@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
                 venue: game.venue,
                 city: game.city,
                 state: game.state,
-                pricePaid: totalPrice,
+                pricePaid: updatedSpinResult.totalPrice,
                 tickets: ticketDetails,
                 memorabilia: bundles
                   .filter(bundle => bundle.memorabilia)
