@@ -35,6 +35,9 @@ interface SpinHistory {
     ticketQuantity: number;
     breaks: any[];
     bundleValue: number;
+    memorabiliaName?: string | null;
+    memorabiliaValue?: number | null;
+    memorabiliaImageUrl?: string | null;
   }>;
 }
 
@@ -182,7 +185,38 @@ export default function OrderHistoryPage() {
                             </div>
                           </div>
 
-                          {/* Card Breaks Section */}
+                          {/* Memorabilia Section (New format) */}
+                          {bundle.memorabiliaName && (
+                            <div className="mb-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Package className="w-4 h-4 text-purple-400" />
+                                <span className="text-purple-400 font-medium text-sm">Memorabilia</span>
+                              </div>
+                              <div className="bg-black/30 rounded-lg p-3">
+                                <div className="flex items-start gap-3">
+                                  {bundle.memorabiliaImageUrl && (
+                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                                      <img
+                                        src={bundle.memorabiliaImageUrl}
+                                        alt={bundle.memorabiliaName}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="text-white font-medium">
+                                      {bundle.memorabiliaName}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Card Breaks Section (Legacy) */}
                           {bundle.breaks && bundle.breaks.length > 0 && (
                             <div>
                               <div className="flex items-center gap-2 mb-2">

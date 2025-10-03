@@ -174,13 +174,29 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                     <h3 className="text-2xl font-bold text-white">Memorabilia Won</h3>
                   </div>
                   <div className="bg-black/30 rounded-xl p-6">
-                    {bundles.map((bundle, index) => (
-                      bundle.memorabilia && (
-                        <div key={index} className="mb-4 last:mb-0">
-                          <p className="text-xl font-bold text-white">{bundle.memorabilia.name}</p>
-                        </div>
-                      )
-                    ))}
+                    <div className="grid gap-4">
+                      {bundles.map((bundle, index) => (
+                        bundle.memorabilia && (
+                          <div key={index} className="flex items-start gap-4">
+                            {bundle.memorabilia.imageUrl && (
+                              <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                                <img
+                                  src={bundle.memorabilia.imageUrl}
+                                  alt={bundle.memorabilia.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="text-xl font-bold text-white">{bundle.memorabilia.name}</p>
+                            </div>
+                          </div>
+                        )
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -249,16 +265,30 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                   <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl p-6">
                     <Package className="w-12 h-12 text-white mb-3" />
                     <h3 className="text-xl font-bold text-white mb-4">Your Memorabilia</h3>
-                    {bundles.map((bundle, index) => (
-                      bundle.memorabilia && (
-                        <div key={index} className="text-white mb-2">
-                          <p>{bundle.memorabilia.name}</p>
-                        </div>
-                      )
-                    ))}
-                    {totalMemorabiliaValue === 0 && (
-                      <p className="text-white/70">No memorabilia in this bundle</p>
-                    )}
+                    <div className="space-y-3">
+                      {bundles.map((bundle, index) => (
+                        bundle.memorabilia && (
+                          <div key={index} className="flex items-start gap-3">
+                            {bundle.memorabilia.imageUrl && (
+                              <div className="w-16 h-16 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
+                                <img
+                                  src={bundle.memorabilia.imageUrl}
+                                  alt={bundle.memorabilia.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <p className="text-white flex-1">{bundle.memorabilia.name}</p>
+                          </div>
+                        )
+                      ))}
+                      {totalMemorabiliaValue === 0 && (
+                        <p className="text-white/70">No memorabilia in this bundle</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
