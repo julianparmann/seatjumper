@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const bundlePrice = bundleSpecificPricing[priceKey];
 
     // Validate inventory availability for selected quantity
-    const eligibleTickets = [...game.ticketLevels, ...game.ticketGroups].filter((item: any) => {
+    const eligibleTicketLevels = game.ticketLevels.filter((item: any) => {
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
       const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
       const hasQuantity = item.quantity >= quantity;
@@ -62,6 +62,26 @@ export async function POST(req: NextRequest) {
       const hasAvailablePack = availablePacks.includes(selectedPack);
       return hasQuantity && hasAvailableUnits && hasAvailablePack;
     });
+
+    const eligibleTicketGroups = game.ticketGroups.filter((item: any) => {
+      const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
+      const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
+      const isAvailable = item.status === 'AVAILABLE';
+      const hasQuantity = item.quantity >= quantity;
+      const hasAvailableUnits = availableUnits.includes(quantity);
+      const hasAvailablePack = availablePacks.includes(selectedPack);
+      return isAvailable && hasQuantity && hasAvailableUnits && hasAvailablePack;
+    });
+
+    const eligibleSpecialPrizes = game.specialPrizes.filter((item: any) => {
+      const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
+      const hasQuantity = item.quantity >= quantity;
+      const hasAvailableUnits = availableUnits.includes(quantity);
+      // Special prizes typically aren't pack-specific
+      return hasQuantity && hasAvailableUnits;
+    });
+
+    const eligibleTickets = [...eligibleTicketLevels, ...eligibleTicketGroups, ...eligibleSpecialPrizes];
 
     const eligibleMemorabilia = game.cardBreaks.filter((item: any) => {
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
@@ -181,10 +201,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Checkout session creation error:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
       {
         error: 'Failed to create checkout session',
-        message: error.message || 'Unknown error'
+        message: error.message || 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       },
       { status: 500 }
     );
