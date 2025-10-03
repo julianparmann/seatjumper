@@ -43,7 +43,19 @@ export async function GET(
         currentEntries: true,
         maxEntries: true,
         // Include related data that's actually needed
+        // Filter out VIP backup items (tierPriority > 1)
         ticketLevels: {
+          where: {
+            OR: [
+              { tierLevel: { not: 'VIP_ITEM' } },
+              {
+                AND: [
+                  { tierLevel: 'VIP_ITEM' },
+                  { tierPriority: 1 }
+                ]
+              }
+            ]
+          },
           select: {
             id: true,
             level: true,
@@ -60,7 +72,22 @@ export async function GET(
           }
         },
         ticketGroups: {
-          where: { status: 'AVAILABLE' },
+          where: {
+            AND: [
+              { status: 'AVAILABLE' },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           select: {
             id: true,
             section: true,
@@ -90,7 +117,22 @@ export async function GET(
           }
         },
         cardBreaks: {
-          where: { status: 'AVAILABLE' },
+          where: {
+            AND: [
+              { status: 'AVAILABLE' },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           select: {
             id: true,
             breakName: true,
@@ -99,7 +141,12 @@ export async function GET(
             imageUrl: true,
             description: true,
             category: true,
-            itemType: true
+            itemType: true,
+            quantity: true,
+            availableUnits: true,
+            availablePacks: true,
+            tierLevel: true,
+            tierPriority: true
           }
         },
         stadium: {
