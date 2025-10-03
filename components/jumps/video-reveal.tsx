@@ -34,6 +34,10 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   const videoRef = useRef<HTMLVideoElement>(null);
   const memorabiliaVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Check if there's memorabilia to show
+  const hasMemorabillia = bundles.some(bundle => bundle.memorabilia);
+  console.log('VideoReveal initialized - hasMemorabillia:', hasMemorabillia, 'bundles:', bundles);
+
   // Get the correct video path based on selected pack
   const getVideoPath = () => {
     switch (selectedPack) {
@@ -50,35 +54,55 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   useEffect(() => {
     // Auto-play the ticket video when component mounts
     if (videoRef.current) {
-      videoRef.current.play();
+      videoRef.current.play().catch(err => console.error('Error playing ticket video:', err));
     }
   }, []);
 
+  useEffect(() => {
+    // Auto-play memorabilia video when stage changes
+    if (currentStage === 'memorabilia' && memorabiliaVideoRef.current) {
+      console.log('Attempting to play memorabilia video');
+      // Small delay to ensure the video element is ready
+      setTimeout(() => {
+        if (memorabiliaVideoRef.current) {
+          memorabiliaVideoRef.current.play()
+            .then(() => console.log('Memorabilia video started'))
+            .catch(err => console.error('Error playing memorabilia video:', err));
+        }
+      }, 100);
+    }
+  }, [currentStage]);
+
   const handleTicketVideoEnd = () => {
+    console.log('Ticket video ended, hasMemorabillia:', hasMemorabillia);
     setVideoEnded(true);
     setShowResults(true);
 
-    // Wait 3 seconds to show ticket results, then play memorabilia animation
+    // Wait 3 seconds to show ticket results, then play memorabilia animation or complete
     setTimeout(() => {
-      setCurrentStage('memorabilia');
-      setVideoEnded(false);
-      setShowResults(false);
-
-      // Start memorabilia video
-      setTimeout(() => {
-        if (memorabiliaVideoRef.current) {
-          memorabiliaVideoRef.current.play();
+      if (hasMemorabillia) {
+        console.log('Switching to memorabilia stage');
+        setCurrentStage('memorabilia');
+        setVideoEnded(false);
+        setShowResults(false);
+      } else {
+        console.log('No memorabilia, completing animation');
+        setCurrentStage('complete');
+        if (onComplete) {
+          onComplete();
         }
-      }, 100);
+      }
     }, 3000);
   };
 
   const handleMemorabiliaVideoEnd = () => {
+    console.log('Memorabilia video ended');
     setVideoEnded(true);
     setShowResults(true);
 
     // Wait 3 seconds then complete
     setTimeout(() => {
+      console.log('Completing animation');
       setCurrentStage('complete');
       if (onComplete) {
         onComplete();
