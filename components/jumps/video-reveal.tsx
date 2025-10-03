@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Package, Trophy, Star } from 'lucide-react';
+import { Ticket, Package, Trophy, Star, ChevronRight } from 'lucide-react';
 
 interface VideoRevealProps {
   onComplete?: () => void;
@@ -28,15 +28,9 @@ interface VideoRevealProps {
 }
 
 export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue' }: VideoRevealProps) {
-  const [currentStage, setCurrentStage] = useState<'ticket' | 'memorabilia' | 'complete'>('ticket');
+  const [currentStage, setCurrentStage] = useState<'video' | 'results' | 'complete'>('video');
   const [videoEnded, setVideoEnded] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [videoKey, setVideoKey] = useState(0); // Force re-mount of video element
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Check if there's memorabilia to show
-  const hasMemorabillia = bundles.some(bundle => bundle.memorabilia);
-  console.log('VideoReveal initialized - hasMemorabillia:', hasMemorabillia, 'bundles:', bundles);
 
   // Get the correct video path based on selected pack
   const getVideoPath = () => {
@@ -52,57 +46,35 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   };
 
   useEffect(() => {
-    // Auto-play video when stage changes or component mounts
-    if (videoRef.current && (currentStage === 'ticket' || currentStage === 'memorabilia')) {
-      console.log(`Playing video for stage: ${currentStage}`);
-      // Small delay to ensure the video element is ready
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.load(); // Force reload the video
-          videoRef.current.play()
-            .then(() => console.log(`${currentStage} video started`))
-            .catch(err => console.error(`Error playing ${currentStage} video:`, err));
-        }
-      }, 100);
+    // Auto-play the video when component mounts
+    if (videoRef.current) {
+      videoRef.current.play();
     }
-  }, [currentStage, videoKey]);
+  }, []);
 
-  const handleTicketVideoEnd = () => {
-    console.log('Ticket video ended, hasMemorabillia:', hasMemorabillia);
+  const handleVideoEnd = () => {
     setVideoEnded(true);
-    setShowResults(true);
-
-    // Wait 3 seconds to show ticket results, then play memorabilia animation or complete
+    // Show results after video ends
     setTimeout(() => {
-      if (hasMemorabillia) {
-        console.log('Switching to memorabilia stage');
-        setVideoKey(prev => prev + 1); // Force video element to re-mount
-        setCurrentStage('memorabilia');
-        setVideoEnded(false);
-        setShowResults(false);
-      } else {
-        console.log('No memorabilia, completing animation');
-        setCurrentStage('complete');
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, 3000);
+      setCurrentStage('results');
+    }, 500);
   };
 
-  const handleMemorabiliaVideoEnd = () => {
-    console.log('Memorabilia video ended');
-    setVideoEnded(true);
-    setShowResults(true);
+  const handleSkip = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setCurrentStage('complete');
+    if (onComplete) {
+      onComplete();
+    }
+  };
 
-    // Wait 3 seconds then complete
-    setTimeout(() => {
-      console.log('Completing animation');
-      setCurrentStage('complete');
-      if (onComplete) {
-        onComplete();
-      }
-    }, 3000);
+  const handleContinue = () => {
+    setCurrentStage('complete');
+    if (onComplete) {
+      onComplete();
+    }
   };
 
   // Calculate total values
@@ -113,10 +85,10 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
   return (
     <div className="relative w-full max-w-6xl mx-auto">
       <AnimatePresence mode="wait">
-        {/* Ticket Reveal Stage */}
-        {currentStage === 'ticket' && (
+        {/* Video Stage */}
+        {currentStage === 'video' && (
           <motion.div
-            key="ticket-reveal"
+            key="video"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -126,115 +98,132 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
               {/* Video Player */}
               <div className="relative aspect-video bg-black">
                 <video
-                  key={`ticket-${videoKey}`}
                   ref={videoRef}
                   className="w-full h-full object-cover"
-                  onEnded={handleTicketVideoEnd}
+                  onEnded={handleVideoEnd}
                   playsInline
                   muted
-                  autoPlay
                 >
                   <source src={getVideoPath()} type="video/mp4" />
                 </video>
+              </div>
 
-                {/* Show ticket results overlay when video ends */}
-                {videoEnded && showResults && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute inset-0 flex items-center justify-center bg-black/80"
-                  >
-                    <div className="text-center text-white p-8">
-                      <Ticket className="w-20 h-20 mx-auto mb-6 text-yellow-400" />
-                      <h2 className="text-4xl font-bold mb-4">Tickets Won!</h2>
-                      {bundles.map((bundle, index) => (
-                        bundle.ticket && (
-                          <div key={index} className="mb-4">
-                            {bundle.ticket.level ? (
-                              <div>
-                                <p className="text-2xl font-bold">Level {bundle.ticket.level}</p>
-                                <p className="text-xl text-gray-300">{bundle.ticket.levelName}</p>
-                              </div>
-                            ) : bundle.ticket.individual ? (
-                              <div>
-                                <p className="text-2xl font-bold">Section {bundle.ticket.section}</p>
-                                <p className="text-xl text-gray-300">Row {bundle.ticket.row}</p>
-                              </div>
-                            ) : bundle.ticket.special ? (
-                              <div>
-                                <p className="text-2xl font-bold">{bundle.ticket.name}</p>
-                                <p className="text-xl text-gray-300">{bundle.ticket.prizeType}</p>
-                              </div>
-                            ) : null}
-                            <p className="text-3xl font-bold text-yellow-400 mt-2">
-                              ${bundle.ticket.value || 0}
-                            </p>
-                          </div>
-                        )
-                      ))}
-                      <div className="mt-6 pt-4 border-t border-gray-600">
-                        <p className="text-lg text-gray-400">Total Ticket Value</p>
-                        <p className="text-4xl font-bold text-yellow-400">${totalTicketValue}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
+              {/* Skip Button */}
+              <div className="absolute bottom-4 right-4">
+                <button
+                  onClick={handleSkip}
+                  className="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2"
+                >
+                  Skip Animation
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Memorabilia Reveal Stage */}
-        {currentStage === 'memorabilia' && (
+        {/* Results Stage - Shows both tickets and memorabilia */}
+        {currentStage === 'results' && (
           <motion.div
-            key="memorabilia-reveal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            key="results"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             className="relative"
           >
-            <div className="bg-gradient-to-b from-gray-900 to-black rounded-3xl overflow-hidden">
-              {/* Video Player */}
-              <div className="relative aspect-video bg-black">
-                <video
-                  key={`memorabilia-${videoKey}`}
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  onEnded={handleMemorabiliaVideoEnd}
-                  playsInline
-                  muted
-                  autoPlay
-                >
-                  <source src={getVideoPath()} type="video/mp4" />
-                </video>
+            <div className="bg-gradient-to-b from-gray-900 to-black rounded-3xl p-8">
+              <h2 className="text-4xl font-bold text-yellow-400 text-center mb-8">Your Jump Results!</h2>
 
-                {/* Show memorabilia results overlay when video ends */}
-                {videoEnded && showResults && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute inset-0 flex items-center justify-center bg-black/80"
-                  >
-                    <div className="text-center text-white p-8">
-                      <Package className="w-20 h-20 mx-auto mb-6 text-purple-400" />
-                      <h2 className="text-4xl font-bold mb-4">Memorabilia Won!</h2>
-                      {bundles.map((bundle, index) => (
-                        bundle.memorabilia && (
-                          <div key={index} className="mb-4">
-                            <p className="text-2xl font-bold">{bundle.memorabilia.name}</p>
-                            <p className="text-3xl font-bold text-purple-400 mt-2">
-                              ${bundle.memorabilia.value || 0}
-                            </p>
+              {/* Tickets Section */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <Ticket className="w-8 h-8 text-yellow-400" />
+                  <h3 className="text-2xl font-bold text-white">Tickets Won</h3>
+                </div>
+                <div className="bg-black/30 rounded-xl p-6">
+                  {bundles.map((bundle, index) => (
+                    bundle.ticket && (
+                      <div key={index} className="mb-4 last:mb-0">
+                        {bundle.ticket.level ? (
+                          <div>
+                            <p className="text-xl font-bold text-white">Level {bundle.ticket.level}</p>
+                            <p className="text-lg text-gray-300">{bundle.ticket.levelName}</p>
                           </div>
-                        )
-                      ))}
-                      <div className="mt-6 pt-4 border-t border-gray-600">
-                        <p className="text-lg text-gray-400">Total Memorabilia Value</p>
-                        <p className="text-4xl font-bold text-purple-400">${totalMemorabiliaValue}</p>
+                        ) : bundle.ticket.individual ? (
+                          <div>
+                            <p className="text-xl font-bold text-white">Section {bundle.ticket.section}</p>
+                            <p className="text-lg text-gray-300">Row {bundle.ticket.row}</p>
+                          </div>
+                        ) : bundle.ticket.special ? (
+                          <div>
+                            <p className="text-xl font-bold text-white">{bundle.ticket.name}</p>
+                            <p className="text-lg text-gray-300">{bundle.ticket.prizeType}</p>
+                          </div>
+                        ) : null}
+                        <p className="text-2xl font-bold text-yellow-400 mt-2">
+                          ${bundle.ticket.value || 0}
+                        </p>
                       </div>
+                    )
+                  ))}
+                  <div className="mt-4 pt-4 border-t border-gray-600">
+                    <p className="text-lg text-gray-400">Total Ticket Value</p>
+                    <p className="text-3xl font-bold text-yellow-400">${totalTicketValue}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Memorabilia Section */}
+              {totalMemorabiliaValue > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Package className="w-8 h-8 text-purple-400" />
+                    <h3 className="text-2xl font-bold text-white">Memorabilia Won</h3>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-6">
+                    {bundles.map((bundle, index) => (
+                      bundle.memorabilia && (
+                        <div key={index} className="mb-4 last:mb-0">
+                          <p className="text-xl font-bold text-white">{bundle.memorabilia.name}</p>
+                          <p className="text-2xl font-bold text-purple-400 mt-2">
+                            ${bundle.memorabilia.value || 0}
+                          </p>
+                        </div>
+                      )
+                    ))}
+                    <div className="mt-4 pt-4 border-t border-gray-600">
+                      <p className="text-lg text-gray-400">Total Memorabilia Value</p>
+                      <p className="text-3xl font-bold text-purple-400">${totalMemorabiliaValue}</p>
                     </div>
-                  </motion.div>
-                )}
+                  </div>
+                </div>
+              )}
+
+              {/* Total Value */}
+              <div className="text-center border-t border-gray-700 pt-6">
+                <p className="text-xl text-gray-400 mb-2">TOTAL BUNDLE VALUE</p>
+                <p className="text-5xl font-bold text-yellow-400">${totalValue}</p>
+              </div>
+
+              {/* Continue Button */}
+              <div className="text-center mt-8">
+                <button
+                  onClick={handleContinue}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-3 rounded-xl font-bold text-lg transition-colors"
+                >
+                  Continue
+                </button>
+              </div>
+
+              {/* Skip Button */}
+              <div className="absolute bottom-4 right-4">
+                <button
+                  onClick={handleSkip}
+                  className="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2 text-sm"
+                >
+                  Skip to Summary
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </motion.div>
@@ -289,6 +278,9 @@ export default function VideoReveal({ onComplete, bundles, selectedPack = 'blue'
                         </div>
                       )
                     ))}
+                    {totalMemorabiliaValue === 0 && (
+                      <p className="text-white/70">No memorabilia in this bundle</p>
+                    )}
                     <p className="text-2xl font-bold text-yellow-300 mt-4">
                       ${totalMemorabiliaValue}
                     </p>
