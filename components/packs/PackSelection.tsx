@@ -54,9 +54,10 @@ interface PackSelectionProps {
     red: number;
     gold: number;
   };
+  bundleQuantity?: number;
 }
 
-export default function PackSelection({ selectedPack, onPackSelect, dynamicPrices }: PackSelectionProps) {
+export default function PackSelection({ selectedPack, onPackSelect, dynamicPrices, bundleQuantity = 1 }: PackSelectionProps) {
   const [hoveredPack, setHoveredPack] = useState<string | null>(null);
 
   // Use dynamic prices if provided, otherwise use defaults
@@ -122,7 +123,8 @@ export default function PackSelection({ selectedPack, onPackSelect, dynamicPrice
 
                   {/* Price */}
                   <div className="bg-white/10 rounded-lg py-3 px-4">
-                    <span className="text-3xl font-bold text-yellow-400">${pack.price.toLocaleString()}</span>
+                    <span className="text-3xl font-bold text-yellow-400">${Math.round(pack.price).toLocaleString()}</span>
+                    <span className="text-sm text-gray-300 block mt-1">per bundle</span>
                   </div>
                 </div>
 
@@ -132,7 +134,8 @@ export default function PackSelection({ selectedPack, onPackSelect, dynamicPrice
                     <h3 className="text-2xl font-bold text-yellow-400 mb-4">{pack.name}</h3>
                     <p className="text-white text-sm leading-relaxed mb-4">{pack.description}</p>
                     <div className="bg-yellow-400/20 border-2 border-yellow-400 rounded-lg py-3 px-4">
-                      <span className="text-3xl font-bold text-yellow-400">${pack.price.toLocaleString()}</span>
+                      <span className="text-3xl font-bold text-yellow-400">${Math.round(pack.price).toLocaleString()}</span>
+                      <span className="text-sm text-yellow-300 block mt-1">per bundle</span>
                     </div>
                   </div>
                 </div>
@@ -155,7 +158,8 @@ export default function PackSelection({ selectedPack, onPackSelect, dynamicPrice
           <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500 rounded-lg px-6 py-3">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             <span className="text-green-400 font-semibold">
-              {packs.find(p => p.id === selectedPack)?.name} Selected - ${packs.find(p => p.id === selectedPack)?.price.toLocaleString()}
+              {packs.find(p => p.id === selectedPack)?.name} Selected - ${Math.round(packs.find(p => p.id === selectedPack)?.price || 0).toLocaleString()} per bundle
+              {bundleQuantity > 1 && ` (${bundleQuantity}x = $${Math.round((packs.find(p => p.id === selectedPack)?.price || 0) * bundleQuantity).toLocaleString()} total)`}
             </span>
           </div>
         </div>

@@ -610,10 +610,11 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 selectedPack={selectedPack}
                 onPackSelect={setSelectedPack}
                 dynamicPrices={{
-                  blue: dynamicPrices.blue || 500,
-                  red: dynamicPrices.red || 1000,
-                  gold: dynamicPrices.gold || 1500
+                  blue: (dynamicPrices.blue || 500) / bundleQuantity,
+                  red: (dynamicPrices.red || 1000) / bundleQuantity,
+                  gold: (dynamicPrices.gold || 1500) / bundleQuantity
                 }}
+                bundleQuantity={bundleQuantity}
               />
             </div>
           )}
@@ -689,11 +690,11 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 {availableBundleSizes.length > 0 && (
                   <div className="border-t border-white/20 pt-4 mt-4">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-400">Price per ticket:</span>
+                      <span className="text-gray-400">Price per bundle:</span>
                       <span className="text-white">${Math.round((dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500) / bundleQuantity)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400 font-semibold">Total ({bundleQuantity} {bundleQuantity === 1 ? 'ticket' : 'tickets'}):</span>
+                      <span className="text-gray-400 font-semibold">Total ({bundleQuantity} {bundleQuantity === 1 ? 'bundle' : 'bundles'}):</span>
                       <span className="text-yellow-400 text-2xl font-bold">
                         ${dynamicPrices[selectedPack as keyof typeof dynamicPrices] || 500}
                       </span>
