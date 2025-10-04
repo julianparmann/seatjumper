@@ -92,7 +92,11 @@ export default function PrizeTiersDisplay({
         // Check if item is available for selected pack
         const availablePacks = level.availablePacks as string[] | undefined;
         const isAvailableForPack = !availablePacks || availablePacks.includes(selectedPack);
-        return level.quantity > 0 && isAvailableForPack;
+
+        // Filter out VIP backup items (tierPriority > 1)
+        const isVipBackup = level.tierLevel === TierLevel.VIP_ITEM && level.tierPriority && level.tierPriority > 1;
+
+        return level.quantity > 0 && isAvailableForPack && !isVipBackup;
       })
       .forEach(level => {
         const tier = level.tierLevel || classifyTicketTier(level.pricePerSeat).tierLevel;
@@ -116,7 +120,11 @@ export default function PrizeTiersDisplay({
         // Check if item is available for selected pack
         const availablePacks = group.availablePacks as string[] | undefined;
         const isAvailableForPack = !availablePacks || availablePacks.includes(selectedPack);
-        return group.status === 'AVAILABLE' && group.quantity > 0 && isAvailableForPack;
+
+        // Filter out VIP backup items (tierPriority > 1)
+        const isVipBackup = group.tierLevel === TierLevel.VIP_ITEM && group.tierPriority && group.tierPriority > 1;
+
+        return group.status === 'AVAILABLE' && group.quantity > 0 && isAvailableForPack && !isVipBackup;
       })
       .forEach(group => {
         const tier = group.tierLevel || classifyTicketTier(group.pricePerSeat).tierLevel;
