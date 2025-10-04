@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { createCheckoutSession } from '@/lib/stripe';
-import { calculateBundleSpecificPricing } from '@/lib/pricing';
 
 export async function POST(req: NextRequest) {
   try {
@@ -76,19 +75,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
-    // Calculate dynamic pricing based on current inventory and selected pack
-    const bundleSpecificPricing = calculateBundleSpecificPricing(
-      game.ticketLevels,
-      game.ticketGroups,
-      game.specialPrizes,
-      game.cardBreaks,
-      30, // 30% margin
-      selectedPack // Pass the selected pack for pack-specific pricing
-    );
+    // Use the stored database prices instead of recalculating
+    // This ensures consistency with the displayed prices
+    const priceKey = `spinPrice${quantity}x`;
+    const bundlePrice = game[priceKey as keyof typeof game] as number;
 
-    // Get the price for the selected quantity
-    const priceKey = `spinPrice${quantity}x` as keyof typeof bundleSpecificPricing;
-    const bundlePrice = bundleSpecificPricing[priceKey];
+    // Log for debugging
+    console.log('Using database price:', {
+      priceKey,
+      bundlePrice,
+      selectedPack,
+      quantity
+    });
 
     // Validate inventory availability for selected quantity
     // Note: VIP backup items are already filtered out in the query above
@@ -135,7 +133,6 @@ export async function POST(req: NextRequest) {
       selectedPack,
       quantity,
       priceKey,
-      bundleSpecificPricing,
       bundlePrice,
       eligibleTicketsCount: eligibleTickets.length,
       eligibleMemorabiliaCount: eligibleMemorabilia.length,
