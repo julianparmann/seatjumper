@@ -391,11 +391,37 @@ async function storeBestPrizes(gameId: string) {
     where: { id: gameId },
     include: {
       ticketLevels: {
+        where: {
+          OR: [
+            { tierLevel: { not: 'VIP_ITEM' } },
+            {
+              AND: [
+                { tierLevel: 'VIP_ITEM' },
+                { tierPriority: 1 }
+              ]
+            }
+          ]
+        },
         orderBy: { pricePerSeat: 'desc' },
         take: 1
       },
       ticketGroups: {
-        where: { status: 'AVAILABLE' },
+        where: {
+          AND: [
+            { status: 'AVAILABLE' },
+            {
+              OR: [
+                { tierLevel: { not: 'VIP_ITEM' } },
+                {
+                  AND: [
+                    { tierLevel: 'VIP_ITEM' },
+                    { tierPriority: 1 }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
         orderBy: { pricePerSeat: 'desc' },
         take: 1
       },
@@ -404,7 +430,22 @@ async function storeBestPrizes(gameId: string) {
         take: 1
       },
       cardBreaks: {
-        where: { status: 'AVAILABLE' },
+        where: {
+          AND: [
+            { status: 'AVAILABLE' },
+            {
+              OR: [
+                { tierLevel: { not: 'VIP_ITEM' } },
+                {
+                  AND: [
+                    { tierLevel: 'VIP_ITEM' },
+                    { tierPriority: 1 }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
         orderBy: { breakValue: 'desc' },
         take: 1
       }

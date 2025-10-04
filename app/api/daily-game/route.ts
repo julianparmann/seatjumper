@@ -23,13 +23,28 @@ export async function GET(request: NextRequest) {
         },
         ticketGroups: {
           where: {
-            status: 'AVAILABLE'
+            AND: [
+              { status: 'AVAILABLE' },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
           select: {
             pricePerSeat: true,
             section: true,
             row: true,
-            quantity: true
+            quantity: true,
+            tierLevel: true,
+            tierPriority: true
           },
           orderBy: {
             pricePerSeat: 'asc'

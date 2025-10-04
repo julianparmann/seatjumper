@@ -47,11 +47,35 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         ticketGroups: {
+          where: {
+            OR: [
+              { tierLevel: { not: 'VIP_ITEM' } },
+              {
+                AND: [
+                  { tierLevel: 'VIP_ITEM' },
+                  { tierPriority: 1 }
+                ]
+              }
+            ]
+          },
           take: 5 // Limit ticket groups to reduce memory
         },
         cardBreaks: {
           where: {
-            status: 'AVAILABLE'
+            AND: [
+              { status: 'AVAILABLE' },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
           take: 10 // Limit card breaks to reduce memory
         }

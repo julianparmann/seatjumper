@@ -21,22 +21,56 @@ export async function GET(req: NextRequest) {
       },
       include: {
         ticketGroups: {
-          where: { status: 'AVAILABLE' },
+          where: {
+            AND: [
+              { status: 'AVAILABLE' },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           select: {
             pricePerSeat: true,
             quantity: true,
             availableUnits: true,
             availablePacks: true,
-            status: true
+            status: true,
+            tierLevel: true,
+            tierPriority: true
           }
         },
         ticketLevels: {
-          where: { quantity: { gt: 0 } },
+          where: {
+            AND: [
+              { quantity: { gt: 0 } },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           select: {
             pricePerSeat: true,
             quantity: true,
             availableUnits: true,
-            availablePacks: true
+            availablePacks: true,
+            tierLevel: true,
+            tierPriority: true
           }
         },
         specialPrizes: {
@@ -48,13 +82,31 @@ export async function GET(req: NextRequest) {
           }
         },
         cardBreaks: {
-          where: { status: 'AVAILABLE', quantity: { gt: 0 } },
+          where: {
+            AND: [
+              { status: 'AVAILABLE' },
+              { quantity: { gt: 0 } },
+              {
+                OR: [
+                  { tierLevel: { not: 'VIP_ITEM' } },
+                  {
+                    AND: [
+                      { tierLevel: 'VIP_ITEM' },
+                      { tierPriority: 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           select: {
             breakValue: true,
             quantity: true,
             availableUnits: true,
             availablePacks: true,
-            status: true
+            status: true,
+            tierLevel: true,
+            tierPriority: true
           }
         },
         _count: {
