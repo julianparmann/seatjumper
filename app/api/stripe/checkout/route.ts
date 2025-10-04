@@ -124,10 +124,11 @@ export async function POST(req: NextRequest) {
     const eligibleMemorabilia = game.cardBreaks.filter((item: any) => {
       const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
       const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
-      const hasQuantity = item.quantity >= quantity;
+      // For memorabilia, we just need to check if item is available - we'll check total quantity later
       const hasAvailableUnits = availableUnits.includes(quantity);
       const hasAvailablePack = availablePacks.includes(selectedPack);
-      return item.status === 'AVAILABLE' && hasQuantity && hasAvailableUnits && hasAvailablePack;
+
+      return item.status === 'AVAILABLE' && item.quantity > 0 && hasAvailableUnits && hasAvailablePack;
     });
 
     console.log('Stripe checkout pricing debug:', {
@@ -171,10 +172,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unable to calculate price. Insufficient inventory.' }, { status: 400 });
     }
 
+    // Debug: Log user session info
+    console.log('Creating SpinResult with user:', {
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+      hasSession: !!session,
+      hasUser: !!session?.user
+    });
+
+    // Skip SpinResult creation for now - let's fix the user issue first
+    const pendingSpinResultId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Would create SpinResult with ID:', pendingSpinResultId);
+
+    // TODO: Fix user foreign key constraint issue
+    /*
     // Create pending spin result to track the checkout session
     const pendingSpinResult = await prisma.spinResult.create({
       data: {
-        id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: pendingSpinResultId,
         gameId,
         userId: session.user.id,
         quantity,
@@ -185,6 +200,7 @@ export async function POST(req: NextRequest) {
         selectedPack
       }
     });
+    */
 
     // Create Stripe checkout session
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.headers.get('origin')}`;
@@ -219,18 +235,21 @@ export async function POST(req: NextRequest) {
         quantity: quantity.toString(),
         selectedLevels: selectedLevels.join(','),
         selectedPack,
-        spinResultId: pendingSpinResult.id
+        spinResultId: pendingSpinResultId
       },
       session.user.email || undefined
     );
 
+    // Skip updating pending spin result for now
+    /*
     // Update pending spin result with Stripe session ID
     await prisma.spinResult.update({
-      where: { id: pendingSpinResult.id },
+      where: { id: pendingSpinResultId },
       data: {
         stripeSessionId: checkoutSession.id
       }
     });
+    */
 
     return NextResponse.json({
       checkoutUrl: checkoutSession.url,
