@@ -84,13 +84,18 @@ export class MercuryAPI {
   constructor() {
     // Each service has its own domain
     const sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
-    const environment = sandboxMode ? 'sandbox' : 'api';
 
-    // Set individual service URLs based on documentation
-    this.mercuryApiUrl = process.env.MERCURY_API_URL || `https://${environment}.mercury.tn-apis.com`;
-    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || `https://${environment}.catalog.tn-apis.com`;
-    this.webhookApiUrl = process.env.MERCURY_WEBHOOK_API_URL || `https://${environment}.webhook.tn-apis.com`;
-    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || `https://${environment}.ticketvault.tn-apis.com`;
+    // Using pattern similar to key-manager.tn-apis.com which works
+    // Each service has its own subdomain on tn-apis.com
+    const baseUrl = 'https://api-gateway.tn-apis.com';  // Try api-gateway subdomain
+
+    // Set service URLs - services as paths under the gateway
+    this.mercuryApiUrl = process.env.MERCURY_API_URL || `${baseUrl}/mercury/v1`;
+    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || `${baseUrl}/catalog/v1`;
+    this.webhookApiUrl = process.env.MERCURY_WEBHOOK_API_URL || `${baseUrl}/webhook/v1`;
+    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || `${baseUrl}/ticketvault/v1`;
+
+    // Use the config IDs from the email
     this.websiteConfigId = process.env.MERCURY_WEBSITE_CONFIG_ID || '27735';
     this.catalogConfigId = process.env.MERCURY_CATALOG_CONFIG_ID || '23884';
     this.brokerId = process.env.MERCURY_BROKER_ID || '13870';
@@ -98,6 +103,7 @@ export class MercuryAPI {
     this.webhookSecret = process.env.MERCURY_WEBHOOK_SECRET || '';
 
     console.log('[Mercury API] Initialized with URLs:', {
+      gateway: baseUrl,
       mercury: this.mercuryApiUrl,
       catalog: this.catalogApiUrl,
       webhook: this.webhookApiUrl,
