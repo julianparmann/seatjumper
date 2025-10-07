@@ -283,25 +283,25 @@ export async function calculatePackSpecificPricing(
       });
 
       prices[`spinPrice${bundleSize}x`] = spinPrice;
-    });
+    }
 
     packPrices[pack] = prices;
-  });
+  }
 
   return packPrices as PackSpecificPricing;
 }
 
-export function calculateBundleSpecificPricing(
+export async function calculateBundleSpecificPricing(
   ticketLevels: TicketLevel[],
   ticketGroups: TicketGroup[],
   specialPrizes: SpecialPrize[],
   cardBreaks: CardBreak[],
   marginPercentage: number = 30,
   pack?: string // Optional pack parameter for pack-specific pricing
-): BundleSpecificPricing {
+): Promise<BundleSpecificPricing> {
   // If pack is specified, calculate pack-specific pricing
   if (pack && ['blue', 'red', 'gold'].includes(pack)) {
-    const packPricing = calculatePackSpecificPricing(
+    const packPricing = await calculatePackSpecificPricing(
       ticketLevels,
       ticketGroups,
       specialPrizes,

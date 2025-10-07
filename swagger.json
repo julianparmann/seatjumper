@@ -1,0 +1,2040 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "v5",
+    "title": "MercuryAPI"
+  },
+  "host": "sandbox.tn-apis.com",
+  "basePath": "/mercury/v5",
+  "schemes": [
+    "https"
+  ],
+  "security": [
+    {
+      "X-Identity-Context": []
+    },
+    {
+      "default": []
+    }
+  ],
+  "paths": {
+    "/creditlimits": {
+      "get": {
+        "tags": [
+          "CreditLimit"
+        ],
+        "summary": "Gets Mercury buying credit limits.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the credit limits for the broker specified in the identity context header will be included in the response.",
+        "operationId": "CreditLimitV5_Get",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit limits retrieved.",
+            "examples": {
+              "application/json": {
+                "dailyBuyCreditLimit": {
+                  "value": 100000.0,
+                  "currencyCode": "USD"
+                },
+                "dailyBuyCreditRemaining": {
+                  "value": 99652.0,
+                  "currencyCode": "USD"
+                },
+                "weeklyBuyCreditLimit": {
+                  "value": 400000.0,
+                  "currencyCode": "USD"
+                },
+                "weeklyBuyCreditRemaining": {
+                  "value": 392433.0,
+                  "currencyCode": "USD"
+                },
+                "coinBuyCreditRemaining": {
+                  "value": 650000.0,
+                  "currencyCode": "USD"
+                },
+                "mercuryActive": true,
+                "canBuy": true,
+                "canSell": true,
+                "coinWalletEnabled": true,
+                "sellFee": 0.0,
+                "buyFee": 0.0
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/CreditLimitGetModel"
+            }
+          },
+          "400": {
+            "description": "The Broker ID was not provided."
+          },
+          "404": {
+            "description": "The specified broker is not configured for Mercury buying."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/delivery/{mercuryTransactionId}": {
+      "put": {
+        "tags": [
+          "Delivery"
+        ],
+        "summary": "Updates the delivery information on a Mercury order.\r\n            Only the values passed into the request body will be updated.",
+        "description": "This call allows brokers with an inventory database to pass in an address ID for the recipient.\r\n            If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the updated delivery information will be included in the response.",
+        "operationId": "DeliveryV5_UpdateOrderDelivery",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The Mercury transaction ID.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "delivery",
+            "description": "Object representing the delivery information to update.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DeliveryPutModel"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivery updated.",
+            "examples": {
+              "application/json": {
+                "label": {
+                  "trackingNumber": "012345678901",
+                  "labelUrl": "http://fedex.ticketnetwork.com/mercury_1000_012345678901.png"
+                },
+                "shipByDate": "2016-11-10T17:53:20.1940869-05:00",
+                "transferComplete": false,
+                "_links": [
+                  {
+                    "href": "https://www.tn-apis.com/mercury/v1/orders/1000",
+                    "rel": "ea:orders"
+                  }
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/DeliveryV2GetModel"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "examples": {
+              "application/json": {
+                "message": "The request is invalid. Model validation failed.",
+                "validationErrors": {
+                  "address.CountryCode": {
+                    "reasons": [
+                      "The countryCode field is required."
+                    ]
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/ValidationErrorsModel"
+            }
+          },
+          "404": {
+            "description": "Mercury order not found."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      },
+      "delete": {
+        "tags": [
+          "Delivery"
+        ],
+        "summary": "Deletes the label for the order and makes appropriate updates to the shipment information.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the updated delivery information will be included in the response.",
+        "operationId": "DeliveryV5_CancelLabel",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The mercury transaction identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Label canceled.",
+            "examples": {
+              "application/json": {
+                "label": {
+                  "trackingNumber": "NOFEDEXLABEL"
+                },
+                "transferComplete": false,
+                "_links": [
+                  {
+                    "href": "https://www.tn-apis.com/mercury/v1/orders/1000",
+                    "rel": "ea:orders"
+                  }
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/DeliveryV2GetModel"
+            }
+          },
+          "404": {
+            "description": "Mercury order not found."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/delivery/{mercuryTransactionId}/freeformaddress": {
+      "put": {
+        "tags": [
+          "Delivery"
+        ],
+        "summary": "Updates the delivery information on a Mercury order.\r\n            Only the values passed into the request body will be updated.",
+        "description": "This call allows a freeform recipient address to be passed in and may be used for brokers without an inventory database.\r\n            If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the updated delivery information will be included in the response.",
+        "operationId": "DeliveryV5_UpdateOrderDeliveryFreeformAddress",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The Mercury transaction ID.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "delivery",
+            "description": "Object representing the delivery information to update.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DeliveryPutModelFreeformAddress"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivery updated.",
+            "examples": {
+              "application/json": {
+                "label": {
+                  "trackingNumber": "012345678901",
+                  "labelUrl": "http://fedex.ticketnetwork.com/mercury_1000_012345678901.png"
+                },
+                "shipByDate": "2016-11-10T17:53:20.1940869-05:00",
+                "transferComplete": false,
+                "_links": [
+                  {
+                    "href": "https://www.tn-apis.com/mercury/v1/orders/1000",
+                    "rel": "ea:orders"
+                  }
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/DeliveryV2GetModel"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "examples": {
+              "application/json": {
+                "message": "The request is invalid. Model validation failed.",
+                "validationErrors": {
+                  "address.CountryCode": {
+                    "reasons": [
+                      "The countryCode field is required."
+                    ]
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/ValidationErrorsModel"
+            }
+          },
+          "404": {
+            "description": "Mercury order not found."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/lock": {
+      "post": {
+        "tags": [
+          "Lock"
+        ],
+        "summary": "Acquires a temporary lock.",
+        "description": "If successful, the HTTP response code will indicate a 201 (Created) response, and a representation of the lock will be included in the response. On failure, the API will respond with a 400 (Bad Request) with appropriate validation message(s).",
+        "operationId": "LockV5_LockTickets",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "lockRequest",
+            "description": "The lock request.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/LockPostModel"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Lock acquired.",
+            "examples": {
+              "application/json": {
+                "lockRequestId": "e300bb7e-2582-4d0b-87ad-acacc2fbf665",
+                "quantity": 3,
+                "lockPrice": {
+                  "value": 45.5,
+                  "currencyCode": "USD"
+                },
+                "date": "0001-01-01T00:00:00-05:00",
+                "_links": [
+                  {
+                    "href": "https://www.tn-apis.com/mercury/v1/lock/e300bb7e-2582-4d0b-87ad-acacc2fbf665",
+                    "rel": "self"
+                  }
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/LockV3GetModel"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "examples": {
+              "application/json": {
+                "message": "The request is invalid. Model validation failed.",
+                "validationErrors": {
+                  "quantity": {
+                    "reasons": [
+                      "Invalid ticket group split requested; cannot lock 3 of 4 remaining tickets."
+                    ]
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/ValidationErrorsModel"
+            }
+          },
+          "409": {
+            "description": "The specified Request ID already exists and cannot be re-used."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/lock/{lockId}": {
+      "get": {
+        "tags": [
+          "Lock"
+        ],
+        "summary": "Gets lock information by ID.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the lock will be included in the response.",
+        "operationId": "LockV5_GetLockById",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "lockId",
+            "in": "path",
+            "description": "The lock GUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lock retrieved.",
+            "examples": {
+              "application/json": {
+                "lockRequestId": "812c699b-af45-4ff2-8d68-423b2c0376a5",
+                "quantity": 3,
+                "lockPrice": {
+                  "value": 45.5,
+                  "currencyCode": "USD"
+                },
+                "date": "0001-01-01T00:00:00-05:00",
+                "_links": [
+                  {
+                    "href": "https://www.tn-apis.com/mercury/v1/lock/812c699b-af45-4ff2-8d68-423b2c0376a5",
+                    "rel": "self"
+                  }
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/LockV3GetModel"
+            }
+          },
+          "404": {
+            "description": "Invalid lock ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      },
+      "delete": {
+        "tags": [
+          "Lock"
+        ],
+        "summary": "Removes a lock.",
+        "description": "If successful, the HTTP response code will indicate a 204 (No Content) response.",
+        "operationId": "LockV5_Unlock",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "lockId",
+            "in": "path",
+            "description": "The lock GUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": [
+          "Order"
+        ],
+        "summary": "Buys tickets via Mercury.",
+        "description": "Buys tickets via Mercury. This is the recommended call for making Mercury purchases. This call only\r\n            works if the buyer has an inventory database and/or is a POSNext broker. One way to retrieve the\r\n            available delivery methods for the ticket group is to use the GET /ticketgroups/{exchangeTicketGroupId}/deliverymethods \r\n            call in inventory API. If successful, the HTTP response code will indicate a 200 (OK) response, and a representation \r\n            of the Mercury order will be included in the response.",
+        "operationId": "OrderV5_BuyTickets",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "order",
+            "description": "Object representing the order to create.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrderPostModel"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Order created.",
+            "schema": {
+              "$ref": "#/definitions/OrderV2GetModel"
+            }
+          },
+          "400": {
+            "description": "Lock information not found."
+          },
+          "402": {
+            "description": "Insufficient Mercury credit available."
+          },
+          "409": {
+            "description": "The specified Request ID already exists and cannot be re-used."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/orders/{mercuryTransactionId}": {
+      "get": {
+        "tags": [
+          "Order"
+        ],
+        "summary": "Gets Mercury order details for a single Mercury transaction ID.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the Mercury order will be included in the response.",
+        "operationId": "OrderV5_GetMercuryOrderById",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The Mercury transaction ID.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details retrieved.",
+            "examples": {
+              "application/json": {
+                "mercuryTransactionId": 1,
+                "date": "0001-01-01T00:00:00-05:00",
+                "seller": {
+                  "name": "Best Ticket Company",
+                  "phone": "555 555 5555",
+                  "email": "noreply@ticketnetwork.com"
+                },
+                "delivery": {
+                  "label": {
+                    "trackingNumber": "012345678901",
+                    "labelUrl": "http://fedex.ticketnetwork.com/mercury_1000_012345678901.png"
+                  },
+                  "transferComplete": false,
+                  "_links": []
+                },
+                "_links": []
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/OrderV2GetModel"
+            }
+          },
+          "400": {
+            "description": "The Broker ID was not provided."
+          },
+          "404": {
+            "description": "Could not find a Mercury Order with the given ID. Either the order does not exist or does not belong to this customer."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/orders/{mercuryTransactionId}/transferurl": {
+      "get": {
+        "tags": [
+          "Order"
+        ],
+        "summary": "Gets the mobile transfer URL(s) for a Mercury transaction.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the transfer URL(s) will be included in the response.",
+        "operationId": "OrderV5_GetTransferUrlAsync",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The mercury transaction identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "application/json": {
+                "mobileTransferUrls": [
+                  "https://example.invalid/?123456789",
+                  "https://example.invalid/?123456790"
+                ]
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/MobileTransferUrlV5GetModel"
+            }
+          },
+          "404": {
+            "description": "Invalid ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/orders/freeformaddress": {
+      "post": {
+        "tags": [
+          "Order"
+        ],
+        "summary": "Buys tickets via Mercury.",
+        "description": "Buys tickets via Mercury. This call works regardless of whether the buyer has an inventory database.\r\n            If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the Mercury order will be included in the response.",
+        "operationId": "OrderV5_CreateMercuryOrderFreeformAddress",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "order",
+            "description": "Object representing the order to create.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrderPostModelFreeformAddress"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Order created.",
+            "schema": {
+              "$ref": "#/definitions/OrderV2GetModel"
+            }
+          },
+          "400": {
+            "description": "Lock information not found."
+          },
+          "402": {
+            "description": "Insufficient Mercury credit available."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/orders/guid/{buyRequestId}": {
+      "get": {
+        "tags": [
+          "Order"
+        ],
+        "summary": "Gets Mercury order details for a single Mercury Order GUID.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the Mercury order will be included in the response.",
+        "operationId": "OrderV5_GetMercuryOrderByGuid",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "buyRequestId",
+            "in": "path",
+            "description": "The buy request GUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details retrieved.",
+            "examples": {
+              "application/json": {
+                "mercuryTransactionId": 1,
+                "date": "0001-01-01T00:00:00-05:00",
+                "seller": {
+                  "name": "Best Ticket Company",
+                  "phone": "555 555 5555",
+                  "email": "noreply@ticketnetwork.com"
+                },
+                "delivery": {
+                  "label": {
+                    "trackingNumber": "012345678901",
+                    "labelUrl": "http://fedex.ticketnetwork.com/mercury_1000_012345678901.png"
+                  },
+                  "transferComplete": false,
+                  "_links": []
+                },
+                "_links": []
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/OrderV2GetModel"
+            }
+          },
+          "400": {
+            "description": "The Broker GUID was not provided."
+          },
+          "404": {
+            "description": "Could not find a Mercury Order with the given GUID. Either the order does not exist or does not belong to this customer."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    },
+    "/ticketgroups": {
+      "get": {
+        "tags": [
+          "TicketGroup"
+        ],
+        "summary": "Gets ticket groups.",
+        "description": "One of ticket group ID or event ID must be provided to use this call. If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the ticket groups will be included in the response.",
+        "operationId": "TicketGroupV5_GetTicketGroups",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "query",
+            "description": "The event ID.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "exchangeTicketGroupId",
+            "in": "query",
+            "description": "The ticket group ID on the TicketNetwork exchange.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "lowPrice",
+            "in": "query",
+            "description": "The low price.",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "highPrice",
+            "in": "query",
+            "description": "The high price.",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "instantDownloadOnly",
+            "in": "query",
+            "description": "if set to true, only return ticket groups with available instant download delivery.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "eticketOnly",
+            "in": "query",
+            "description": "if set to true, only return ticket groups with available e-ticket delivery.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "minDaysBeforeEvent",
+            "in": "query",
+            "description": "The minimum days before the event.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "maxDaysBeforeEvent",
+            "in": "query",
+            "description": "The maximum days before the event.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "returnRetailDeliveryMethods",
+            "in": "query",
+            "description": "if set to true, return maps-friendly retail delivery methods.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket groups retrieved.",
+            "examples": {
+              "application/json": {
+                "ticketGroups": [
+                  {
+                    "exchangeTicketGroupId": 1234,
+                    "eventId": 655832,
+                    "mine": false,
+                    "availableQuantity": 3,
+                    "seats": {
+                      "section": "BALCONY",
+                      "row": "A",
+                      "lowSeat": "15",
+                      "highSeat": "18"
+                    },
+                    "unitPrice": {
+                      "wholesalePrice": {
+                        "value": 300.0,
+                        "currencyCode": "USD"
+                      },
+                      "retailPrice": {
+                        "value": 300.0,
+                        "currencyCode": "USD"
+                      },
+                      "facePrice": {
+                        "value": 120.0,
+                        "currencyCode": "USD"
+                      }
+                    },
+                    "onHandDate": "12/9/2016",
+                    "ticketGroupType": {
+                      "id": 1,
+                      "description": "Event Ticket"
+                    },
+                    "deliveryMethods": [
+                      "FedEx Intl Priority",
+                      "FedEx Priority Overnight",
+                      "FedEx 2nd Day",
+                      "FedEx Standard Overnight",
+                      "FedEx Express Saver",
+                      "E-Ticket"
+                    ],
+                    "nearTerm": {
+                      "nearTermDeliveryMethod": {
+                        "id": 1,
+                        "description": "E-Ticket"
+                      },
+                      "nearTermDisplay": {
+                        "id": 1,
+                        "description": "Always show near-term shipping"
+                      }
+                    },
+                    "notes": "",
+                    "purchasableQuantities": [
+                      1,
+                      3
+                    ],
+                    "salesTaxApplicable": false,
+                    "isTNPrime": false
+                  }
+                ],
+                "totalCount": 1
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/TicketGroupsGetModel"
+            }
+          },
+          "400": {
+            "description": "The broker ID was not provided."
+          },
+          "404": {
+            "description": "The specified broker is not configured for Mercury buying."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User"
+      }
+    }
+  },
+  "securityDefinitions": {
+    "X-Identity-Context": {
+      "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027 or \u0027website-config-id\u003d##[;user-id\u003d##]\u0027",
+      "type": "apiKey",
+      "name": "X-Identity-Context",
+      "in": "header"
+    },
+    "default": {
+      "type": "oauth2",
+      "authorizationUrl": "https://sandbox.tn-apis.com/authorize",
+      "flow": "implicit",
+      "scopes": {}
+    }
+  },
+  "definitions": {
+    "CreditLimitGetModel": {
+      "type": "object",
+      "properties": {
+        "dailyBuyCreditLimit": {
+          "description": "Broker\u0027s daily buy credit limit.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "dailyBuyCreditRemaining": {
+          "description": "Broker\u0027s daily buy credit remaining.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "weeklyBuyCreditLimit": {
+          "description": "Broker\u0027s weekly buy credit limit.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "weeklyBuyCreditRemaining": {
+          "description": "Broker\u0027s weekly buy credit remaining.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "coinBuyCreditRemaining": {
+          "description": "The broker\u0027s coin buy credit remaining. This value should correspond to their wallet balance less any uninvoiced Mercury transactions.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "dailySellCreditLimit": {
+          "description": "Broker\u0027s daily sell credit limit.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "dailySellCreditRemaining": {
+          "description": "Broker\u0027s daily sell credit remaining.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "weeklySellCreditLimit": {
+          "description": "Broker\u0027s weekly sell credit limit.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "weeklySellCreditRemaining": {
+          "description": "Broker\u0027s weekly sell credit remaining.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "mercuryActive": {
+          "type": "boolean",
+          "description": "A flag indicating whether the broker is active on the Mercury program."
+        },
+        "canBuy": {
+          "type": "boolean",
+          "description": "A flag indicating whether the broker is enabled to buy on Mercury."
+        },
+        "canSell": {
+          "type": "boolean",
+          "description": "A flag indicating whether the broker is enabled to sell on Mercury."
+        },
+        "coinWalletEnabled": {
+          "type": "boolean",
+          "description": "A flag indicating whether the broker has a configured coin wallet."
+        },
+        "sellFee": {
+          "type": "number",
+          "format": "double",
+          "description": "The broker\u0027s Mercury sell fee percentage. For example, 0.05 \u003d 5%."
+        },
+        "buyFee": {
+          "type": "number",
+          "format": "double",
+          "description": "The broker\u0027s Mercury buy fee percentage. For example, 0.05 \u003d 5%."
+        }
+      },
+      "description": "Response model defining Mercury credit limit information.",
+      "x-subtype-schema": []
+    },
+    "MoneyAmountModel": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "number",
+          "format": "double",
+          "description": "The decimal value of the money amount."
+        },
+        "currencyCode": {
+          "type": "string",
+          "description": "The ISO 4217 currency code of the money amount."
+        }
+      },
+      "description": "Class to represent a price value and its currency.",
+      "x-subtype-schema": []
+    },
+    "DeliveryPutModelFreeformAddress": {
+      "type": "object",
+      "required": [
+        "delivery"
+      ],
+      "properties": {
+        "recipient": {
+          "description": "Recipient object.",
+          "$ref": "#/definitions/RecipientPostModelFreeformAddress"
+        },
+        "externalPONumber": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The external PO number."
+        },
+        "delivery": {
+          "description": "Delivery object.",
+          "$ref": "#/definitions/DeliveryPostModel"
+        }
+      },
+      "description": "Model for updating order delivery info.",
+      "example": {
+        "recipient": {
+          "name": "Johnny Customer",
+          "email": "customer@example.com",
+          "address": {
+            "address1": "210 Capitol Ave",
+            "city": "Hartford",
+            "state": "CT",
+            "postalCode": "06106",
+            "countryCode": "US",
+            "phone": "860 555 1234"
+          }
+        },
+        "externalPONumber": 12345,
+        "delivery": {
+          "method": "FedEx Standard Overnight",
+          "deliveryCost": 15.0,
+          "notes": "Shipping notes"
+        }
+      },
+      "x-subtype-schema": []
+    },
+    "RecipientPostModelFreeformAddress": {
+      "type": "object",
+      "required": [
+        "email",
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The retail customer\u0027s name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The retail customer\u0027s email address."
+        },
+        "address": {
+          "description": "The retail customer\u0027s address.",
+          "$ref": "#/definitions/AddressPostModel"
+        }
+      },
+      "description": "Request model for customer.",
+      "x-subtype-schema": []
+    },
+    "DeliveryPostModel": {
+      "type": "object",
+      "required": [
+        "method"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "The name of the delivery method for the order. Max length is 200 characters."
+        },
+        "deliveryCost": {
+          "type": "number",
+          "format": "double",
+          "description": "The entered delivery cost is recorded for your reference. It is not used as part of the Mercury purchase."
+        },
+        "label": {
+          "description": "Label object.",
+          "$ref": "#/definitions/LabelPostModel"
+        },
+        "notes": {
+          "type": "string",
+          "description": "These notes will be available to the holding broker as \"Shipping Notes\". Max length is 2,000 characters."
+        }
+      },
+      "description": "Request model for Mercury order delivery.",
+      "x-subtype-schema": []
+    },
+    "AddressPostModel": {
+      "type": "object",
+      "properties": {
+        "address1": {
+          "type": "string",
+          "description": "Line 1 of the retail customer\u0027s street address. Max length is 100 characters."
+        },
+        "address2": {
+          "type": "string",
+          "description": "Line 2 of the retail customer\u0027s street address. Max length is 100 characters."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city of the retail customer\u0027s address. Max length is 50 characters."
+        },
+        "state": {
+          "type": "string",
+          "description": "The state abbreviation (for example, \"CT\" for Connecticut) of the retail customer\u0027s address."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "The postal code of the retail customer\u0027s address. Max length is 15 characters."
+        },
+        "countryCode": {
+          "type": "string",
+          "description": "The ISO 3166-1 alpha-2 country code of the retail customer\u0027s address. For example, \"US\" for United States."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The retail customer\u0027s phone number. Max length is 50 characters."
+        }
+      },
+      "description": "Request model for address.",
+      "x-subtype-schema": []
+    },
+    "LabelPostModel": {
+      "type": "object",
+      "properties": {
+        "labelUrl": {
+          "type": "string",
+          "description": "URL to a PNG image containing the shipping label to use for the Mercury transaction. Max length is 1,000 characters."
+        },
+        "labelFile": {
+          "type": "string",
+          "description": "A base64 encoded PNG image containing the shipping label to use for the Mercury transaction."
+        },
+        "trackingNumber": {
+          "type": "string",
+          "description": "The tracking number corresponding to the label provided in labelUrl. Max length is 50 characters."
+        }
+      },
+      "description": "Request model for label.",
+      "x-subtype-schema": []
+    },
+    "DeliveryV2GetModel": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "Label object.",
+          "$ref": "#/definitions/LabelV2GetModel"
+        },
+        "shipByDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The ship by date.\r\n            If the tickets are on hand, this is the date on the shipping label.\r\n            If the tickets are not on hand, this is based on their expected arrival date."
+        },
+        "transferComplete": {
+          "type": "boolean",
+          "description": "Whether or not this order has been marked as transfer complete."
+        },
+        "_links": {
+          "type": "array",
+          "description": "The HTTP links for the resource; links are used to transition through application states by the client and identify related resources available for interaction.",
+          "items": {
+            "$ref": "#/definitions/Link"
+          }
+        }
+      },
+      "description": "Response model defining Mercury delivery information.",
+      "x-subtype-schema": []
+    },
+    "LabelV2GetModel": {
+      "type": "object",
+      "properties": {
+        "trackingNumber": {
+          "type": "string",
+          "description": "The tracking number. Max length is 50 characters."
+        },
+        "labelUrl": {
+          "type": "string",
+          "description": "The URL where the shipping label can be downloaded. Max length is 1,000 characters."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "A message explaining the reason for failure if label creation failed, otherwise null."
+        }
+      },
+      "description": "Response model for label.",
+      "x-subtype-schema": []
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "href": {
+          "type": "string",
+          "description": "The URI of the link."
+        },
+        "rel": {
+          "type": "string",
+          "description": "The string representation of the set of values identifying the relationship between the current resource and the linked resource.\r\n            Each individual relationship identifier is separated by a space."
+        },
+        "type": {
+          "type": "string",
+          "description": "The media type of the linked resource."
+        },
+        "hreflang": {
+          "type": "string",
+          "description": "The language of the linked resource."
+        },
+        "title": {
+          "type": "string",
+          "description": "A natural language title of the resource, which conveys human-readable information about the link."
+        },
+        "length": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The general length of the linked content in octets."
+        }
+      },
+      "description": "An implementation of the atom link element."
+    },
+    "ValidationErrorsModel": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The top-level error message."
+        },
+        "validationErrors": {
+          "description": "The validation errors that apply to specific fields or properties in the request. The dictionary is keyed by the field or property that generated the validation error.",
+          "$ref": "#/definitions/ValidationErrorDictionary"
+        }
+      },
+      "description": "The model used to encapsulate validation errors."
+    },
+    "ValidationErrorMember": {
+      "type": "object",
+      "properties": {
+        "reasons": {
+          "type": "array",
+          "description": "A collection of one or more reasons as to why validation failed for the corresponding field or property.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "A validation error member which describes one or more reasons for validation failure."
+    },
+    "DeliveryPutModel": {
+      "type": "object",
+      "required": [
+        "delivery"
+      ],
+      "properties": {
+        "recipient": {
+          "description": "Recipient object.",
+          "$ref": "#/definitions/RecipientPostModel"
+        },
+        "externalPONumber": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The external PO number."
+        },
+        "delivery": {
+          "description": "Delivery object.",
+          "$ref": "#/definitions/DeliveryPostModel"
+        }
+      },
+      "description": "Model for updating order delivery info.",
+      "example": {
+        "recipient": {
+          "name": "Johnny Customer",
+          "email": "customer@example.com",
+          "phone": "860 555 1234",
+          "addressId": 421
+        },
+        "externalPONumber": 12345,
+        "delivery": {
+          "method": "FedEx Standard Overnight",
+          "deliveryCost": 15.0,
+          "notes": "Shipping notes"
+        }
+      },
+      "x-subtype-schema": []
+    },
+    "RecipientPostModel": {
+      "type": "object",
+      "required": [
+        "email",
+        "name",
+        "phone"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The retail customer\u0027s name. Max length is 35 characters."
+        },
+        "email": {
+          "type": "string",
+          "description": "The retail customer\u0027s email address. Max length is 120 characters."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The retail customer\u0027s phone number. Max length is 50 characters."
+        },
+        "addressId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Address ID in the broker\u0027s inventory database for the recipient."
+        }
+      },
+      "description": "Request model for customer.",
+      "x-subtype-schema": []
+    },
+    "LockV3GetModel": {
+      "type": "object",
+      "required": [
+        "date",
+        "lockDuration",
+        "lockPrice",
+        "lockRequestId",
+        "quantity"
+      ],
+      "properties": {
+        "lockRequestId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The GUID identifying this locking transaction. Note that if the overridePrice parameter was set to true, this can be different from the originally submitted lock request ID."
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The number of locked tickets."
+        },
+        "lockPrice": {
+          "description": "The price of the tickets at the time the lock attempt was made.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "lockDuration": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The duration of the lock, in seconds. In the response from GET /lock, this is always null."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time that the lock was created."
+        },
+        "_links": {
+          "type": "array",
+          "description": "The HTTP links for the resource; links are used to transition through application states by the client and identify related resources available for interaction.",
+          "items": {
+            "$ref": "#/definitions/Link"
+          }
+        }
+      },
+      "description": "Model for lock GET response.",
+      "x-subtype-schema": []
+    },
+    "Object": {
+      "type": "object"
+    },
+    "LockPostModel": {
+      "type": "object",
+      "required": [
+        "lockRequestId",
+        "overridePrice",
+        "quantity",
+        "ticketGroupId",
+        "wholesalePrice"
+      ],
+      "properties": {
+        "lockRequestId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The GUID identifying this locking transaction."
+        },
+        "ticketGroupId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The TicketNetwork exchange ticket group ID for the ticket group to lock."
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The number of tickets to be locked."
+        },
+        "wholesalePrice": {
+          "type": "number",
+          "format": "double",
+          "description": "The wholesale price of the tickets to be purchased."
+        },
+        "overridePrice": {
+          "type": "boolean",
+          "description": "If true, the service will lock the tickets even if their current price exceeds the \r\n            passed-in wholesale price. When overridePrice is set to true and the tickets are locked\r\n            at a price that is higher than wholesalePrice, the tickets will be locked using a different\r\n            lockRequestId, which will be included in the response."
+        }
+      },
+      "description": "Model for locks for POST requests.",
+      "example": {
+        "lockRequestId": "6ff9160e-9286-4a5e-8143-0f25ddb85f9e",
+        "ticketGroupId": 1,
+        "quantity": 3,
+        "wholesalePrice": 45.5,
+        "overridePrice": false
+      },
+      "x-subtype-schema": []
+    },
+    "OrderV2GetModel": {
+      "type": "object",
+      "required": [
+        "date",
+        "delivery",
+        "mercuryTransactionId",
+        "seller"
+      ],
+      "properties": {
+        "mercuryTransactionId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The transaction ID of the Mercury purchase."
+        },
+        "invoiceId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The invoice ID of the Mercury invoice generated at the holding broker\u0027s POS."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time that the order was created."
+        },
+        "seller": {
+          "description": "Information describing the seller.",
+          "$ref": "#/definitions/SellerGetModel"
+        },
+        "delivery": {
+          "description": "Delivery information for the order.",
+          "$ref": "#/definitions/DeliveryV2GetModel"
+        },
+        "ticketGroup": {
+          "description": "Ticket group information for the order.",
+          "$ref": "#/definitions/SeatsGetModel"
+        },
+        "inventory": {
+          "description": "Information about the purchase in the broker\u0027s local inventory database, if applicable.",
+          "$ref": "#/definitions/InventoryGetModel"
+        },
+        "_links": {
+          "type": "array",
+          "description": "The HTTP links for the resource; links are used to transition through application states by the client and identify related resources available for interaction.",
+          "items": {
+            "$ref": "#/definitions/Link"
+          }
+        }
+      },
+      "description": "Response model defining a Mercury Order.",
+      "x-subtype-schema": []
+    },
+    "SellerGetModel": {
+      "type": "object",
+      "required": [
+        "email",
+        "name",
+        "phone"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the ticket seller."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the seller."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the seller."
+        },
+        "licenses": {
+          "type": "array",
+          "description": "Any jurisdiction-specific licenses held by the ticket seller.",
+          "items": {
+            "$ref": "#/definitions/LicenseGetModel"
+          }
+        }
+      },
+      "description": "Response model defining a Mercury seller.",
+      "x-subtype-schema": []
+    },
+    "SeatsGetModel": {
+      "type": "object",
+      "properties": {
+        "section": {
+          "type": "string",
+          "description": "The section of the ticket group."
+        },
+        "row": {
+          "type": "string",
+          "description": "The row of the ticket group."
+        },
+        "lowSeat": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The lowest seat number."
+        },
+        "highSeat": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The highest seat number."
+        }
+      },
+      "description": "Response model for ticket group seat data.",
+      "x-subtype-schema": []
+    },
+    "InventoryGetModel": {
+      "type": "object",
+      "properties": {
+        "purchaseOrderId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ID of the purchase order that the tickets were bought on, in the broker\u0027s inventory database."
+        },
+        "ticketGroupId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ID of the ticket group for the purchased tickets, in the broker\u0027s inventory database."
+        }
+      },
+      "description": "Response model defining a Mercury inventory data.",
+      "x-subtype-schema": []
+    },
+    "LicenseGetModel": {
+      "type": "object",
+      "properties": {
+        "license": {
+          "type": "string",
+          "description": "Alphanumeric value representing a seller\u0027s license number in the specified jurisdiction."
+        },
+        "licenseType": {
+          "type": "string",
+          "description": "The type of license, e.g. \"New York Seller\u0027s License\""
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "The license jurisdiction, e.g. \"NY\""
+        },
+        "jurisdictionType": {
+          "type": "string",
+          "description": "The type of jurisdiction. Supported values are \"State/Province\", \"City\", and \"Country\"."
+        }
+      },
+      "description": "Response model defining a seller license.",
+      "x-subtype-schema": []
+    },
+    "OrderPostModelFreeformAddress": {
+      "type": "object",
+      "required": [
+        "buyRequestId",
+        "delivery",
+        "lockRequestId"
+      ],
+      "properties": {
+        "recipient": {
+          "description": "Recipient information for the order. If omitted, the buying broker will be the recipient.",
+          "$ref": "#/definitions/RecipientPostModelFreeformAddress"
+        },
+        "lockRequestId": {
+          "type": "string",
+          "description": "The lock GUID that was used to lock the tickets."
+        },
+        "buyRequestId": {
+          "type": "string",
+          "description": "The buy request ID. This is a unique identifer for the transaction that can be used later to look up order\r\n            details if the POST order call is unable to return the Mercury Order ID."
+        },
+        "notes": {
+          "type": "string",
+          "description": "These notes will be available to the holding broker as notes on the invoice. Max length is 2,000 characters."
+        },
+        "externalPONumber": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The reference number of the client. This goes on the shipping label created for the order."
+        },
+        "delivery": {
+          "description": "Delivery information for the order.",
+          "$ref": "#/definitions/DeliveryPostModel"
+        },
+        "paymentMethodId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The payment method used for the order. If omitted, defaults to ACH."
+        }
+      },
+      "description": "Request model for creating a Mercury order.",
+      "example": {
+        "recipient": {
+          "name": "Johnny Customer",
+          "email": "customer@example.com",
+          "address": {
+            "address1": "210 Capitol Ave",
+            "city": "Hartford",
+            "state": "CT",
+            "postalCode": "06106",
+            "countryCode": "US",
+            "phone": "860 555 1234"
+          }
+        },
+        "lockRequestId": "aad93774-16f1-4e8e-a8c0-c17d06052dcf",
+        "buyRequestId": "c3ca363c-b680-40f5-b3e4-25d2cab7f633",
+        "notes": "Order notes",
+        "delivery": {
+          "method": "FedEx Standard Overnight",
+          "deliveryCost": 15.0,
+          "notes": "Shipping notes"
+        }
+      },
+      "x-subtype-schema": []
+    },
+    "OrderPostModel": {
+      "type": "object",
+      "required": [
+        "buyRequestId",
+        "delivery",
+        "lockRequestId"
+      ],
+      "properties": {
+        "recipient": {
+          "description": "Recipient information for the order. If omitted, the buying broker will be the recipient.",
+          "$ref": "#/definitions/RecipientPostModel"
+        },
+        "lockRequestId": {
+          "type": "string",
+          "description": "The lock GUID that was used to lock the tickets."
+        },
+        "buyRequestId": {
+          "type": "string",
+          "description": "The buy request ID. This is a unique identifer for the transaction that can be used later to look up order\r\n            details if the POST order call is unable to return the Mercury Order ID."
+        },
+        "notes": {
+          "type": "string",
+          "description": "These notes will be available to the holding broker as notes on the invoice. Max length is 2,000 characters."
+        },
+        "externalPONumber": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The reference number of the client. This goes on the shipping label created for the order."
+        },
+        "delivery": {
+          "description": "Delivery information for the order.",
+          "$ref": "#/definitions/DeliveryPostModel"
+        },
+        "paymentMethodId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The payment method used for the order. If omitted, defaults to ACH."
+        }
+      },
+      "description": "Request model for creating a Mercury order.",
+      "example": {
+        "recipient": {
+          "name": "Johnny Customer",
+          "email": "customer@example.com",
+          "phone": "860 555 1234",
+          "addressId": 421
+        },
+        "lockRequestId": "1d991125-ed50-47a7-a792-b4273275090e",
+        "buyRequestId": "192089ae-47fd-4fc2-beaf-c85a8eec6a3a",
+        "notes": "Order notes",
+        "delivery": {
+          "method": "FedEx Standard Overnight",
+          "deliveryCost": 15.0,
+          "notes": "Shipping notes"
+        }
+      },
+      "x-subtype-schema": []
+    },
+    "MobileTransferUrlV5GetModel": {
+      "type": "object",
+      "properties": {
+        "mobileTransferUrls": {
+          "type": "array",
+          "description": "The mobile transfer URL(s)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "GET model for retrieving mobile transfer URL(s)",
+      "x-subtype-schema": []
+    },
+    "TicketGroupsGetModel": {
+      "type": "object",
+      "properties": {
+        "ticketGroups": {
+          "type": "array",
+          "description": "Gets or sets the ticket groups.",
+          "items": {
+            "$ref": "#/definitions/TicketGroupGetModel"
+          }
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Gets or sets the total count."
+        }
+      },
+      "description": "Response model for Get Ticket Groups.",
+      "x-subtype-schema": []
+    },
+    "TicketGroupGetModel": {
+      "type": "object",
+      "properties": {
+        "exchangeTicketGroupId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ticket group ID for these tickets on the TicketNetwork exchange."
+        },
+        "eventId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The event ID."
+        },
+        "mine": {
+          "type": "boolean",
+          "description": "A flag indicating whether or not these tickets belong to the caller."
+        },
+        "availableQuantity": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The available quantity."
+        },
+        "seats": {
+          "description": "Seat data.",
+          "$ref": "#/definitions/StringSeatsGetModel"
+        },
+        "unitPrice": {
+          "description": "Unit price data.",
+          "$ref": "#/definitions/UnitPriceGetModel"
+        },
+        "onHandDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The on-hand date."
+        },
+        "ticketGroupType": {
+          "description": "The ticket group type.",
+          "$ref": "#/definitions/IdAndDescriptionGetModel"
+        },
+        "deliveryMethods": {
+          "type": "array",
+          "description": "The available delivery methods.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nearTerm": {
+          "description": "The near-term delivery methods.",
+          "$ref": "#/definitions/NearTermGetModel"
+        },
+        "notes": {
+          "type": "string",
+          "description": "The notes."
+        },
+        "purchasableQuantities": {
+          "type": "array",
+          "description": "A list of all quantities that are available for purchase from this ticket group.",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "salesTaxApplicable": {
+          "type": "boolean",
+          "description": "A flag indicating whether or not sales tax is applicable for this ticket group."
+        },
+        "retailDeliveryMethods": {
+          "type": "array",
+          "description": "A list of maps-friendly delivery methods.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isTNPrime": {
+          "type": "boolean",
+          "description": "Indicates whether this ticket group is available on TN Prime."
+        },
+        "highlightId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "If not null, indicates whether this ticket group belongs to a highlighted seller."
+        },
+        "standardSection": {
+          "type": "string",
+          "description": "The standard section name, if available. The value is null if the ticket group has not been matched to a standard section. Max length is 100 characters."
+        },
+        "canonicalSection": {
+          "type": "string",
+          "description": "Gets or sets the canonical section, if available. The value is null if the ticket group has not been matched to a canonical section. Max length is 500 characters."
+        }
+      },
+      "description": "Response model for ticket group data.",
+      "x-subtype-schema": []
+    },
+    "StringSeatsGetModel": {
+      "type": "object",
+      "properties": {
+        "section": {
+          "type": "string",
+          "description": "The section of the ticket group."
+        },
+        "row": {
+          "type": "string",
+          "description": "The row of the ticket group."
+        },
+        "lowSeat": {
+          "type": "string",
+          "description": "The lowest seat number. When the seat number is not available, this can be set to null or \"*\"."
+        },
+        "highSeat": {
+          "type": "string",
+          "description": "The highest seat number. When the seat number is not available, this can be set to null or \"*\"."
+        }
+      },
+      "description": "Response model for ticket group seat data.",
+      "x-subtype-schema": []
+    },
+    "UnitPriceGetModel": {
+      "type": "object",
+      "properties": {
+        "wholesalePrice": {
+          "description": "Gets or sets the wholesale price.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "retailPrice": {
+          "description": "Gets or sets the retail price.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        },
+        "facePrice": {
+          "description": "Gets or sets the face price.",
+          "$ref": "#/definitions/MoneyAmountModel"
+        }
+      },
+      "description": "Response model for ticket group unit price data.",
+      "x-subtype-schema": []
+    },
+    "IdAndDescriptionGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ID."
+        },
+        "description": {
+          "type": "string",
+          "description": "The description corresponding to this ID."
+        }
+      },
+      "description": "Generic model for an object with an ID and Description.",
+      "x-subtype-schema": []
+    },
+    "NearTermGetModel": {
+      "type": "object",
+      "properties": {
+        "nearTermDeliveryMethod": {
+          "description": "The near-term delivery method.",
+          "$ref": "#/definitions/IdAndDescriptionGetModel"
+        },
+        "nearTermDisplay": {
+          "description": "The near-term display option. Used to determine when the near-term delivery method becomes available to customers.",
+          "$ref": "#/definitions/IdAndDescriptionGetModel"
+        }
+      },
+      "description": "Response model for a near-term delivery method.",
+      "x-subtype-schema": []
+    },
+    "ValidationErrorDictionary": {
+      "properties": {
+        "fieldName": {
+          "description": "A key/value pair that contains details on the validation errors that occurred for the corresponding field or property. \u0027fieldName\u0027 will match the name of the field or property that failed validation on the original model. Validation errors that don\u0027t apply to a specific field or property on the model will be keyed to the empty string.",
+          "$ref": "#/definitions/ValidationErrorMember"
+        }
+      }
+    }
+  }
+}

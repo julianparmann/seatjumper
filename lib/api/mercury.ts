@@ -85,15 +85,14 @@ export class MercuryAPI {
     // Each service has its own domain
     const sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
 
-    // Using pattern similar to key-manager.tn-apis.com which works
-    // Each service has its own subdomain on tn-apis.com
-    const baseUrl = 'https://api-gateway.tn-apis.com';  // Try api-gateway subdomain
+    // Use sandbox or production base URL
+    const baseUrl = sandboxMode ? 'https://sandbox.tn-apis.com' : 'https://api.tn-apis.com';
 
-    // Set service URLs - services as paths under the gateway
-    this.mercuryApiUrl = process.env.MERCURY_API_URL || `${baseUrl}/mercury/v1`;
-    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || `${baseUrl}/catalog/v1`;
+    // Set service URLs based on swagger.json definitions
+    this.mercuryApiUrl = process.env.MERCURY_API_URL || `${baseUrl}/mercury/v5`;
+    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || `${baseUrl}/catalog/v2`;
     this.webhookApiUrl = process.env.MERCURY_WEBHOOK_API_URL || `${baseUrl}/webhook/v1`;
-    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || `${baseUrl}/ticketvault/v1`;
+    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || `${baseUrl}/ticketvault/v2`;
 
     // Use the config IDs from the email
     this.websiteConfigId = process.env.MERCURY_WEBSITE_CONFIG_ID || '27735';
@@ -134,16 +133,13 @@ export class MercuryAPI {
   private getContextHeaders(service: 'mercury' | 'catalog' | 'webhook' | 'ticketvault'): Record<string, string> {
     const headers: Record<string, string> = {};
 
-    // Add appropriate website config ID based on service
+    // Different services use different header names
     if (service === 'catalog') {
-      headers['x-listing-context'] = `website-config-id = ${this.catalogConfigId}`;
+      // Catalog API uses X-Listing-Context with website-config-id
+      headers['X-Listing-Context'] = `website-config-id=${this.catalogConfigId}`;
     } else {
-      headers['x-listing-context'] = `website-config-id = ${this.websiteConfigId}`;
-    }
-
-    // Add broker ID for Mercury API
-    if (service === 'mercury') {
-      headers['x-listing-context'] += `, broker-id = ${this.brokerId}`;
+      // Mercury API uses X-Identity-Context with broker-id
+      headers['X-Identity-Context'] = `broker-id=${this.brokerId}`;
     }
 
     return headers;
@@ -200,10 +196,55 @@ export class MercuryAPI {
   }
 
   /**
-   * Search for events using Catalog API
+   * Search for events using Catalog API, then filter by Mercury inventory
+   * This ensures we only show events that actually have ticketgroups available
    */
   async searchEvents(query: string): Promise<MercuryEvent[]> {
-    return this.makeRequest('GET', `/events/search?q=${encodeURIComponent(query)}`, undefined, 'catalog');
+    try {
+      // Step 1: Search Catalog API for events
+      // Catalog API requires a search query - use "2025" as default to get all upcoming events
+      // This includes sports, theatre, concerts, etc.
+      const searchQuery = query || '2025';
+      console.log(`[Mercury API] Searching Catalog API${query ? ` for: "${searchQuery}"` : ' (all 2025 events)'}`);
+
+      const catalogResponse = await this.makeRequest<any>(
+        'GET',
+        `/events/search?q=${encodeURIComponent(searchQuery)}`,
+        undefined,
+        'catalog'
+      );
+
+      // Handle Catalog API response format
+      const catalogEvents = catalogResponse?.results || catalogResponse?.events || [];
+      if (!Array.isArray(catalogEvents)) {
+        console.log('[Mercury API] No events from Catalog API');
+        return [];
+      }
+
+      console.log(`[Mercury API] Found ${catalogEvents.length} events from Catalog`);
+
+      // Map Catalog API structure to our event format
+      // Catalog API uses nested text objects for names
+      const events: MercuryEvent[] = catalogEvents.slice(0, 50).map((catalogEvent: any) => ({
+        id: catalogEvent.id,
+        name: catalogEvent.text?.name || catalogEvent.name || 'Event TBA',
+        date: catalogEvent.date,
+        venue: {
+          id: catalogEvent.venue?.id?.toString() || '',
+          name: catalogEvent.venue?.text?.name || 'Venue TBA',
+          city: catalogEvent.city?.text?.name || '',
+          state: catalogEvent.stateProvince?.text?.abbr || '',
+        },
+        performers: catalogEvent.performers || [],
+      }));
+
+      console.log(`[Mercury API] Returning ${events.length} events from Catalog`);
+      return events;
+
+    } catch (error) {
+      console.error('[Mercury API] searchEvents error:', error);
+      return [];
+    }
   }
 
   /**
@@ -230,26 +271,97 @@ export class MercuryAPI {
 
   /**
    * Get available inventory for an event
+   * Uses the /ticketgroups endpoint as per Mercury v5 API
    */
   async getInventory(request: MercuryInventoryRequest): Promise<MercuryTicket[]> {
-    return this.makeRequest('POST', '/inventory/search', request);
+    // Convert to query parameters for GET request
+    const params = new URLSearchParams();
+    if (request.eventId) params.append('eventId', request.eventId);
+
+    const response = await this.makeRequest<any>(
+      'GET',
+      `/ticketgroups?${params.toString()}`,
+      undefined,
+      'mercury'
+    );
+
+    // Transform response to match our MercuryTicket interface
+    if (response?.ticketGroups) {
+      return response.ticketGroups.map((group: any) => ({
+        id: group.exchangeTicketGroupId?.toString() || '',
+        eventId: group.eventId?.toString() || request.eventId,
+        section: group.seats?.section || '',
+        row: group.seats?.row || '',
+        seatNumbers: group.seats?.lowSeat && group.seats?.highSeat
+          ? [group.seats.lowSeat, group.seats.highSeat]
+          : [],
+        quantity: group.availableQuantity || 0,
+        price: group.unitPrice?.wholesalePrice?.value || 0,
+        retailPrice: group.unitPrice?.retailPrice?.value,
+        listingId: group.exchangeTicketGroupId?.toString() || '',
+        brokerId: this.brokerId,
+        deliveryMethod: group.deliveryMethods?.[0] || 'eticket',
+        splits: group.purchasableQuantities || [],
+        notes: group.notes
+      }));
+    }
+
+    return [];
   }
 
   /**
    * Create a hold/lock on tickets
-   * Returns a hold that expires in 15-30 seconds (configurable)
+   * Uses the /lock endpoint as per Mercury v5 API
    */
   async createHold(
-    ticketId: string,
-    userId: string,
-    sessionId: string,
-    holdDurationSeconds: number = 30
+    ticketGroupId: string,
+    quantity: number,
+    wholesalePrice: number,
+    lockRequestId?: string
   ): Promise<MercuryHold> {
-    return this.makeRequest('POST', '/holds/create', {
-      ticketId,
-      userId,
-      sessionId,
-      holdDurationSeconds,
+    const requestId = lockRequestId || this.generateUUID();
+
+    const response = await this.makeRequest<any>('POST', '/lock', {
+      lockRequestId: requestId,
+      ticketGroupId: parseInt(ticketGroupId),
+      quantity,
+      wholesalePrice,
+      overridePrice: false,
+      lockDurationInSeconds: 60 // Mercury v5 uses this parameter
+    });
+
+    // Transform response to match our MercuryHold interface
+    return {
+      holdId: response.lockRequestId,
+      ticketId: ticketGroupId,
+      userId: '', // Not used in Mercury v5
+      sessionId: '', // Not used in Mercury v5
+      expiresAt: new Date(Date.now() + 60000), // 60 seconds from now
+      status: 'active',
+      ticketDetails: {
+        id: ticketGroupId,
+        eventId: '',
+        section: '',
+        row: '',
+        seatNumbers: [],
+        quantity: response.quantity,
+        price: response.lockPrice?.value || wholesalePrice,
+        listingId: ticketGroupId,
+        brokerId: this.brokerId,
+        deliveryMethod: 'eticket',
+        splits: []
+      }
+    };
+  }
+
+  /**
+   * Generate UUID for lock requests
+   */
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
   }
 
@@ -271,12 +383,26 @@ export class MercuryAPI {
 
   /**
    * Convert a hold to a purchase
+   * Uses the /orders endpoint as per Mercury v5 API
    */
-  async purchaseTickets(holdId: string, paymentInfo?: any): Promise<MercuryOrder> {
-    return this.makeRequest('POST', '/orders/create', {
-      holdId,
-      paymentInfo,
+  async purchaseTickets(lockRequestId: string, paymentInfo?: any): Promise<MercuryOrder> {
+    const response = await this.makeRequest<any>('POST', '/orders', {
+      lockRequestId,
+      buyRequestId: this.generateUUID(),
+      notes: 'Order from SeatJumper'
     });
+
+    // Transform response to match our MercuryOrder interface
+    return {
+      orderId: response.mercuryTransactionId?.toString() || '',
+      holdId: lockRequestId,
+      ticketId: '',
+      purchasePrice: response.totalPrice?.value || 0,
+      purchaseTime: new Date(response.date || Date.now()),
+      status: 'confirmed',
+      barcodes: [],
+      deliveryInfo: response.delivery
+    };
   }
 
   /**

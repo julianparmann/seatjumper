@@ -55,6 +55,13 @@ export class MercuryTokenService {
    * Get a valid OAuth token, fetching a new one if necessary
    */
   async getToken(): Promise<string> {
+    // Check for manual token override first
+    const manualToken = process.env.MERCURY_ACCESS_TOKEN;
+    if (manualToken) {
+      console.log('[Mercury Token] Using manual access token from environment');
+      return manualToken;
+    }
+
     // Check if we have a valid token
     if (this.token && this.isTokenValid()) {
       return this.token.access_token;
@@ -112,7 +119,7 @@ export class MercuryTokenService {
       // Schedule renewal
       this.scheduleRenewal();
 
-      return this.token.access_token;
+      return this.token!.access_token;
     } catch (error) {
       console.error('[Mercury Token] Failed to refresh token:', error);
       throw error;

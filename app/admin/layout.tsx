@@ -19,7 +19,8 @@ import {
   ChevronDown,
   Building2,
   Activity,
-  Send
+  Send,
+  Zap
 } from 'lucide-react';
 
 const navigation = [
@@ -32,6 +33,7 @@ const navigation = [
   { name: 'Games', href: '/admin/games', icon: Calendar, color: 'text-pink-400' },
   { name: 'Stadiums', href: '/admin/stadiums', icon: Building2, color: 'text-indigo-400' },
   { name: 'Inventory', href: '/admin/inventory', icon: Package, color: 'text-cyan-400' },
+  { name: 'Mercury API', href: '/admin/mercury', icon: Zap, color: 'text-amber-400' },
   { name: 'Health Monitor', href: '/admin/health', icon: Activity, color: 'text-red-400' },
   { name: 'Audit Log', href: '/admin/audit', icon: FileText, color: 'text-gray-400' },
   { name: 'Settings', href: '/admin/settings', icon: Settings, color: 'text-gray-400' },

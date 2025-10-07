@@ -124,16 +124,17 @@ export async function GET(req: NextRequest) {
     });
 
     // Transform to include counts and dynamic pricing
-    const gamesWithCounts = games.map(game => {
+    const gamesWithCounts = await Promise.all(games.map(async game => {
       // Calculate pack-specific pricing
       let dynamicPricing = null;
       try {
-        dynamicPricing = calculatePackSpecificPricing(
+        dynamicPricing = await calculatePackSpecificPricing(
           game.ticketLevels as any,
           game.ticketGroups as any,
           game.specialPrizes as any,
           game.cardBreaks as any,
-          30 // 30% margin
+          30, // 30% margin
+          game.id
         );
       } catch (error) {
         console.error(`Error calculating pricing for game ${game.id}:`, error);
@@ -165,7 +166,7 @@ export async function GET(req: NextRequest) {
         specialPrizesCount: game._count.specialPrizes,
         cardBreaksCount: game._count.cardBreaks
       };
-    });
+    }));
 
     // Cache the result for 60 seconds
     cache.set(cacheKey, gamesWithCounts, 60);

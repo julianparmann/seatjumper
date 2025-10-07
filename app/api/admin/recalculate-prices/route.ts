@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
 
       // Calculate bundle-specific pricing
-      const bundlePricing = calculateBundleSpecificPricing(
+      const bundlePricing = await calculateBundleSpecificPricing(
         game.ticketLevels,
         game.ticketGroups,
         game.specialPrizes,

@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+
+/**
+ * Direct test of Mercury API with access token
+ */
+
+const accessToken = "eyJ4NXQiOiJaVGxpWkRreU1HTTJZekE0TldJNU5tTXpNakJsTlRFeU5UTm1ObVUxTnpneE5UTTFORGN4WkE9PSIsImtpZCI6ImdhdGV3YXlfY2VydGlmaWNhdGVfYWxpYXMiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJTZWF0SnVtcGVyLXN0b3JlQGNhcmJvbi5zdXBlciIsImFwcGxpY2F0aW9uIjp7Im93bmVyIjoiU2VhdEp1bXBlci1zdG9yZSIsInRpZXJRdW90YVR5cGUiOm51bGwsInRpZXIiOiI1MFBlck1pbiIsIm5hbWUiOiJUZXN0QXBwbGljYXRpb24iLCJpZCI6MzA0MiwidXVpZCI6ImYxNzFiMWJlLWFkNDAtNGMzYy1iYTViLTlmN2Q2ZDllYjZhZCJ9LCJpc3MiOiJodHRwczpcL1wvY29uc29sZS50bi1hcGlzLmNvbTo0NDNcL29hdXRoMlwvdG9rZW4iLCJ0aWVySW5mbyI6eyJUcmlhbCI6eyJ0aWVyUXVvdGFUeXBlIjoicmVxdWVzdENvdW50IiwiZ3JhcGhRTE1heENvbXBsZXhpdHkiOjAsImdyYXBoUUxNYXhEZXB0aCI6MCwic3RvcE9uUXVvdGFSZWFjaCI6dHJ1ZSwic3Bpa2VBcnJlc3RMaW1pdCI6LTEsInNwaWtlQXJyZXN0VW5pdCI6Ik5BIn19LCJrZXl0eXBlIjoiU0FOREJPWCIsInBlcm1pdHRlZFJlZmVyZXIiOiIiLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJDYXRhbG9nQVBJIiwiY29udGV4dCI6IlwvY2F0YWxvZ1wvdjIiLCJwdWJsaXNoZXIiOiJUaWNrZXROZXR3b3JrIiwidmVyc2lvbiI6InYyIiwic3Vic2NyaXB0aW9uVGllciI6IlRyaWFsIn0seyJzdWJzY3JpYmVyVGVuYW50RG9tYWluIjoiY2FyYm9uLnN1cGVyIiwibmFtZSI6Ik1lcmN1cnlBUEkiLCJjb250ZXh0IjoiXC9tZXJjdXJ5XC92NSIsInB1Ymxpc2hlciI6IlRpY2tldE5ldHdvcmsiLCJ2ZXJzaW9uIjoidjUiLCJzdWJzY3JpcHRpb25UaWVyIjoiVHJpYWwifSx7InN1YnNjcmliZXJUZW5hbnREb21haW4iOiJjYXJYm9uLnN1cGVyIiwibmFtZSI6IlRpY2tldFZhdWx0QVBJIiwiY29udGV4dCI6IlwvdGlja2V0dmF1bHRcL3YyIiwicHVibGlzaGVyIjoiVGlja2V0TmV0d29yayIsInZlcnNpb24iOiJ2MiIsInN1YnNjcmlwdGlvblRpZXIiOiJUcmlhbCJ9LHsic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJXZWJIb29rQVBJIiwiY29udGV4dCI6Ilwvd2ViaG9va1wvdjEiLCJwdWJsaXNoZXIiOiJUaWNrZXROZXR3b3JrIiwidmVyc2lvbiI6InYxIiwic3Vic2NyaXB0aW9uVGllciI6IlRyaWFsIn1dLCJ0b2tlbl90eXBlIjoiYXBpS2V5IiwicGVybWl0dGVkSVAiOiIiLCJpYXQiOjE3NTk4NTI5MzAsImp0aSI6ImNmNzRjZjAwLWQ3NzUtNGNlZS05N2E3LTRjYTk0MzZkODE0ZCJ9.OtYNikprZLF4BX87qL88XvD267-5S30ni8W_7cuuVMCly5dLOXhNl5Y9x0YTqceRfq7YgMiK5y599D5q3KL7i2016oUHVL5_WxH-50x_2cIEsSMr-x1Z5cXNb-wFJY8fQOu7-k9JCpAewhrEUqdgDkYgRtWapj4rmD9FR7HGZUcyk8m4OEoHYxzJx8ZeGvlm7EOju4519lgq8zehHXuVKzdvJ_3TU26VJqVdsp9pGi3uAGwEdk84DkPXcbYZpz-L_x6ogG0LcnEb59wmnTtzpvvRcEL9-122ELHbAbyangEn49QeJT50wklghXOGAA-RHAf_b4QdPVDGNPuByoRvOQ==";
+
+console.log("Testing Mercury API with manual token...\n");
+
+async function testMercuryAPI() {
+  const results = {
+    tests: {},
+    summary: {}
+  };
+
+  // Test 1: Mercury Credit Limits
+  try {
+    console.log("1. Testing Mercury Credit Limits...");
+    const response = await fetch('https://sandbox.tn-apis.com/mercury/v5/creditlimits', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Identity-Context': 'broker-id=13870',
+        'Accept': 'application/json'
+      }
+    });
+
+    console.log(`   Status: ${response.status}`);
+    const text = await response.text();
+
+    if (response.ok) {
+      const data = JSON.parse(text);
+      console.log("   ✅ SUCCESS - Credit limits retrieved");
+      console.log(`   Daily limit: ${JSON.stringify(data.dailyBuyCreditLimit)}`);
+      console.log(`   Mercury active: ${data.mercuryActive}`);
+      results.tests.creditLimits = { success: true, status: response.status };
+    } else {
+      console.log(`   ❌ FAILED: ${text.substring(0, 200)}`);
+      results.tests.creditLimits = { success: false, status: response.status, error: text };
+    }
+  } catch (error) {
+    console.log(`   ❌ ERROR: ${error.message}`);
+    results.tests.creditLimits = { success: false, error: error.message };
+  }
+
+  console.log();
+
+  // Test 2: Catalog Categories
+  try {
+    console.log("2. Testing Catalog Categories...");
+    const response = await fetch('https://sandbox.tn-apis.com/catalog/v2/categories', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Identity-Context': 'website-config-id=23884',
+        'Accept': 'application/json'
+      }
+    });
+
+    console.log(`   Status: ${response.status}`);
+    const text = await response.text();
+
+    if (response.ok) {
+      const data = JSON.parse(text);
+      const count = Array.isArray(data) ? data.length : (data.categories?.length || 0);
+      console.log(`   ✅ SUCCESS - Found ${count} categories`);
+      if (count > 0) {
+        const sample = (Array.isArray(data) ? data : data.categories || []).slice(0, 3);
+        sample.forEach(c => console.log(`      - ${c.name || c.description || c.id}`));
+      }
+      results.tests.categories = { success: true, status: response.status, count };
+    } else {
+      console.log(`   ❌ FAILED: ${text.substring(0, 200)}`);
+      results.tests.categories = { success: false, status: response.status, error: text };
+    }
+  } catch (error) {
+    console.log(`   ❌ ERROR: ${error.message}`);
+    results.tests.categories = { success: false, error: error.message };
+  }
+
+  console.log();
+
+  // Test 3: Search Events
+  try {
+    console.log("3. Testing Event Search (Lakers)...");
+    const response = await fetch('https://sandbox.tn-apis.com/catalog/v2/events?query=Lakers', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Identity-Context': 'website-config-id=23884',
+        'Accept': 'application/json'
+      }
+    });
+
+    console.log(`   Status: ${response.status}`);
+    const text = await response.text();
+
+    if (response.ok) {
+      const data = JSON.parse(text);
+      const events = Array.isArray(data) ? data : (data.events || []);
+      console.log(`   ✅ SUCCESS - Found ${events.length} events`);
+      events.slice(0, 3).forEach(e => {
+        console.log(`      - ${e.name} (ID: ${e.id})`);
+      });
+      results.tests.events = { success: true, status: response.status, count: events.length };
+
+      // Store first event ID for ticket group test
+      if (events.length > 0) {
+        results.firstEventId = events[0].id;
+      }
+    } else {
+      console.log(`   ❌ FAILED: ${text.substring(0, 200)}`);
+      results.tests.events = { success: false, status: response.status, error: text };
+    }
+  } catch (error) {
+    console.log(`   ❌ ERROR: ${error.message}`);
+    results.tests.events = { success: false, error: error.message };
+  }
+
+  console.log();
+
+  // Test 4: Get Ticket Groups (if we have an event ID)
+  if (results.firstEventId) {
+    try {
+      console.log(`4. Testing Ticket Groups for event ${results.firstEventId}...`);
+      const response = await fetch(`https://sandbox.tn-apis.com/mercury/v5/ticketgroups?eventId=${results.firstEventId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Identity-Context': 'broker-id=13870',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log(`   Status: ${response.status}`);
+      const text = await response.text();
+
+      if (response.ok) {
+        const data = JSON.parse(text);
+        console.log(`   ✅ SUCCESS - Found ${data.totalCount || 0} ticket groups`);
+        if (data.ticketGroups && data.ticketGroups.length > 0) {
+          data.ticketGroups.slice(0, 2).forEach(tg => {
+            console.log(`      - Section ${tg.seats?.section}, Row ${tg.seats?.row}, Qty: ${tg.availableQuantity}, Price: $${tg.unitPrice?.wholesalePrice?.value}`);
+          });
+        }
+        results.tests.ticketGroups = { success: true, status: response.status, count: data.totalCount };
+      } else {
+        console.log(`   ❌ FAILED: ${text.substring(0, 200)}`);
+        results.tests.ticketGroups = { success: false, status: response.status, error: text };
+      }
+    } catch (error) {
+      console.log(`   ❌ ERROR: ${error.message}`);
+      results.tests.ticketGroups = { success: false, error: error.message };
+    }
+  } else {
+    console.log("4. Skipping Ticket Groups test (no event ID available)");
+  }
+
+  // Summary
+  console.log("\n" + "=".repeat(60));
+  const successCount = Object.values(results.tests).filter(t => t.success).length;
+  const totalCount = Object.keys(results.tests).length;
+
+  console.log(`SUMMARY: ${successCount}/${totalCount} tests passed`);
+
+  if (successCount > 0) {
+    console.log("\n✅ Mercury API Sandbox verified - Connection successful!");
+    console.log("\nWorking endpoints:");
+    console.log("- Mercury: https://sandbox.tn-apis.com/mercury/v5");
+    console.log("- Catalog: https://sandbox.tn-apis.com/catalog/v2");
+    console.log("\nRequired headers:");
+    console.log("- Authorization: Bearer <token>");
+    console.log("- X-Identity-Context: broker-id=13870 (Mercury) or website-config-id=23884 (Catalog)");
+  } else {
+    console.log("\n❌ All tests failed - please check the access token");
+  }
+
+  return results;
+}
+
+// Run the tests
+testMercuryAPI().catch(console.error);

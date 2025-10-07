@@ -55,9 +55,9 @@ export class MercuryHoldService {
       for (const ticket of randomizationResult.tickets) {
         const hold = await mercuryAPI.createHold(
           ticket.id,
-          userId,
-          sessionId,
-          holdDuration
+          ticket.quantity,
+          ticket.price,
+          `${sessionId}_${ticket.id}` // Unique lock request ID
         );
 
         holdIds.push(hold.holdId);

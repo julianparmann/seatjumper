@@ -48,25 +48,25 @@ export class MercuryInventoryService {
       minPrice: 500,
     },
     {
-      tierLevel: TierLevel.GOLD,
+      tierLevel: TierLevel.GOLD_LEVEL,
       sections: ['100', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110'],
       minPrice: 200,
       maxPrice: 500,
     },
     {
-      tierLevel: TierLevel.SILVER,
+      tierLevel: TierLevel.UPPER_DECK,
       sections: ['200', '201', '202', '203', '204', '205', '206', '207', '208', '209', '210'],
       minPrice: 100,
       maxPrice: 200,
     },
     {
-      tierLevel: TierLevel.BRONZE,
+      tierLevel: TierLevel.UPPER_DECK,
       sections: ['300', '301', '302', '303', '304', '305', '306', '307', '308', '309', '310'],
       minPrice: 50,
       maxPrice: 100,
     },
     {
-      tierLevel: TierLevel.UPPER,
+      tierLevel: TierLevel.UPPER_DECK,
       sections: ['400', '401', '402', '403', '404', '405', '406', '407', '408', '409', '410'],
       maxPrice: 50,
     },
@@ -181,10 +181,8 @@ export class MercuryInventoryService {
 
     // Default based on price alone
     if (ticket.price >= 500) return TierLevel.VIP_ITEM;
-    if (ticket.price >= 200) return TierLevel.GOLD;
-    if (ticket.price >= 100) return TierLevel.SILVER;
-    if (ticket.price >= 50) return TierLevel.BRONZE;
-    return TierLevel.UPPER;
+    if (ticket.price >= 200) return TierLevel.GOLD_LEVEL;
+    return TierLevel.UPPER_DECK;
   }
 
   /**
@@ -208,7 +206,7 @@ export class MercuryInventoryService {
           return true;
         case 'red':
           // No upper deck
-          return tier !== TierLevel.UPPER;
+          return tier !== TierLevel.UPPER_DECK;
         case 'gold':
           // Front row only (would need row data)
           return ticket.row && ['1', 'A', 'AA'].includes(ticket.row);
@@ -300,16 +298,12 @@ export class MercuryInventoryService {
         case TierLevel.VIP_ITEM:
           tierBreakdown.vip += ticket.quantity;
           break;
-        case TierLevel.GOLD:
+        case TierLevel.GOLD_LEVEL:
           tierBreakdown.gold += ticket.quantity;
           break;
-        case TierLevel.SILVER:
+        case TierLevel.UPPER_DECK:
           tierBreakdown.silver += ticket.quantity;
-          break;
-        case TierLevel.BRONZE:
           tierBreakdown.bronze += ticket.quantity;
-          break;
-        case TierLevel.UPPER:
           tierBreakdown.upper += ticket.quantity;
           break;
       }

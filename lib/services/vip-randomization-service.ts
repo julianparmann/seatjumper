@@ -334,7 +334,7 @@ export class VIPRandomizationService {
   /**
    * Get VIP pricing component for a bundle
    */
-  async getVIPPricingComponent(gameId: string, marginMultiplier: number = 1.3): number {
+  async getVIPPricingComponent(gameId: string, marginMultiplier: number = 1.3): Promise<number> {
     const pool = await this.getVIPPrizePool(gameId);
     const expectedValue = this.calculateExpectedValue(pool);
     return expectedValue * marginMultiplier;
