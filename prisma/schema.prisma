@@ -355,6 +355,14 @@ model SpinResult {
   stripePaymentIntentId String?
   stripeSessionId       String?
   selectedPack          String?       // blue, red, or gold
+  vipTicketWon          Boolean       @default(false)
+  vipMemorabiliaWon     Boolean       @default(false)
+  vipTicketId           String?
+  vipMemorabiliaId      String?
+  vipTicketRoll         Float?        // 0-1 for audit trail
+  vipMemorabiliaRoll    Float?        // 0-1 for audit trail
+  mercuryOrderId        String?
+  mercuryHoldId         String?
   bundles               SpinBundle[]
   game                  DailyGame     @relation(fields: [gameId], references: [id])
   user                  User          @relation(fields: [userId], references: [id])

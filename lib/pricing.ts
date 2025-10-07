@@ -1,4 +1,5 @@
-import { TicketGroup, CardBreak, TicketLevel, SpecialPrize } from '@prisma/client';
+import { TicketGroup, CardBreak, TicketLevel, SpecialPrize, TierLevel } from '@prisma/client';
+import { vipRandomizationService } from '@/lib/services/vip-randomization-service';
 
 /**
  * Calculate pricing based on currently available inventory only
@@ -163,32 +164,52 @@ export interface PackSpecificPricing {
 }
 
 /**
+ * Get VIP expected value for pricing calculations
+ */
+async function getVIPExpectedValue(gameId?: string): Promise<number> {
+  if (!gameId) return 0;
+
+  try {
+    // Get VIP pricing component from the service
+    const vipComponent = await vipRandomizationService.getVIPPricingComponent(gameId, 1.0); // No margin yet, we'll apply it later
+    return vipComponent;
+  } catch (error) {
+    console.error('[Pricing] Failed to get VIP expected value:', error);
+    return 0;
+  }
+}
+
+/**
  * Calculate pack-specific pricing based on available inventory
  * Each pack (blue, red, gold) has different available items based on availablePacks field
  */
-export function calculatePackSpecificPricing(
+export async function calculatePackSpecificPricing(
   ticketLevels: TicketLevel[],
   ticketGroups: TicketGroup[],
   specialPrizes: SpecialPrize[],
   cardBreaks: CardBreak[],
-  marginPercentage: number = 30
-): PackSpecificPricing {
+  marginPercentage: number = 30,
+  gameId?: string
+): Promise<PackSpecificPricing> {
   const packs = ['blue', 'red', 'gold'];
   const packPrices: any = {};
 
-  packs.forEach(pack => {
+  // Get VIP expected value for this game
+  const vipExpectedValue = await getVIPExpectedValue(gameId);
+
+  for (const pack of packs) {
     const bundleSizes = [1, 2, 3, 4];
     const prices: any = {};
 
-    bundleSizes.forEach(bundleSize => {
+    for (const bundleSize of bundleSizes) {
       // Filter ticket levels for this pack and bundle size
       // Must have enough quantity for at least one bundle
-      // Exclude VIP backup items (tierPriority > 1)
+      // EXCLUDE ALL VIP items (they're handled separately via VIP roll)
       const eligibleTicketLevels = ticketLevels.filter((level: any) => {
         const availablePacks = level.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = level.availableUnits as number[] || [1, 2, 3, 4];
-        const isVipBackup = level.tierLevel === 'VIP_ITEM' && level.tierPriority > 1;
-        return !isVipBackup &&
+        const isVIP = level.tierLevel === TierLevel.VIP_ITEM;
+        return !isVIP &&
                availablePacks.includes(pack) &&
                availableUnits.includes(bundleSize) &&
                level.quantity >= bundleSize;
@@ -202,12 +223,12 @@ export function calculatePackSpecificPricing(
       });
 
       // Filter ticket groups for this pack and bundle size
-      // Exclude VIP backup items (tierPriority > 1)
+      // EXCLUDE ALL VIP items (they're handled separately via VIP roll)
       const eligibleTicketGroups = ticketGroups.filter((group: any) => {
         const availablePacks = group.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = group.availableUnits as number[] || [1, 2, 3, 4];
-        const isVipBackup = group.tierLevel === 'VIP_ITEM' && group.tierPriority > 1;
-        return !isVipBackup &&
+        const isVIP = group.tierLevel === TierLevel.VIP_ITEM;
+        return !isVIP &&
                availablePacks.includes(pack) &&
                group.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
@@ -215,12 +236,12 @@ export function calculatePackSpecificPricing(
       });
 
       // Calculate memorabilia value for this pack and bundle size
-      // Exclude VIP backup items (tierPriority > 1)
+      // EXCLUDE ALL VIP items (they're handled separately via VIP roll)
       const eligibleCardBreaks = cardBreaks.filter((item: any) => {
         const availablePacks = item.availablePacks as string[] || ['blue', 'red', 'gold'];
         const availableUnits = item.availableUnits as number[] || [1, 2, 3, 4];
-        const isVipBackup = item.tierLevel === 'VIP_ITEM' && item.tierPriority > 1;
-        return !isVipBackup &&
+        const isVIP = item.tierLevel === TierLevel.VIP_ITEM;
+        return !isVIP &&
                availablePacks.includes(pack) &&
                item.status === 'AVAILABLE' &&
                availableUnits.includes(bundleSize) &&
@@ -238,16 +259,23 @@ export function calculatePackSpecificPricing(
       }
 
       // Calculate total bundle value (tickets + memorabilia, multiply by bundle size)
-      const totalBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
+      const regularBundleValue = (ticketPricing.avgPrice + breakPricing.avgValue) * bundleSize;
 
-      // Apply margin
+      // Apply margin to regular items
       const marginMultiplier = 1 + (marginPercentage / 100);
-      const spinPrice = totalBundleValue * marginMultiplier;
+      const regularPrice = regularBundleValue * marginMultiplier;
+
+      // Add VIP expected value (already includes both ticket and memorabilia EV)
+      // VIP EV is per bundle, so multiply by bundle size
+      const vipComponent = vipExpectedValue * marginMultiplier * bundleSize;
+      const spinPrice = regularPrice + vipComponent;
 
       console.log(`[PRICING] Pack: ${pack}, Bundle size: ${bundleSize}x`, {
         avgTicketPrice: ticketPricing.avgPrice,
         avgMemorabiliaValue: breakPricing.avgValue,
-        bundleValue: totalBundleValue,
+        regularBundleValue,
+        vipExpectedValue,
+        vipComponent,
         margin: `${marginPercentage}%`,
         finalPrice: spinPrice,
         eligibleTickets: ticketPricing.totalAvailable,
