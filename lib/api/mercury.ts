@@ -82,15 +82,28 @@ export class MercuryAPI {
   private webhookSecret: string;
 
   constructor() {
-    this.mercuryApiUrl = process.env.MERCURY_API_URL || 'https://api.sandbox.mercury.ticketnetwork.com';
-    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || 'https://api.sandbox.catalog.ticketnetwork.com';
-    this.webhookApiUrl = process.env.MERCURY_WEBHOOK_API_URL || 'https://api.sandbox.webhook.ticketnetwork.com';
-    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || 'https://api.sandbox.ticketvault.ticketnetwork.com';
+    // Each service has its own domain
+    const sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
+    const environment = sandboxMode ? 'sandbox' : 'api';
+
+    // Set individual service URLs based on documentation
+    this.mercuryApiUrl = process.env.MERCURY_API_URL || `https://${environment}.mercury.tn-apis.com`;
+    this.catalogApiUrl = process.env.MERCURY_CATALOG_API_URL || `https://${environment}.catalog.tn-apis.com`;
+    this.webhookApiUrl = process.env.MERCURY_WEBHOOK_API_URL || `https://${environment}.webhook.tn-apis.com`;
+    this.ticketVaultApiUrl = process.env.MERCURY_TICKETVAULT_API_URL || `https://${environment}.ticketvault.tn-apis.com`;
     this.websiteConfigId = process.env.MERCURY_WEBSITE_CONFIG_ID || '27735';
     this.catalogConfigId = process.env.MERCURY_CATALOG_CONFIG_ID || '23884';
     this.brokerId = process.env.MERCURY_BROKER_ID || '13870';
-    this.sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
+    this.sandboxMode = sandboxMode;
     this.webhookSecret = process.env.MERCURY_WEBHOOK_SECRET || '';
+
+    console.log('[Mercury API] Initialized with URLs:', {
+      mercury: this.mercuryApiUrl,
+      catalog: this.catalogApiUrl,
+      webhook: this.webhookApiUrl,
+      ticketvault: this.ticketVaultApiUrl,
+      sandboxMode: this.sandboxMode
+    });
   }
 
   /**

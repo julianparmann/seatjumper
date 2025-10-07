@@ -22,14 +22,25 @@ export class MercuryTokenService {
   private readonly renewalBuffer = 600; // Renew 10 minutes before expiry
 
   private constructor() {
-    this.consumerKey = process.env.MERCURY_CONSUMER_KEY || '';
-    this.consumerSecret = process.env.MERCURY_CONSUMER_SECRET || '';
-    this.tokenEndpoint = process.env.MERCURY_TOKEN_ENDPOINT || 'https://key-manager.tn-apis.com/oauth2/token';
+    // Check for sandbox mode first
+    const sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
 
-    // For sandbox testing with provided credentials
-    if (process.env.MERCURY_SANDBOX_MODE === 'true' && !this.consumerKey) {
+    if (sandboxMode) {
+      // Use sandbox credentials
       this.consumerKey = '2BI2EFcl2UyPJjEwmA_HRrZ2PgIa';
       this.consumerSecret = 'I_mhfXd6irijN7_fftZXEIa8PSEa';
+      this.tokenEndpoint = 'https://key-manager.tn-apis.com/oauth2/token';
+      console.log('[Mercury Token] Using sandbox credentials');
+    } else {
+      // Use production credentials from environment
+      this.consumerKey = process.env.MERCURY_CONSUMER_KEY || '';
+      this.consumerSecret = process.env.MERCURY_CONSUMER_SECRET || '';
+      this.tokenEndpoint = process.env.MERCURY_TOKEN_ENDPOINT || 'https://key-manager.tn-apis.com/oauth2/token';
+    }
+
+    // Validate credentials
+    if (!this.consumerKey || !this.consumerSecret) {
+      console.error('[Mercury Token] Missing credentials! Set MERCURY_SANDBOX_MODE=true or provide MERCURY_CONSUMER_KEY and MERCURY_CONSUMER_SECRET');
     }
   }
 
@@ -60,15 +71,25 @@ export class MercuryTokenService {
     try {
       console.log('[Mercury Token] Fetching new OAuth token...');
 
-      // Create Basic auth header
-      const basicAuth = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64');
+      // Debug: Log credentials being used (without showing full secret)
+      console.log('[Mercury Token] Using Consumer Key:', this.consumerKey);
+      console.log('[Mercury Token] Consumer Secret length:', this.consumerSecret.length);
+
+      // Create Basic auth header - ensure no line breaks or extra spaces
+      const credentials = `${this.consumerKey}:${this.consumerSecret}`;
+      const basicAuth = Buffer.from(credentials, 'utf-8').toString('base64');
+
+      // Debug: Log the auth header format
+      const authHeader = `Basic ${basicAuth}`;
+      console.log('[Mercury Token] Auth header format check:', authHeader.substring(0, 50) + '...');
 
       // Request new token
       const response = await fetch(this.tokenEndpoint, {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${basicAuth}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
         },
         body: 'grant_type=client_credentials',
       });
