@@ -25,9 +25,7 @@ export default function EventJumpPage() {
 
   const [loading, setLoading] = useState(true);
   const [eventData, setEventData] = useState<CalculateJumpResponse | null>(null);
-  const [selectedSections, setSelectedSections] = useState<Map<string, boolean>>(() => {
-    return new (Map as any)();
-  });
+  const [selectedSections, setSelectedSections] = useState<Record<string, boolean>>({});
   const [selectedQuantity, setSelectedQuantity] = useState(2);
   const [calculating, setCalculating] = useState(false);
   const [jumpPrices, setJumpPrices] = useState<CalculateJumpResponse['jumpPrices']>([]);
@@ -53,8 +51,8 @@ export default function EventJumpPage() {
 
   // Recalculate when selection changes
   useEffect(() => {
-    if (eventData && selectedSections.size > 0) {
-      const hasSelection = Array.from(selectedSections.values()).some(v => v);
+    if (eventData && Object.keys(selectedSections).length > 0) {
+      const hasSelection = Object.values(selectedSections).some(v => v);
       if (hasSelection) {
         recalculateJumpPrices();
       }
@@ -78,9 +76,9 @@ export default function EventJumpPage() {
       setJumpPrices(data.jumpPrices);
 
       // Initialize all sections as selected
-      const initialSelection = new (Map as any)() as Map<string, boolean>;
+      const initialSelection: Record<string, boolean> = {};
       data.sections.forEach((section: any) => {
-        initialSelection.set(section.section, true);
+        initialSelection[section.section] = true;
       });
       setSelectedSections(initialSelection);
 
@@ -120,7 +118,7 @@ export default function EventJumpPage() {
       setCalculating(true);
 
       // Get excluded sections (those that are unchecked)
-      const excludedSections = Array.from(selectedSections.entries())
+      const excludedSections = Object.entries(selectedSections)
         .filter(([_, selected]) => !selected)
         .map(([section, _]) => section);
 
@@ -155,23 +153,24 @@ export default function EventJumpPage() {
   }
 
   function toggleSection(section: string) {
-    const newSelection = new (Map as any)(selectedSections) as Map<string, boolean>;
-    newSelection.set(section, !newSelection.get(section));
-    setSelectedSections(newSelection);
+    setSelectedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   }
 
   function selectAllSections() {
-    const newSelection = new (Map as any)() as Map<string, boolean>;
+    const newSelection: Record<string, boolean> = {};
     eventData?.sections.forEach(section => {
-      newSelection.set(section.section, true);
+      newSelection[section.section] = true;
     });
     setSelectedSections(newSelection);
   }
 
   function deselectAllSections() {
-    const newSelection = new (Map as any)() as Map<string, boolean>;
+    const newSelection: Record<string, boolean> = {};
     eventData?.sections.forEach(section => {
-      newSelection.set(section.section, false);
+      newSelection[section.section] = false;
     });
     setSelectedSections(newSelection);
   }
@@ -181,7 +180,7 @@ export default function EventJumpPage() {
       setCalculating(true);
 
       // Get excluded sections (those that are unchecked)
-      const excludedSections = Array.from(selectedSections.entries())
+      const excludedSections = Object.entries(selectedSections)
         .filter(([_, selected]) => !selected)
         .map(([section, _]) => section);
 
@@ -262,7 +261,7 @@ export default function EventJumpPage() {
     );
   }
 
-  const selectedCount = Array.from(selectedSections.values()).filter(v => v).length;
+  const selectedCount = Object.values(selectedSections).filter(v => v).length;
   const currentJumpPrice = jumpPrices.find(p => p.quantity === selectedQuantity);
   const availableQuantities = jumpPrices.map(p => p.quantity);
 
@@ -334,7 +333,7 @@ export default function EventJumpPage() {
                 eventId={eventId}
                 venueData={venueMapData}
                 selectedSections={new Set(
-                  Array.from(selectedSections.entries())
+                  Object.entries(selectedSections)
                     .filter(([_, selected]) => selected)
                     .map(([section, _]) => section)
                 )}
@@ -373,7 +372,7 @@ export default function EventJumpPage() {
                     className={`
                       flex items-center justify-between p-3 rounded-lg cursor-pointer
                       transition-all duration-200
-                      ${selectedSections.get(section.section)
+                      ${selectedSections[section.section]
                         ? 'bg-blue-500/20 border border-blue-500/50'
                         : 'bg-gray-800/50 border border-gray-700 opacity-60'
                       }
@@ -382,12 +381,12 @@ export default function EventJumpPage() {
                     <div className="flex items-center gap-3">
                       <div className={`
                         w-5 h-5 rounded flex items-center justify-center
-                        ${selectedSections.get(section.section)
+                        ${selectedSections[section.section]
                           ? 'bg-blue-500'
                           : 'bg-gray-700 border border-gray-600'
                         }
                       `}>
-                        {selectedSections.get(section.section) && (
+                        {selectedSections[section.section] && (
                           <Check className="h-3 w-3 text-white" />
                         )}
                       </div>
