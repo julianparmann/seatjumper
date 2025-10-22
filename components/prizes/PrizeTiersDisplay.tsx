@@ -99,7 +99,17 @@ export default function PrizeTiersDisplay({
         return level.quantity > 0 && isAvailableForPack && !isVipBackup;
       })
       .forEach(level => {
-        const tier = level.tierLevel || classifyTicketTier(level.pricePerSeat).tierLevel;
+        // Map our tier levels: GOLD -> VIP_ITEM, RED -> GOLD_LEVEL, BLUE -> UPPER_DECK
+        let displayTier = level.tierLevel;
+        if (level.tierLevel === TierLevel.UPPER_DECK) {
+          displayTier = TierLevel.VIP_ITEM;
+        } else if (level.tierLevel === TierLevel.GOLD_LEVEL) {
+          displayTier = TierLevel.GOLD_LEVEL;
+        } else if (level.tierLevel === TierLevel.VIP_ITEM) {
+          displayTier = TierLevel.UPPER_DECK;
+        }
+
+        const tier = displayTier || classifyTicketTier(level.pricePerSeat).tierLevel;
         prizes.push({
           id: `level-${level.id}`,
           title: level.levelName,
@@ -127,7 +137,17 @@ export default function PrizeTiersDisplay({
         return group.status === 'AVAILABLE' && group.quantity > 0 && isAvailableForPack && !isVipBackup;
       })
       .forEach(group => {
-        const tier = group.tierLevel || classifyTicketTier(group.pricePerSeat).tierLevel;
+        // Map our tier levels: GOLD -> VIP_ITEM, RED -> GOLD_LEVEL, BLUE -> UPPER_DECK
+        let displayTier = group.tierLevel;
+        if (group.tierLevel === TierLevel.UPPER_DECK) {
+          displayTier = TierLevel.VIP_ITEM;
+        } else if (group.tierLevel === TierLevel.GOLD_LEVEL) {
+          displayTier = TierLevel.GOLD_LEVEL;
+        } else if (group.tierLevel === TierLevel.VIP_ITEM) {
+          displayTier = TierLevel.UPPER_DECK;
+        }
+
+        const tier = displayTier || classifyTicketTier(group.pricePerSeat).tierLevel;
 
         // Get images based on primaryImageIndex
         const primaryIdx = (group.primaryImageIndex || 1) - 1;
@@ -486,9 +506,9 @@ export default function PrizeTiersDisplay({
         </div>
       )}
 
-      {/* VIP Items */}
+      {/* Gold Tier (Top 15%) */}
       {renderTierSection(
-        'VIP ITEMS',
+        'GOLD TIER - Premium Seats',
         <Crown className="w-5 h-5 text-black" />,
         organizedPrizes.vip,
         'large',
@@ -496,33 +516,33 @@ export default function PrizeTiersDisplay({
         'yellow-600',
         'bg-gradient-to-r from-yellow-400 to-yellow-600',
         hitRates.vip,
-        true // Show values for VIP
+        false // Hide prices to maintain mystery
       )}
 
-      {/* Gold Level */}
+      {/* Red Tier (Middle 35%) */}
       {renderTierSection(
-        'GOLD LEVEL',
+        'RED TIER - Great Seats',
         <Star className="w-5 h-5 text-white" />,
         organizedPrizes.gold,
         'medium',
-        'gray-300',
-        'gray-400',
-        'bg-gradient-to-r from-gray-300 to-gray-400',
+        'red-500',
+        'red-600',
+        'bg-gradient-to-r from-red-500 to-red-600',
         hitRates.gold,
-        true // Show values for Gold
+        false // Hide prices to maintain mystery
       )}
 
-      {/* Upper Deck */}
+      {/* Blue Tier (Bottom 50%) */}
       {renderTierSection(
-        'UPPER DECK',
+        'BLUE TIER - Value Seats',
         <Ticket className="w-5 h-5 text-white" />,
         organizedPrizes.upper,
         'small',
         'blue-500',
         'blue-600',
-        'bg-blue-600',
+        'bg-gradient-to-r from-blue-500 to-blue-600',
         hitRates.upper,
-        false // Hide values for Upper Deck
+        false // Hide prices to maintain mystery
       )}
 
     </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { mercuryAPI } from '@/lib/api/mercury';
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,24 +27,17 @@ export async function GET(req: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
     const status = searchParams.get('status') || 'pending';
 
-    // Build where clause - show all SpinResults by default
-    let whereClause: any = {};
-
+    // Fetch spin results
+    let spinWhereClause: any = {};
     if (status === 'pending') {
-      whereClause.OR = [
+      spinWhereClause.OR = [
         { ticketsTransferred: false },
         { memorabiliaShipped: false }
       ];
     }
 
-    // Get total count
-    const total = await prisma.spinResult.count({
-      where: whereClause
-    });
-
-    // Get paginated orders
-    const orders = await prisma.spinResult.findMany({
-      where: whereClause,
+    const spinResults = await prisma.spinResult.findMany({
+      where: spinWhereClause,
       include: {
         user: {
           select: {
@@ -75,13 +69,121 @@ export async function GET(req: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize
+      }
     });
 
+    // Fetch jump purchases
+    let jumpWhereClause: any = {
+      status: {
+        in: ['completed', 'requires_fulfillment']
+      }
+    };
+
+    if (status === 'pending') {
+      jumpWhereClause.AND = [
+        { status: { in: ['completed', 'requires_fulfillment'] } },
+        {
+          OR: [
+            { ticketDeliveryStatus: { not: 'delivered' } },
+            { ticketDeliveryStatus: null }
+          ]
+        }
+      ];
+    }
+
+    const jumpPurchases = await prisma.jumpPurchase.findMany({
+      where: jumpWhereClause,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Enrich jump purchases with event details
+    const enrichedJumpPurchases = await Promise.all(
+      jumpPurchases.map(async (purchase) => {
+        let eventDetails: any = {};
+        try {
+          if (purchase.eventId) {
+            const event = await mercuryAPI.getEvent(purchase.eventId);
+            if (event) {
+              eventDetails = {
+                game: {
+                  eventName: event.name,
+                  eventDate: event.date,
+                  venue: typeof event.venue === 'object' ? event.venue.name : event.venue,
+                  city: typeof event.venue === 'object' ? event.venue.city : '',
+                  state: typeof event.venue === 'object' ? event.venue.state : ''
+                }
+              };
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch event details for ${purchase.eventId}:`, error);
+          eventDetails = {
+            game: {
+              eventName: 'Mercury Event',
+              eventDate: purchase.createdAt,
+              venue: 'Unknown Venue',
+              city: '',
+              state: ''
+            }
+          };
+        }
+
+        return {
+          ...purchase,
+          type: 'jump',
+          userId: purchase.userId,
+          quantity: purchase.quantity,
+          totalPrice: purchase.jumpPrice,
+          totalValue: purchase.jumpPrice,
+          createdAt: purchase.createdAt,
+          paidAt: purchase.completedAt,
+          ticketsTransferred: purchase.ticketDeliveryStatus === 'delivered',
+          ticketsTransferredAt: purchase.ticketDeliveryStatus === 'delivered' ? purchase.completedAt : null,
+          memorabiliaShipped: false, // Jump purchases don't have memorabilia
+          memorabiliaShippedAt: null,
+          trackingNumber: null,
+          shippingCarrier: null,
+          bundles: purchase.selectedSeats ? [{
+            id: purchase.id,
+            ticketSection: (purchase.selectedSeats as any)?.section || purchase.section || 'Various',
+            ticketRow: (purchase.selectedSeats as any)?.row || purchase.row || 'Various',
+            ticketQuantity: purchase.quantity,
+            ticketValue: purchase.jumpPrice,
+            breaks: [],
+            bundleValue: purchase.jumpPrice
+          }] : [],
+          ...eventDetails
+        };
+      })
+    );
+
+    // Transform spin results to match the format
+    const transformedSpinResults = spinResults.map(spin => ({
+      ...spin,
+      type: 'spin'
+    }));
+
+    // Combine all orders and sort by date
+    const allOrders = [...transformedSpinResults, ...enrichedJumpPurchases].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    // Apply pagination
+    const paginatedOrders = allOrders.slice((page - 1) * pageSize, page * pageSize);
+    const total = allOrders.length;
+
     return NextResponse.json({
-      orders,
+      orders: paginatedOrders,
       total,
       page,
       pageSize,

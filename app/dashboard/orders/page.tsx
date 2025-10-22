@@ -4,68 +4,72 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, MapPin, Package, Ticket, Loader2, CheckCircle, Clock, Truck, CreditCard, Image } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Package, Ticket, Loader2, CheckCircle, Clock, Truck, CreditCard, Zap, AlertCircle } from 'lucide-react';
 
-interface SpinHistory {
+interface Order {
   id: string;
+  type: 'spin' | 'jump';
+  eventName: string;
+  eventDate: string;
+  venue: string;
   quantity: number;
-  totalPrice: number;
-  totalValue: number;
-  adjacentSeats: boolean;
+  totalPrice?: number;
+  jumpPrice?: number;
   createdAt: string;
-  ticketsTransferred: boolean;
-  ticketsTransferredAt: string | null;
-  memorabiliaShipped: boolean;
-  memorabiliaShippedAt: string | null;
-  trackingNumber: string | null;
-  shippingCarrier: string | null;
-  game: {
-    eventName: string;
-    eventDate: string;
-    venue: string;
-    city: string;
-    state: string;
-    spinPricePerBundle: number;
-  };
-  bundles: Array<{
+  status: string;
+
+  // Spin-specific fields
+  totalValue?: number;
+  adjacentSeats?: boolean;
+  ticketsTransferred?: boolean;
+  memorabiliaShipped?: boolean;
+  bundles?: Array<{
     id: string;
     ticketSection: string;
     ticketRow: string;
     ticketValue: number;
     ticketQuantity: number;
-    breaks: any[];
-    bundleValue: number;
     memorabiliaName?: string | null;
     memorabiliaValue?: number | null;
     memorabiliaImageUrl?: string | null;
   }>;
+
+  // Jump-specific fields
+  section?: string;
+  row?: string;
+  mercuryOrderId?: string;
+  error?: string;
 }
 
 export default function OrderHistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [spins, setSpins] = useState<SpinHistory[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalSpins, setTotalSpins] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [spinCount, setSpinCount] = useState(0);
+  const [jumpCount, setJumpCount] = useState(0);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
     } else if (status === 'authenticated') {
-      fetchSpinHistory();
+      fetchOrders();
     }
   }, [status, router]);
 
-  const fetchSpinHistory = async () => {
+  const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/user/spins');
+      const res = await fetch('/api/user/orders');
       if (res.ok) {
         const data = await res.json();
-        setSpins(data.spins);
-        setTotalSpins(data.totalSpins);
+        setOrders(data.orders);
+        setTotalOrders(data.totalOrders);
+        setSpinCount(data.spinCount);
+        setJumpCount(data.jumpCount);
       }
     } catch (error) {
-      console.error('Error fetching spin history:', error);
+      console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
@@ -95,63 +99,118 @@ export default function OrderHistoryPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </Link>
-            <h1 className="text-3xl font-bold text-white">Spin History</h1>
+            <h1 className="text-3xl font-bold text-white">Order History</h1>
           </div>
-          <p className="text-gray-300">
-            You've completed {totalSpins} spin{totalSpins !== 1 ? 's' : ''}
-          </p>
+          <div className="flex gap-6 text-gray-300">
+            <p>Total Orders: {totalOrders}</p>
+            {spinCount > 0 && <p>Spins: {spinCount}</p>}
+            {jumpCount > 0 && <p>Jumps: {jumpCount}</p>}
+          </div>
         </div>
 
-        {/* Spin History */}
-        {spins.length > 0 ? (
+        {/* Order History */}
+        {orders.length > 0 ? (
           <div className="space-y-6">
-            {spins.map((spin) => (
-              <div key={spin.id} className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            {orders.map((order) => (
+              <div key={order.id} className="bg-white/10 backdrop-blur-md rounded-xl p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-2">
-                      {spin.game.eventName}
-                    </h3>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-bold text-white">
+                        {order.eventName}
+                      </h3>
+                      {order.type === 'jump' && (
+                        <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          Jump
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-4 text-gray-300 text-sm">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {new Date(spin.game.eventDate).toLocaleDateString('en-US', {
+                          {order.eventDate ? new Date(order.eventDate).toLocaleDateString('en-US', {
                             weekday: 'short',
                             month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                            day: 'numeric'
+                          }) : 'Date TBA'}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
-                        <span>
-                          {spin.game.venue}, {spin.game.city}, {spin.game.state}
-                        </span>
+                        <span>{order.venue || 'Venue TBA'}</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-yellow-400 font-bold text-lg">
-                      {spin.quantity} ticket{spin.quantity > 1 ? 's' : ''}
+                      {order.quantity} ticket{order.quantity > 1 ? 's' : ''}
                     </div>
                     <div className="text-gray-300 text-sm">
-                      Jump Price: ${spin.totalPrice.toFixed(2)}
+                      ${(order.totalPrice || order.jumpPrice || 0).toFixed(2)}
                     </div>
                     <div className="text-gray-400 text-xs">
-                      {new Date(spin.createdAt).toLocaleDateString()}
+                      {new Date(order.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
 
-                {/* Ticket Details */}
-                {spin.bundles && spin.bundles.length > 0 && (
+                {/* Jump Purchase Details */}
+                {order.type === 'jump' && (
+                  <div className="border-t border-white/20 pt-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-gray-400 text-sm">Section</p>
+                        <p className="text-white font-semibold">{order.section || 'TBD'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-sm">Row</p>
+                        <p className="text-white font-semibold">{order.row || 'TBD'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-sm">Status</p>
+                        <div className="flex items-center gap-2">
+                          {order.status === 'completed' ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                              <span className="text-green-400 font-semibold">Confirmed</span>
+                            </>
+                          ) : order.status === 'requires_fulfillment' ? (
+                            <>
+                              <AlertCircle className="w-4 h-4 text-yellow-400" />
+                              <span className="text-yellow-400 font-semibold">Processing</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-400 font-semibold">Pending</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {order.mercuryOrderId && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-gray-400 text-xs">Order ID: {order.mercuryOrderId}</p>
+                      </div>
+                    )}
+                    {order.error && (
+                      <div className="mt-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                        <p className="text-yellow-400 text-sm">
+                          We're working on fulfilling your order. You'll receive an email confirmation soon.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Spin Purchase Details */}
+                {order.type === 'spin' && order.bundles && order.bundles.length > 0 && (
                   <div className="border-t border-white/20 pt-4">
                     <h4 className="text-white font-semibold mb-3">Tickets Won:</h4>
                     <div className="grid md:grid-cols-2 gap-3">
-                      {spin.bundles.map((bundle, idx) => (
+                      {order.bundles.map((bundle, idx) => (
                         <div
                           key={bundle.id}
                           className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-4 border border-white/10"
@@ -161,33 +220,29 @@ export default function OrderHistoryPage() {
                               <Package className="w-5 h-5 text-yellow-400" />
                             </div>
                             <p className="text-white font-semibold text-lg">
-                              Ticket Set {idx + 1}
+                              Bundle {idx + 1}
                             </p>
                           </div>
 
-                          {/* Tickets Section */}
+                          {/* Tickets */}
                           <div className="mb-3">
                             <div className="flex items-center gap-2 mb-2">
                               <Ticket className="w-4 h-4 text-blue-400" />
                               <span className="text-blue-400 font-medium text-sm">Event Tickets</span>
                             </div>
                             <div className="bg-black/30 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-white font-medium">
-                                    Section {bundle.ticketSection}, Row {bundle.ticketRow}
-                                  </p>
-                                  <p className="text-gray-400 text-sm">
-                                    {bundle.ticketQuantity} ticket{bundle.ticketQuantity > 1 ? 's' : ''}
-                                  </p>
-                                </div>
-                              </div>
+                              <p className="text-white font-medium">
+                                Section {bundle.ticketSection}, Row {bundle.ticketRow}
+                              </p>
+                              <p className="text-gray-400 text-sm">
+                                {bundle.ticketQuantity} ticket{bundle.ticketQuantity > 1 ? 's' : ''}
+                              </p>
                             </div>
                           </div>
 
-                          {/* Memorabilia Section (New format) */}
+                          {/* Memorabilia */}
                           {bundle.memorabiliaName && (
-                            <div className="mb-3">
+                            <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <Package className="w-4 h-4 text-purple-400" />
                                 <span className="text-purple-400 font-medium text-sm">Memorabilia</span>
@@ -215,130 +270,45 @@ export default function OrderHistoryPage() {
                               </div>
                             </div>
                           )}
-
-                          {/* Card Breaks Section (Legacy) */}
-                          {bundle.breaks && bundle.breaks.length > 0 && (
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <CreditCard className="w-4 h-4 text-purple-400" />
-                                <span className="text-purple-400 font-medium text-sm">Card Breaks</span>
-                              </div>
-                              <div className="space-y-2">
-                                {bundle.breaks.map((breakItem: any, breakIdx: number) => (
-                                  <div key={breakIdx} className="bg-black/30 rounded-lg p-3">
-                                    <div className="flex items-start gap-3">
-                                      {breakItem.imageUrl && (
-                                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-                                          <img
-                                            src={breakItem.imageUrl}
-                                            alt={breakItem.breakName || breakItem.name}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).style.display = 'none';
-                                            }}
-                                          />
-                                        </div>
-                                      )}
-                                      <div className="flex-1">
-                                        <p className="text-white font-medium">
-                                          {breakItem.breakName || breakItem.name || 'Card Break'}
-                                        </p>
-                                        {breakItem.teamName && (
-                                          <p className="text-gray-400 text-sm">
-                                            Team: {breakItem.teamName}
-                                          </p>
-                                        )}
-                                        {breakItem.category && (
-                                          <p className="text-gray-400 text-sm">
-                                            {breakItem.category}
-                                          </p>
-                                        )}
-                                        {breakItem.breaker && (
-                                          <p className="text-gray-500 text-xs">
-                                            Breaker: {breakItem.breaker}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
-                    {spin.adjacentSeats && spin.quantity > 1 && (
+
+                    {order.adjacentSeats && order.quantity > 1 && (
                       <div className="flex items-center gap-2 mt-4 p-3 bg-yellow-400/10 rounded-lg border border-yellow-400/30">
                         <CheckCircle className="w-5 h-5 text-yellow-400" />
-                        <p className="text-yellow-400 font-medium">
-                          Adjacent seats confirmed
-                        </p>
+                        <p className="text-yellow-400 font-medium">Adjacent seats confirmed</p>
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* Fulfillment Status */}
-                <div className="border-t border-white/20 pt-4 mt-4">
-                  <h4 className="text-white font-semibold mb-3">Fulfillment Status:</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-300">Tickets:</span>
-                      </div>
-                      {spin.ticketsTransferred ? (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                          <span className="text-sm text-green-400">
-                            Transferred {spin.ticketsTransferredAt ? new Date(spin.ticketsTransferredAt).toLocaleDateString() : ''}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-yellow-400" />
-                          <span className="text-sm text-yellow-400">Pending Transfer</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Truck className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-300">Memorabilia:</span>
-                      </div>
-                      {spin.memorabiliaShipped ? (
-                        <div className="flex flex-col items-end">
+                    {/* Fulfillment Status for Spins */}
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">Ticket Status:</span>
+                        {order.ticketsTransferred ? (
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-400" />
-                            <span className="text-sm text-green-400">
-                              Shipped {spin.memorabiliaShippedAt ? new Date(spin.memorabiliaShippedAt).toLocaleDateString() : ''}
-                            </span>
+                            <span className="text-sm text-green-400">Transferred</span>
                           </div>
-                          {spin.trackingNumber && (
-                            <span className="text-xs text-blue-400 mt-1">
-                              {spin.shippingCarrier}: {spin.trackingNumber}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-yellow-400" />
-                          <span className="text-sm text-yellow-400">Pending Shipment</span>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-yellow-400" />
+                            <span className="text-sm text-yellow-400">Pending Transfer</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             ))}
           </div>
         ) : (
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-12 text-center">
             <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Spins Yet</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">No Orders Yet</h3>
             <p className="text-gray-400 mb-6">
-              You haven't jumped for any tickets yet. Start jumping to win tickets and card breaks!
+              You haven't made any jumps yet. Start jumping to win tickets!
             </p>
             <Link
               href="/events"

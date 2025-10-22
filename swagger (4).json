@@ -1,0 +1,466 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "v1",
+    "title": "WebHookAPI"
+  },
+  "host": "www.tn-apis.com",
+  "basePath": "/webhook/v1",
+  "schemes": [
+    "https"
+  ],
+  "security": [
+    {
+      "X-Identity-Context": []
+    },
+    {
+      "default": []
+    }
+  ],
+  "paths": {
+    "/webhooks/filters": {
+      "get": {
+        "tags": [
+          "WebHookFilters"
+        ],
+        "summary": "Gets all WebHook filters that a user can register with. The filters indicate which WebHook\r\n            events that this WebHook will be notified for.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the available filters will be included in the response.",
+        "operationId": "WebHookFilters_Get",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/webhooks/registrations": {
+      "get": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Gets all registered WebHooks for a given user.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the registered WebHooks will be included in the response.\r\n            \r\n\r\n\r\n            Id (string, optional): the GUID passed in by the user.\r\n            webHookUri (string, required): the address to which the WebHook will be sent.\r\n            secret (string, optional): Optional. A secret we can use to sign our WebHook messages to you.\r\n            description (string, optional): the description of the WebHook.\r\n            isPaused (boolean, optional): reserved for future use.\r\n            filters (Array[string], optional): the filters the webhook instance is registered for.\r\n            headers (object, optional): reserved for future use.\r\n            properties (object, optional): reserved for future use.",
+        "operationId": "WebHookRegistrations_Get",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "application/json": [
+                {
+                  "id": "5f23285cf0c74b1abec22ef27281425b",
+                  "webHookUri": "https://example.com/api/webhooks/incoming/custom",
+                  "secret": "12345678901234567890123456789012",
+                  "description": "Example WebHook description",
+                  "isPaused": false,
+                  "filters": [
+                    "Example Filter"
+                  ],
+                  "headers": {},
+                  "properties": {}
+                }
+              ]
+            },
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/WebHook"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "post": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Registers a new WebHook for a given user.",
+        "description": "Registers a new WebHook for a given user. Unless the specified WebHook URI has a NoEcho query parameter, the submitted WebHook URI will be checked for reachability. If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the WebHook will be included in the response.\r\n            \r\n\r\n            WebHooks expect an echo from the target URI and throw an error if it fails to receive a valid one. In order to ignore it, append the URI with the \"?NoEcho\u003dyes\" attribute.\r\n            \r\n\r\n\r\n            Id (string, optional): the GUID passed in by the user.\r\n            webHookUri (string, required): the address to which the WebHook will be sent.\r\n            secret (string, optional): Optional. A secret we can use to sign our WebHook messages to you.\r\n            description (string, optional): the description of the WebHook.\r\n            isPaused (boolean, optional): reserved for future use.\r\n            filters (Array[string], optional): the filters the webhook instance is registered for.\r\n            headers (object, optional): reserved for future use.\r\n            properties (object, optional): reserved for future use.",
+        "operationId": "WebHookRegistrations_Post",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "webHook",
+            "description": "The {Microsoft.AspNet.WebHooks.WebHook} to create.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/WebHook"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "application/json": {
+                "id": "5f23285cf0c74b1abec22ef27281425b",
+                "webHookUri": "https://example.com/api/webhooks/incoming/custom",
+                "secret": "12345678901234567890123456789012",
+                "description": "Example WebHook description",
+                "isPaused": false,
+                "filters": [
+                  "Example Filter"
+                ],
+                "headers": {},
+                "properties": {}
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/WebHook"
+            }
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "delete": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Deletes all existing WebHook registrations.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response.",
+        "operationId": "WebHookRegistrations_DeleteAll",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registrations deleted successfully."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/webhooks/registrations/{id}": {
+      "get": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Looks up a registered WebHook with the given {id} for a given user.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the WebHook will be included in the response.\r\n            \r\n\r\n\r\n            Id (string, optional): the GUID passed in by the user.\r\n            webHookUri (string, required): the address to which the WebHook will be sent.\r\n            secret (string, optional): Optional. A secret we can use to sign our WebHook messages to you.\r\n            description (string, optional): the description of the WebHook.\r\n            isPaused (boolean, optional): reserved for future use.\r\n            filters (Array[string], optional): the filters the webhook instance is registered for.\r\n            headers (object, optional): reserved for future use.\r\n            properties (object, optional): reserved for future use.",
+        "operationId": "WebHookRegistrations_Lookup",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The WebHook ID.",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "application/json": {
+                "id": "5f23285cf0c74b1abec22ef27281425b",
+                "webHookUri": "https://example.com/api/webhooks/incoming/custom",
+                "secret": "12345678901234567890123456789012",
+                "description": "Example WebHook description",
+                "isPaused": false,
+                "filters": [
+                  "Example Filter"
+                ],
+                "headers": {},
+                "properties": {}
+              }
+            },
+            "schema": {
+              "$ref": "#/definitions/WebHook"
+            }
+          },
+          "404": {
+            "description": "No WebHook exists for the given user and ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "put": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Updates an existing WebHook registration.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response.\r\n            \r\n\r\n\r\n            Id (string, required): the GUID passed in by the user. Must match the id within the WebHook model.\r\n            WebHook model:\r\n            Id (string, optional): the GUID passed in by the user.\r\n            webHookUri (string, required): the address to which the WebHook will be sent.\r\n            secret (string, optional): Optional. A secret we can use to sign our WebHook messages to you.\r\n            description (string, optional): the description of the WebHook.\r\n            isPaused (boolean, optional): reserved for future use.\r\n            filters (Array[string], optional): the filters the webhook instance is registered for.\r\n            headers (object, optional): reserved for future use.\r\n            properties (object, optional): reserved for future use.",
+        "operationId": "WebHookRegistrations_Put",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The WebHook ID.",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "webHook",
+            "description": "The new {Microsoft.AspNet.WebHooks.WebHook} to use.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/WebHook"
+            }
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "No WebHook exists for the given user and ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "delete": {
+        "tags": [
+          "WebHookRegistrations"
+        ],
+        "summary": "Deletes an existing WebHook registration.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response.",
+        "operationId": "WebHookRegistrations_Delete",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The WebHook ID.",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registration deleted successfully."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    }
+  },
+  "securityDefinitions": {
+    "X-Identity-Context": {
+      "description": "Header identifying the broker id to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+      "type": "apiKey",
+      "name": "X-Identity-Context",
+      "in": "header"
+    },
+    "default": {
+      "type": "oauth2",
+      "authorizationUrl": "https://www.tn-apis.com/authorize",
+      "flow": "implicit",
+      "scopes": {}
+    }
+  },
+  "definitions": {
+    "WebHookFilter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "WebHook": {
+      "type": "object",
+      "required": [
+        "webHookUri"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "webHookUri": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "isPaused": {
+          "type": "boolean"
+        },
+        "filters": {
+          "type": "array",
+          "readOnly": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "headers": {
+          "type": "object",
+          "readOnly": true,
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "properties": {
+          "type": "object",
+          "readOnly": true,
+          "additionalProperties": {
+            "$ref": "#/definitions/Object"
+          }
+        }
+      },
+      "example": {
+        "id": "5f23285cf0c74b1abec22ef27281425b",
+        "webHookUri": "https://example.com/api/webhooks/incoming/custom",
+        "secret": "12345678901234567890123456789012",
+        "description": "Example WebHook description",
+        "isPaused": false,
+        "filters": [],
+        "headers": {},
+        "properties": {}
+      }
+    },
+    "Object": {
+      "type": "object"
+    }
+  }
+}

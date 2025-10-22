@@ -48,7 +48,20 @@ export interface MercuryHold {
   sessionId: string;
   expiresAt: Date;
   status: 'active' | 'expired' | 'converted' | 'released';
-  ticketDetails: MercuryTicket;
+}
+
+export interface MercuryCreditLimits {
+  dailyBuyCreditLimit: { value: number; currencyCode: string };
+  dailyBuyCreditRemaining: { value: number; currencyCode: string };
+  weeklyBuyCreditLimit: { value: number; currencyCode: string };
+  weeklyBuyCreditRemaining: { value: number; currencyCode: string };
+  coinBuyCreditRemaining: { value: number; currencyCode: string };
+  mercuryActive: boolean;
+  canBuy: boolean;
+  canSell: boolean;
+  coinWalletEnabled: boolean;
+  buyFee: number;
+  sellFee: number;
 }
 
 export interface MercuryOrder {
@@ -86,7 +99,8 @@ export class MercuryAPI {
     const sandboxMode = process.env.MERCURY_SANDBOX_MODE === 'true';
 
     // Use sandbox or production base URL
-    const baseUrl = sandboxMode ? 'https://sandbox.tn-apis.com' : 'https://api.tn-apis.com';
+    // Production uses www.tn-apis.com as per Mercury v5 specification
+    const baseUrl = sandboxMode ? 'https://sandbox.tn-apis.com' : 'https://www.tn-apis.com';
 
     // Set service URLs based on swagger.json definitions
     this.mercuryApiUrl = process.env.MERCURY_API_URL || `${baseUrl}/mercury/v5`;
@@ -135,10 +149,11 @@ export class MercuryAPI {
 
     // Different services use different header names
     if (service === 'catalog') {
-      // Catalog API uses X-Listing-Context with website-config-id
+      // Catalog API uses X-Listing-Context with website-config-id 23884
       headers['X-Listing-Context'] = `website-config-id=${this.catalogConfigId}`;
     } else {
-      // Mercury API uses X-Identity-Context with broker-id
+      // Mercury API uses X-Identity-Context with broker-id for inventory/orders
+      // According to docs and email: broker-id=13870 for Mercury API
       headers['X-Identity-Context'] = `broker-id=${this.brokerId}`;
     }
 
@@ -170,6 +185,7 @@ export class MercuryAPI {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           ...contextHeaders,
         },
         body: body ? JSON.stringify(body) : undefined,
@@ -185,11 +201,11 @@ export class MercuryAPI {
     } catch (error) {
       console.error('[Mercury API] Request failed:', error);
 
-      // If it's a development environment and we get auth errors, use mock data
-      if (this.sandboxMode && error instanceof Error && error.message.includes('401')) {
-        console.log('[Mercury API] Auth failed in sandbox, using mock data');
-        return this.getMockResponse(method, path, body) as T;
-      }
+      // Disabled mock data fallback - we want real API responses
+      // if (this.sandboxMode && error instanceof Error && error.message.includes('401')) {
+      //   console.log('[Mercury API] Auth failed in sandbox, using mock data');
+      //   return this.getMockResponse(method, path, body) as T;
+      // }
 
       throw error;
     }
@@ -270,6 +286,75 @@ export class MercuryAPI {
   }
 
   /**
+   * Get Mercury credit limits for the broker account
+   * This shows available credit for purchasing tickets
+   */
+  async getCreditLimits(): Promise<MercuryCreditLimits> {
+    console.log('[Mercury API] Fetching credit limits');
+
+    const response = await this.makeRequest<MercuryCreditLimits>(
+      'GET',
+      '/creditlimits',
+      undefined,
+      'mercury'
+    );
+
+    console.log('[Mercury API] Credit limits:', {
+      dailyRemaining: response.dailyBuyCreditRemaining?.value,
+      weeklyRemaining: response.weeklyBuyCreditRemaining?.value,
+      coinWallet: response.coinBuyCreditRemaining?.value,
+      canBuy: response.canBuy
+    });
+
+    return response;
+  }
+
+  /**
+   * Check if sufficient credit is available for a purchase
+   */
+  async checkSufficientCredit(amount: number): Promise<{ sufficient: boolean; availableCredit: number; message?: string }> {
+    try {
+      const limits = await this.getCreditLimits();
+
+      if (!limits.canBuy || !limits.mercuryActive) {
+        return {
+          sufficient: false,
+          availableCredit: 0,
+          message: 'Mercury buying is not enabled for this account'
+        };
+      }
+
+      // Check the minimum of all credit limits
+      const availableCredit = Math.min(
+        limits.dailyBuyCreditRemaining?.value || 0,
+        limits.weeklyBuyCreditRemaining?.value || 0,
+        limits.coinBuyCreditRemaining?.value || 0
+      );
+
+      if (amount > availableCredit) {
+        return {
+          sufficient: false,
+          availableCredit,
+          message: `Insufficient credit. Required: $${amount.toFixed(2)}, Available: $${availableCredit.toFixed(2)}`
+        };
+      }
+
+      return {
+        sufficient: true,
+        availableCredit
+      };
+    } catch (error) {
+      console.error('[Mercury API] Error checking credit limits:', error);
+      // Return false on error to prevent purchases when we can't verify credit
+      return {
+        sufficient: false,
+        availableCredit: 0,
+        message: 'Unable to verify credit availability'
+      };
+    }
+  }
+
+  /**
    * Get available inventory for an event
    * Uses the /ticketgroups endpoint as per Mercury v5 API
    */
@@ -278,6 +363,9 @@ export class MercuryAPI {
     const params = new URLSearchParams();
     if (request.eventId) params.append('eventId', request.eventId);
 
+    console.log(`[Mercury API] Getting inventory for event ${request.eventId}`);
+    console.log(`[Mercury API] Using broker-id: ${this.brokerId}`);
+
     const response = await this.makeRequest<any>(
       'GET',
       `/ticketgroups?${params.toString()}`,
@@ -285,8 +373,11 @@ export class MercuryAPI {
       'mercury'
     );
 
+    console.log(`[Mercury API] Ticketgroups response:`, JSON.stringify(response, null, 2));
+
     // Transform response to match our MercuryTicket interface
-    if (response?.ticketGroups) {
+    if (response?.ticketGroups && Array.isArray(response.ticketGroups)) {
+      console.log(`[Mercury API] Found ${response.ticketGroups.length} ticket groups`);
       return response.ticketGroups.map((group: any) => ({
         id: group.exchangeTicketGroupId?.toString() || '',
         eventId: group.eventId?.toString() || request.eventId,
@@ -306,6 +397,8 @@ export class MercuryAPI {
       }));
     }
 
+    // Log if we got an unexpected response format
+    console.log(`[Mercury API] No ticketGroups found in response, returning empty array`);
     return [];
   }
 
@@ -337,20 +430,7 @@ export class MercuryAPI {
       userId: '', // Not used in Mercury v5
       sessionId: '', // Not used in Mercury v5
       expiresAt: new Date(Date.now() + 60000), // 60 seconds from now
-      status: 'active',
-      ticketDetails: {
-        id: ticketGroupId,
-        eventId: '',
-        section: '',
-        row: '',
-        seatNumbers: [],
-        quantity: response.quantity,
-        price: response.lockPrice?.value || wholesalePrice,
-        listingId: ticketGroupId,
-        brokerId: this.brokerId,
-        deliveryMethod: 'eticket',
-        splits: []
-      }
+      status: 'active'
     };
   }
 
@@ -518,7 +598,6 @@ export class MercuryAPI {
       sessionId: body.sessionId,
       expiresAt: new Date(Date.now() + (body.holdDurationSeconds || 30) * 1000),
       status: 'active',
-      ticketDetails: mockTicket,
     };
   }
 

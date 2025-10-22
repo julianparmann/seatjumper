@@ -10,6 +10,7 @@ import AbandonedCartEmail from '@/lib/email/templates/abandoned-cart';
 import { getRandomAvailablePool, claimPool, regenerateSinglePool, ensurePoolsAvailable } from '@/lib/services/prize-pool-service';
 import { markItemsAsSold } from '@/lib/services/inventory-service';
 import { decrementVipInventory } from '@/lib/services/vip-tier-service';
+import { executeJumpPurchase } from '@/lib/services/mercury-jump-service';
 import Stripe from 'stripe';
 
 export async function POST(req: NextRequest) {
@@ -36,6 +37,131 @@ export async function POST(req: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
 
       try {
+        // Extract metadata first to determine purchase type
+        const gameId = session.metadata?.gameId;
+        const eventId = session.metadata?.eventId; // For Mercury API events
+        const eventName = session.metadata?.eventName;
+        const eventVenue = session.metadata?.eventVenue;
+        const eventDate = session.metadata?.eventDate;
+        const userId = session.metadata?.userId;
+
+        if (!userId) {
+          console.error('[Stripe Webhook] No userId in session metadata');
+          return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+        }
+        const quantity = parseInt(session.metadata?.quantity || '1');
+        const selectedLevels = session.metadata?.selectedLevels?.split(',').filter(Boolean) || [];
+        const excludedSections = session.metadata?.excludedSections?.split(',').filter(Boolean) || [];
+        const selectedTicketIds = session.metadata?.selectedTicketIds?.split(',').filter(Boolean) || [];
+
+        // IMPORTANT: Check if this is a Mercury API jump purchase FIRST (has eventId but no gameId)
+        // Mercury purchases don't create spinResult records, so we must handle them before checking for spinResult
+        if (eventId && !gameId) {
+          console.log(`[Webhook] Processing Mercury jump purchase for event ${eventId}`);
+
+          try {
+            // Execute Mercury purchase flow
+            const mercuryResult = await executeJumpPurchase(
+              eventId,
+              userId,
+              quantity,
+              excludedSections,
+              session.id,
+              selectedTicketIds
+            );
+
+            if (mercuryResult.success) {
+              console.log(`[Webhook] Mercury purchase successful. Order ID: ${mercuryResult.mercuryOrderId}`);
+
+              // Store purchase record
+              await prisma.jumpPurchase.create({
+                data: {
+                  id: `jump_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  userId,
+                  eventId,
+                  eventName,
+                  eventVenue,
+                  eventDate: eventDate ? new Date(eventDate) : null,
+                  stripeSessionId: session.id,
+                  stripePaymentIntentId: session.payment_intent as string,
+                  mercuryOrderId: mercuryResult.mercuryOrderId || '',
+                  mercuryLockId: mercuryResult.mercuryLockId || '',
+                  ticketGroupId: mercuryResult.ticketGroupId || '',
+                  section: mercuryResult.section || '',
+                  row: mercuryResult.row || '',
+                  quantity,
+                  jumpPrice: session.amount_total ? session.amount_total / 100 : 0,
+                  wholesalePrice: mercuryResult.wholesalePrice || 0,
+                  status: 'completed',
+                  createdAt: new Date(),
+                  completedAt: new Date()
+                }
+              });
+
+              // Send confirmation email
+              if (session.customer_email) {
+                // TODO: Create and send Mercury jump confirmation email
+                console.log(`[Webhook] Would send confirmation email to ${session.customer_email}`);
+              }
+
+              return NextResponse.json({ received: true });
+
+            } else {
+              // Mercury purchase failed but payment succeeded
+              console.error(`[Webhook] Mercury purchase failed but payment succeeded. Manual fulfillment required.`);
+
+              // Store failed purchase for manual intervention
+              await prisma.jumpPurchase.create({
+                data: {
+                  id: `jump_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  userId,
+                  eventId,
+                  eventName,
+                  eventVenue,
+                  eventDate: eventDate ? new Date(eventDate) : null,
+                  stripeSessionId: session.id,
+                  stripePaymentIntentId: session.payment_intent as string,
+                  quantity,
+                  jumpPrice: session.amount_total ? session.amount_total / 100 : 0,
+                  status: 'requires_fulfillment',
+                  error: mercuryResult.error,
+                  createdAt: new Date()
+                }
+              });
+
+              // TODO: Send admin notification
+              console.error(`[Webhook] Manual fulfillment required for session ${session.id}`);
+
+              return NextResponse.json({ received: true, warning: 'Manual fulfillment required' });
+            }
+
+          } catch (error) {
+            console.error('[Webhook] Error processing Mercury jump purchase:', error);
+
+            // Store error for manual intervention
+            await prisma.jumpPurchase.create({
+              data: {
+                id: `jump_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                userId,
+                eventId,
+                eventName,
+                eventVenue,
+                eventDate: eventDate ? new Date(eventDate) : null,
+                stripeSessionId: session.id,
+                stripePaymentIntentId: session.payment_intent as string,
+                quantity,
+                jumpPrice: session.amount_total ? session.amount_total / 100 : 0,
+                status: 'failed',
+                error: error instanceof Error ? error.message : 'Unknown error',
+                createdAt: new Date()
+              }
+            });
+
+            return NextResponse.json({ received: true, error: 'Processing failed, manual intervention required' });
+          }
+        }
+
+        // For non-Mercury purchases (prize pool system), check for spinResult
         // Get the pending spin result
         const pendingSpinResult = await prisma.spinResult.findFirst({
           where: {
@@ -46,15 +172,11 @@ export async function POST(req: NextRequest) {
 
         if (!pendingSpinResult) {
           console.error('No pending spin result found for session:', session.id);
+          // This is OK for Mercury purchases, but an error for prize pool purchases
           return NextResponse.json({ error: 'No pending spin result found' }, { status: 404 });
         }
 
-        // Extract metadata
-        const gameId = session.metadata?.gameId;
-        const userId = session.metadata?.userId;
-        const quantity = parseInt(session.metadata?.quantity || '1');
-        const selectedLevels = session.metadata?.selectedLevels?.split(',').filter(Boolean) || [];
-
+        // Original logic for non-Mercury purchases (existing prize pool system)
         if (!gameId || !userId) {
           console.error('Missing required metadata in session:', session.id);
           return NextResponse.json({ error: 'Invalid session metadata' }, { status: 400 });

@@ -1,0 +1,211 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "A modular widget that lets subscribers map their ticket data to interactive seating charts.",
+    "version": "v3",
+    "title": "MapWidgetAPI"
+  },
+  "host": "www.tn-apis.com",
+  "basePath": "/maps/v3",
+  "schemes": [
+    "https"
+  ],
+  "security": [
+    {
+      "default": []
+    }
+  ],
+  "paths": {
+    "/MapAndLayout": {
+      "get": {
+        "description": "Creates the map and ticket layout with default UI.",
+        "parameters": [
+          {
+            "name": "websiteConfigId",
+            "in": "query",
+            "description": "Your website config id",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "eventName",
+            "in": "query",
+            "description": "The event name",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "dateTime",
+            "in": "query",
+            "description": "The event date and time",
+            "required": false,
+            "type": "number"
+          },
+          {
+            "name": "venue",
+            "in": "query",
+            "description": "The venue name",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "description": "The event id",
+            "required": false,
+            "type": "number"
+          },
+          {
+            "name": "consumerKey",
+            "in": "query",
+            "description": "You unique consumer key",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/EventAndVenueInfo": {
+      "get": {
+        "description": "Gets info about an event and venue for creating a custom UI",
+        "parameters": [
+          {
+            "name": "websiteConfigId",
+            "in": "query",
+            "description": "Your website config id",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "eventName",
+            "in": "query",
+            "description": "The event name",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "dateTime",
+            "in": "query",
+            "description": "The event date and time",
+            "required": false,
+            "type": "number"
+          },
+          {
+            "name": "venue",
+            "in": "query",
+            "description": "The venue name",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "description": "The event id",
+            "required": false,
+            "type": "number"
+          },
+          {
+            "name": "consumerKey",
+            "in": "query",
+            "description": "You unique consumer key",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "callback",
+            "in": "query",
+            "description": "The jsonp callback function name",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/TicketsByEvent": {
+      "get": {
+        "description": "Gets the tickets available within the TicketNetwork Exchange for a given event.",
+        "parameters": [
+          {
+            "name": "callback",
+            "in": "query",
+            "description": "The jsonp callback function name",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "description": "The event id",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "websiteConfigId",
+            "in": "query",
+            "description": "Your website config id",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "includeEventInfo",
+            "in": "query",
+            "description": "Whether to include event information in the result",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "default": [
+              "seatics_ticket_data_read"
+            ]
+          }
+        ],
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    }
+  },
+  "securityDefinitions": {
+    "default": {
+      "type": "oauth2",
+      "authorizationUrl": "https://www.tn-apis.com/authorize",
+      "flow": "implicit",
+      "scopes": {
+        "seatics_ticket_data_read": "This scope will restrict access to Maps API endpoints that retrieve ticket data."
+      },
+      "x-scopes-bindings": {
+        "seatics_ticket_data_read": "TNInternal,SeaticsTicketData"
+      }
+    }
+  }
+}

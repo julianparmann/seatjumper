@@ -1,0 +1,1520 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "v2",
+    "title": "TicketVaultAPI"
+  },
+  "host": "www.tn-apis.com",
+  "basePath": "/ticketvault/v2",
+  "schemes": [
+    "https"
+  ],
+  "security": [
+    {
+      "X-Identity-Context": []
+    },
+    {
+      "default": []
+    }
+  ],
+  "paths": {
+    "/mercury/{mercuryTransactionId}/barcodes": {
+      "get": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Gets the barcodes for a Mercury transaction.",
+        "description": "Get the barcodes for a Mercury transaction.",
+        "operationId": "MercuryV2_GetBarcodesForMercuryOrder",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The Mercury transaction ID for the order.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "mercuryTransactionId": 1234,
+              "barcodes": [
+                {
+                  "seatNumber": 101,
+                  "barcode": "ABC123",
+                  "barcodeType": {
+                    "id": 3,
+                    "description": "QR"
+                  }
+                },
+                {
+                  "seatNumber": 103,
+                  "barcode": "DEF123",
+                  "barcodeType": {
+                    "id": 3,
+                    "description": "QR"
+                  }
+                }
+              ]
+            },
+            "schema": {
+              "$ref": "#/definitions/MercuryBarcodeGetModel"
+            }
+          },
+          "404": {
+            "description": "The Mercury transaction does not exist or there are no barcodes available for the Mercury transaction."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/mercury/{mercuryTransactionId}/etickets": {
+      "get": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Gets the PDF representing the tickets for a Mercury transaction.",
+        "description": "The eTickets for a Mercury transaction are stored in a single PDF with one page per eTicket.\r\n            The PDF data is in the form of a base64-encoded string.\r\n            HTTP status codes:\r\n            200 for success.\r\n            404 if the eTickets for the Mercury transaction are not in TicketVault.",
+        "operationId": "MercuryV2_GetEticketsForMercuryInstantDownload",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The ID of the Mercury transaction for which the eTickets are to be retrieved.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "eticket": "JVBERi0xLjENCiXCpcKxw6sNCg0KMSAwIG9iag0KICA8PCAvVHlwZSAvQ2F0YWxvZw0KICAgICAvUGFnZXMgMiAwIFINCiAgPj4NCmVuZG9iag0KDQoyIDAgb2JqDQogIDw8IC9UeXBlIC9QYWdlcw0KICAgICAvS2lkcyBbMyAwIFJdDQogICAgIC9Db3VudCAxDQogICAgIC9NZWRpYUJveCBbMCAwIDMwMCAxNDRdDQogID4+DQplbmRvYmoNCg0KMyAwIG9iag0KICA8PCAgL1R5cGUgL1BhZ2UNCiAgICAgIC9QYXJlbnQgMiAwIFINCiAgICAgIC9SZXNvdXJjZXMNCiAgICAgICA8PCAvRm9udA0KICAgICAgICAgICA8PCAvRjENCiAgICAgICAgICAgICAgIDw8IC9UeXBlIC9Gb250DQogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTENCiAgICAgICAgICAgICAgICAgIC9CYXNlRm9udCAvVGltZXMtUm9tYW4NCiAgICAgICAgICAgICAgID4+DQogICAgICAgICAgID4+DQogICAgICAgPj4NCiAgICAgIC9Db250ZW50cyA0IDAgUg0KICA+Pg0KZW5kb2JqDQoNCjQgMCBvYmoNCiAgPDwgL0xlbmd0aCA1NSA+Pg0Kc3RyZWFtDQogIEJUDQogICAgL0YxIDE4IFRmDQogICAgMCAwIFRkDQogICAgKEhlbGxvIFdvcmxkKSBUag0KICBFVA0KZW5kc3RyZWFtDQplbmRvYmoNCg0KeHJlZg0KMCA1DQowMDAwMDAwMDAwIDY1NTM1IGYgDQowMDAwMDAwMDE4IDAwMDAwIG4gDQowMDAwMDAwMDc3IDAwMDAwIG4gDQowMDAwMDAwMTc4IDAwMDAwIG4gDQowMDAwMDAwNDU3IDAwMDAwIG4gDQp0cmFpbGVyDQogIDw8ICAvUm9vdCAxIDAgUg0KICAgICAgL1NpemUgNQ0KICA+Pg0Kc3RhcnR4cmVmDQo1NjUNCiUlRU9GDQo\u003d",
+              "mediaType": "application/base64",
+              "success": true,
+              "message": "eTicket(s) retrieved."
+            },
+            "schema": {
+              "$ref": "#/definitions/ETicketGetModel"
+            }
+          },
+          "404": {
+            "description": "The Mercury transaction does not exist or there are no eTickets available for the Mercury transaction."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "post": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Uploads the PDF representing the tickets for a Mercury transaction.",
+        "description": "Uploads the PDF and attaches it to the associated Mercury transaction ID. If there are already eTickets attached, the call will fail.\r\n            After eTickets are attached, they will be available to the buyer.\r\n            The request body is provided using the multipart/form-data content type.",
+        "operationId": "MercuryV2_PostByMercuryTransactionIdAsync",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The ID of the Mercury transaction that the eTickets will be associated with.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "description": "The PDF file attachment.",
+            "required": true,
+            "type": "file"
+          },
+          {
+            "name": "file_size",
+            "in": "formData",
+            "description": "The length of the file, in bytes.",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "file_hash",
+            "in": "formData",
+            "description": "The MD5 hash of the file in hexadecimal notation. (e.g. \"f877a5b6a0a403a44575308a69a96073\")",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "pdf_low_to_high",
+            "in": "formData",
+            "description": "Only applies to Mercury orders. If true, the pages in the attached PDF are arranged from low to high seat numbers; if false, they are arranged from high to low. Defaults to true.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "eTickets attached."
+          },
+          "400": {
+            "description": "Invalid input data. Check the response for a detailed error."
+          },
+          "404": {
+            "description": "Invalid ID."
+          },
+          "409": {
+            "description": "The eTickets are already uploaded."
+          },
+          "415": {
+            "description": "The request must use the multipart/form-data format."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/mercury/{mercuryTransactionId}/qrscreenshots": {
+      "get": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Gets the PDF representing the QR screenshots for a Mercury transaction.",
+        "description": "The QR screenshots for a Mercury transaction are stored in a single PDF with one page per eTicket.\r\n            The PDF data is in the form of a base64-encoded string.\r\n            HTTP status codes:\r\n            200 for success.\r\n            404 if the QR screenshots for the Mercury transaction are not in TicketVault.",
+        "operationId": "MercuryV2_GetQrScreenshotsForMercuryInstantDownload",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The ID of the Mercury transaction for which the QR screenshots are to be retrieved.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "qrScreenshot": "JVBERi0xLjENCiXCpcKxw6sNCg0KMSAwIG9iag0KICA8PCAvVHlwZSAvQ2F0YWxvZw0KICAgICAvUGFnZXMgMiAwIFINCiAgPj4NCmVuZG9iag0KDQoyIDAgb2JqDQogIDw8IC9UeXBlIC9QYWdlcw0KICAgICAvS2lkcyBbMyAwIFJdDQogICAgIC9Db3VudCAxDQogICAgIC9NZWRpYUJveCBbMCAwIDMwMCAxNDRdDQogID4+DQplbmRvYmoNCg0KMyAwIG9iag0KICA8PCAgL1R5cGUgL1BhZ2UNCiAgICAgIC9QYXJlbnQgMiAwIFINCiAgICAgIC9SZXNvdXJjZXMNCiAgICAgICA8PCAvRm9udA0KICAgICAgICAgICA8PCAvRjENCiAgICAgICAgICAgICAgIDw8IC9UeXBlIC9Gb250DQogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTENCiAgICAgICAgICAgICAgICAgIC9CYXNlRm9udCAvVGltZXMtUm9tYW4NCiAgICAgICAgICAgICAgID4+DQogICAgICAgICAgID4+DQogICAgICAgPj4NCiAgICAgIC9Db250ZW50cyA0IDAgUg0KICA+Pg0KZW5kb2JqDQoNCjQgMCBvYmoNCiAgPDwgL0xlbmd0aCA1NSA+Pg0Kc3RyZWFtDQogIEJUDQogICAgL0YxIDE4IFRmDQogICAgMCAwIFRkDQogICAgKEhlbGxvIFdvcmxkKSBUag0KICBFVA0KZW5kc3RyZWFtDQplbmRvYmoNCg0KeHJlZg0KMCA1DQowMDAwMDAwMDAwIDY1NTM1IGYgDQowMDAwMDAwMDE4IDAwMDAwIG4gDQowMDAwMDAwMDc3IDAwMDAwIG4gDQowMDAwMDAwMTc4IDAwMDAwIG4gDQowMDAwMDAwNDU3IDAwMDAwIG4gDQp0cmFpbGVyDQogIDw8ICAvUm9vdCAxIDAgUg0KICAgICAgL1NpemUgNQ0KICA+Pg0Kc3RhcnR4cmVmDQo1NjUNCiUlRU9GDQo\u003d",
+              "mediaType": "application/base64",
+              "success": true,
+              "message": "QR screenshot(s) retrieved."
+            },
+            "schema": {
+              "$ref": "#/definitions/QrScreenshotGetModel"
+            }
+          },
+          "404": {
+            "description": "The Mercury transaction does not exist or there are no QR screenshots available for the Mercury transaction."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "post": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Uploads the PDF representing the QR screenshots for a Mercury transaction.",
+        "description": "Uploads the PDF and attaches it to the associated Mercury transaction ID. If there are already QR screenshots attached, the call will fail.\r\n            After QR screenshots are attached, they will be available to the buyer.\r\n            The request body is provided using the multipart/form-data content type.",
+        "operationId": "MercuryV2_PostQrScreenshotsByMercuryTransactionIdAsync",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The ID of the Mercury transaction that the QR screenshots will be associated with.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "description": "The PDF file attachment.",
+            "required": true,
+            "type": "file"
+          },
+          {
+            "name": "file_size",
+            "in": "formData",
+            "description": "The length of the file, in bytes.",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "file_hash",
+            "in": "formData",
+            "description": "The MD5 hash of the file in hexadecimal notation. (e.g. \"f877a5b6a0a403a44575308a69a96073\")",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "pdf_low_to_high",
+            "in": "formData",
+            "description": "Only applies to Mercury orders. If true, the pages in the attached PDF are arranged from low to high seat numbers; if false, they are arranged from high to low. Defaults to true.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR screenshots attached."
+          },
+          "400": {
+            "description": "Invalid input data. Check the response for a detailed error."
+          },
+          "404": {
+            "description": "Invalid ID."
+          },
+          "409": {
+            "description": "The QR screenshots are already uploaded."
+          },
+          "415": {
+            "description": "The request must use the multipart/form-data format."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/mercury/{mercuryTransactionId}/transferconfirmation": {
+      "post": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Confirms transfer of an order.",
+        "description": "This call confirms that tickets have been transferred to the customer for an order, and optionally allows proof of delivery to be uploaded. This call is intended to be used for any delivery method where TicketNetwork does not otherwise have visibility into ticket delivery (i.e. anything other than physical shipping methods with a tracking number, E-Ticket, Upload QR Screenshot, or TN Digital Conversion) to ensure prompt payment for the order. If successful, the HTTP response code will indicate a 204 (No Content) response.",
+        "operationId": "MercuryV2_ConfirmTransfer",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The Mercury transaction identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "ticketSourceId",
+            "in": "query",
+            "description": "The ticket source ID.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "description": "A JPEG, PNG, or PDF file containing proof of delivery for an order.",
+            "required": false,
+            "type": "file"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transfer confirmed."
+          },
+          "400": {
+            "description": "File format incorrect."
+          },
+          "415": {
+            "description": "The request must use the multipart/form-data format."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/mercury/{mercuryTransactionId}/transferurl": {
+      "get": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Gets the mobile transfer URL(s) for a Mercury transaction.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the transfer URL(s) will be included in the response.",
+        "operationId": "MercuryV2_GetTransferUrlByMercuryTransactionIdAsync",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The mercury transaction identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "mercuryTransactionId": 12345,
+              "mobileTransferUrls": [
+                "https://example.invalid/?123456789"
+              ]
+            },
+            "schema": {
+              "$ref": "#/definitions/MobileTransferUrlV2GetModel"
+            }
+          },
+          "404": {
+            "description": "Invalid ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "post": {
+        "tags": [
+          "Mercury"
+        ],
+        "summary": "Uploads mobile transfer URL(s) for a Mercury transaction.",
+        "description": "Attaches the mobile transfer URL(s) to the associated Mercury transaction ID.\r\n            After the URL(s) are attached, they will be available to the buyer.",
+        "operationId": "MercuryV2_UploadTransferUrlByMercuryTransactionIdAsync",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "mercuryTransactionId",
+            "in": "path",
+            "description": "The ID of the Mercury transaction that the transfer URL(s) will be associated with.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "model",
+            "description": "The POST model.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MobileTransferUrlV2PostModel"
+            }
+          },
+          {
+            "name": "ticketSourceId",
+            "in": "query",
+            "description": "The ticket source ID.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transfer URL(s) attached."
+          },
+          "400": {
+            "description": "Invalid input data. Check the response for a detailed error."
+          },
+          "404": {
+            "description": "Invalid ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}": {
+      "get": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Gets ticket request data and status.",
+        "description": "HTTP status codes:\r\n            200 for success.\r\n            404 if the ticket request does not exist or is not accessible via this API.",
+        "operationId": "TicketRequestV2_GetTicketRequest",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The id of the ticket request to be retrieved.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "id": 59500555,
+              "createDate": "2016-08-15T18:34:42-04:00",
+              "updateDate": "2016-08-17T03:08:38-04:00",
+              "requestStatus": "Rejected",
+              "requestSubStatus": "Fraudulent Order",
+              "seller": {
+                "id": 7815,
+                "name": "sellerwebsite.com",
+                "email": "seller-email@example.com",
+                "phoneNumber": "(555) 555-5555"
+              },
+              "buyer": {
+                "type": "Customer",
+                "name": "John Smith",
+                "email": "personal-email@example.com",
+                "phoneNumber": "(555) 555-6666"
+              },
+              "requestedShippingMethod": "E-Ticket",
+              "requestedTicketGroup": {
+                "id": 1001,
+                "stdSectionName": "A",
+                "row": "2",
+                "orderQuantity": 2,
+                "event": {
+                  "id": 100,
+                  "name": "Example Event Name",
+                  "date": "2016-10-15",
+                  "time": "05:10:05",
+                  "dateTime": "2016-10-15T05:26:05",
+                  "dateTimeOffset": "2016-10-15T06:26:05-04:00",
+                  "venue": {
+                    "id": 18,
+                    "name": "Venue Name",
+                    "city": "Venue City",
+                    "state": "CT",
+                    "country": "USA"
+                  }
+                }
+              },
+              "shipByDate": "2016-10-11",
+              "label": {
+                "shippingCarrier": "FedEx",
+                "trackingNumber": "784208528358"
+              },
+              "_links": [
+                {
+                  "href": "https://www.tn-apis.com/ticketvault/v1/ticketrequests/59500555",
+                  "rel": "self"
+                },
+                {
+                  "href": "https://www.tn-apis.com/ticketvault/v1/ticketrequests/59500556",
+                  "rel": "B2B ticketRequest"
+                }
+              ]
+            },
+            "schema": {
+              "$ref": "#/definitions/TicketRequestGetModel"
+            }
+          },
+          "403": {
+            "description": "The ticket request is not accessible through the API."
+          },
+          "404": {
+            "description": "The ticket request does not exist or is not available through the API."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}/barcodes": {
+      "get": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Gets the barcodes for a ticket request.",
+        "description": "Get the barcodes for a ticket request.",
+        "operationId": "TicketRequestV2_GetBarcodesForTicketRequest",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The ticket request ID.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "ticketRequestId": 1234,
+              "barcodes": [
+                {
+                  "seatNumber": 101,
+                  "barcode": "ABC123",
+                  "barcodeType": {
+                    "id": 3,
+                    "description": "QR"
+                  }
+                },
+                {
+                  "seatNumber": 103,
+                  "barcode": "DEF123",
+                  "barcodeType": {
+                    "id": 3,
+                    "description": "QR"
+                  }
+                }
+              ]
+            },
+            "schema": {
+              "$ref": "#/definitions/TicketRequestBarcodeGetModel"
+            }
+          },
+          "404": {
+            "description": "The ticket request does not exist or there are no barcodes available for the ticket request."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}/etickets": {
+      "get": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Gets the contents of a ticket request\u0027s eTicket PDF.",
+        "description": "The eTickets for a ticket request are stored in a single PDF with one page per eTicket.\r\n            The PDF data is in the form of a base64-encoded string.\r\n            HTTP status codes:\r\n            200 for success.\r\n            404 if the eTickets for the ticket request are not in TicketVault.",
+        "operationId": "TicketRequestV2_GetEticketsForTicketRequest",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The Id of the ticket request to be retrieved.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "eticket": "JVBERi0xLjENCiXCpcKxw6sNCg0KMSAwIG9iag0KICA8PCAvVHlwZSAvQ2F0YWxvZw0KICAgICAvUGFnZXMgMiAwIFINCiAgPj4NCmVuZG9iag0KDQoyIDAgb2JqDQogIDw8IC9UeXBlIC9QYWdlcw0KICAgICAvS2lkcyBbMyAwIFJdDQogICAgIC9Db3VudCAxDQogICAgIC9NZWRpYUJveCBbMCAwIDMwMCAxNDRdDQogID4+DQplbmRvYmoNCg0KMyAwIG9iag0KICA8PCAgL1R5cGUgL1BhZ2UNCiAgICAgIC9QYXJlbnQgMiAwIFINCiAgICAgIC9SZXNvdXJjZXMNCiAgICAgICA8PCAvRm9udA0KICAgICAgICAgICA8PCAvRjENCiAgICAgICAgICAgICAgIDw8IC9UeXBlIC9Gb250DQogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTENCiAgICAgICAgICAgICAgICAgIC9CYXNlRm9udCAvVGltZXMtUm9tYW4NCiAgICAgICAgICAgICAgID4+DQogICAgICAgICAgID4+DQogICAgICAgPj4NCiAgICAgIC9Db250ZW50cyA0IDAgUg0KICA+Pg0KZW5kb2JqDQoNCjQgMCBvYmoNCiAgPDwgL0xlbmd0aCA1NSA+Pg0Kc3RyZWFtDQogIEJUDQogICAgL0YxIDE4IFRmDQogICAgMCAwIFRkDQogICAgKEhlbGxvIFdvcmxkKSBUag0KICBFVA0KZW5kc3RyZWFtDQplbmRvYmoNCg0KeHJlZg0KMCA1DQowMDAwMDAwMDAwIDY1NTM1IGYgDQowMDAwMDAwMDE4IDAwMDAwIG4gDQowMDAwMDAwMDc3IDAwMDAwIG4gDQowMDAwMDAwMTc4IDAwMDAwIG4gDQowMDAwMDAwNDU3IDAwMDAwIG4gDQp0cmFpbGVyDQogIDw8ICAvUm9vdCAxIDAgUg0KICAgICAgL1NpemUgNQ0KICA+Pg0Kc3RhcnR4cmVmDQo1NjUNCiUlRU9GDQo\u003d",
+              "mediaType": "application/base64",
+              "success": true,
+              "message": "eTicket(s) retrieved."
+            },
+            "schema": {
+              "$ref": "#/definitions/ETicketGetModel"
+            }
+          },
+          "404": {
+            "description": "The ticket request does not exist or there are no eTickets available for the ticket request."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}/qrscreenshots": {
+      "get": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Gets the contents of a ticket request\u0027s QR screenshot PDF.",
+        "description": "The QR screenshots for a ticket request are stored in a single PDF with one page per screenshot.\r\n            The PDF data is in the form of a base64-encoded string.\r\n            HTTP status codes:\r\n            200 for success.\r\n            404 if the QR screenshots for the ticket request are not in TicketVault.",
+        "operationId": "TicketRequestV2_GetQrScreenshotsForTicketRequest",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The Id of the ticket request to be retrieved.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "qrScreenshot": "JVBERi0xLjENCiXCpcKxw6sNCg0KMSAwIG9iag0KICA8PCAvVHlwZSAvQ2F0YWxvZw0KICAgICAvUGFnZXMgMiAwIFINCiAgPj4NCmVuZG9iag0KDQoyIDAgb2JqDQogIDw8IC9UeXBlIC9QYWdlcw0KICAgICAvS2lkcyBbMyAwIFJdDQogICAgIC9Db3VudCAxDQogICAgIC9NZWRpYUJveCBbMCAwIDMwMCAxNDRdDQogID4+DQplbmRvYmoNCg0KMyAwIG9iag0KICA8PCAgL1R5cGUgL1BhZ2UNCiAgICAgIC9QYXJlbnQgMiAwIFINCiAgICAgIC9SZXNvdXJjZXMNCiAgICAgICA8PCAvRm9udA0KICAgICAgICAgICA8PCAvRjENCiAgICAgICAgICAgICAgIDw8IC9UeXBlIC9Gb250DQogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTENCiAgICAgICAgICAgICAgICAgIC9CYXNlRm9udCAvVGltZXMtUm9tYW4NCiAgICAgICAgICAgICAgID4+DQogICAgICAgICAgID4+DQogICAgICAgPj4NCiAgICAgIC9Db250ZW50cyA0IDAgUg0KICA+Pg0KZW5kb2JqDQoNCjQgMCBvYmoNCiAgPDwgL0xlbmd0aCA1NSA+Pg0Kc3RyZWFtDQogIEJUDQogICAgL0YxIDE4IFRmDQogICAgMCAwIFRkDQogICAgKEhlbGxvIFdvcmxkKSBUag0KICBFVA0KZW5kc3RyZWFtDQplbmRvYmoNCg0KeHJlZg0KMCA1DQowMDAwMDAwMDAwIDY1NTM1IGYgDQowMDAwMDAwMDE4IDAwMDAwIG4gDQowMDAwMDAwMDc3IDAwMDAwIG4gDQowMDAwMDAwMTc4IDAwMDAwIG4gDQowMDAwMDAwNDU3IDAwMDAwIG4gDQp0cmFpbGVyDQogIDw8ICAvUm9vdCAxIDAgUg0KICAgICAgL1NpemUgNQ0KICA+Pg0Kc3RhcnR4cmVmDQo1NjUNCiUlRU9GDQo\u003d",
+              "mediaType": "application/base64",
+              "success": true,
+              "message": "QR screenshot(s) retrieved."
+            },
+            "schema": {
+              "$ref": "#/definitions/QrScreenshotGetModel"
+            }
+          },
+          "404": {
+            "description": "The ticket request does not exist or there are no QR screenshots available for the ticket request."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}/transferconfirmation": {
+      "post": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Confirms transfer of an order.",
+        "description": "This call confirms that tickets have been transferred to the customer for an order, and optionally allows proof of delivery to be uploaded. This call is intended to be used for any delivery method where TicketNetwork does not otherwise have visibility into ticket delivery (i.e. anything other than physical shipping methods with a tracking number, E-Ticket, Upload QR Screenshot, or TN Digital Conversion) to ensure prompt payment for the order. If successful, the HTTP response code will indicate a 204 (No Content) response.",
+        "operationId": "TicketRequestV2_ConfirmTransfer",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The ticket request identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "ticketSourceId",
+            "in": "query",
+            "description": "The ticket source ID",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "description": "A JPEG, PNG, or PDF file containing proof of delivery for an order.",
+            "required": false,
+            "type": "file"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transfer confirmed."
+          },
+          "400": {
+            "description": "File format incorrect."
+          },
+          "415": {
+            "description": "The request must use the multipart/form-data format."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    },
+    "/ticketrequests/{ticketRequestId}/transferurl": {
+      "get": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Gets the mobile transfer URL(s) for a ticket request.",
+        "description": "If successful, the HTTP response code will indicate a 200 (OK) response, and a representation of the transfer URL(s) will be included in the response.",
+        "operationId": "TicketRequestV2_GetTransferUrlByTicketRequestIdAsync",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The ticket request identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "examples": {
+              "ticketRequestId": 200012345,
+              "mobileTransferUrls": [
+                "https://example.invalid/?234567890"
+              ]
+            },
+            "schema": {
+              "$ref": "#/definitions/MobileTransferUrlV2GetModel"
+            }
+          },
+          "404": {
+            "description": "Invalid ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      },
+      "post": {
+        "tags": [
+          "TicketRequest"
+        ],
+        "summary": "Uploads mobile transfer URL(s) for a ticket request.",
+        "description": "Attaches the mobile transfer URL(s) to the associated ticket request ID.\r\n            After the URL(s) are attached, they will be available to the buyer.",
+        "operationId": "TicketRequestV2_UploadTransferUrlByTicketRequestIdAsync",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "ticketRequestId",
+            "in": "path",
+            "description": "The ticket request identifier.",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "model",
+            "description": "The POST model.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MobileTransferUrlV2PostModel"
+            }
+          },
+          {
+            "name": "ticketSourceId",
+            "in": "query",
+            "description": "The ticket source ID.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "X-Identity-Context",
+            "in": "header",
+            "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transfer URL(s) attached."
+          },
+          "400": {
+            "description": "Invalid input data. Check the response for a detailed error."
+          },
+          "404": {
+            "description": "Invalid ID."
+          }
+        },
+        "security": [
+          {
+            "default": []
+          }
+        ],
+        "deprecated": false,
+        "x-auth-type": "Application \u0026 Application User",
+        "x-throttling-tier": "Unlimited"
+      }
+    }
+  },
+  "securityDefinitions": {
+    "X-Identity-Context": {
+      "description": "Header identifying the broker ID to perform the operation for. Format: \u0027broker-id\u003d##[;user-id\u003d##]\u0027",
+      "type": "apiKey",
+      "name": "X-Identity-Context",
+      "in": "header"
+    },
+    "default": {
+      "type": "oauth2",
+      "authorizationUrl": "https://www.tn-apis.com/authorize",
+      "flow": "implicit",
+      "scopes": {}
+    }
+  },
+  "definitions": {
+    "MercuryBarcodeGetModel": {
+      "type": "object",
+      "properties": {
+        "mercuryTransactionId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The Mercury transaction ID."
+        },
+        "barcodes": {
+          "type": "array",
+          "description": "The barcodes.",
+          "items": {
+            "$ref": "#/definitions/BarcodeGetModel"
+          }
+        }
+      },
+      "description": "A model for Mercury barcodes.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.MercuryBarcodeGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "BarcodeGetModel": {
+      "type": "object",
+      "properties": {
+        "seatNumber": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The seat number."
+        },
+        "barcode": {
+          "type": "string",
+          "description": "The barcode."
+        },
+        "barcodeType": {
+          "description": "The barcode type.",
+          "$ref": "#/definitions/IdAndDescriptionGetModel"
+        }
+      },
+      "description": "A model for Mercury barcodes.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.BarcodeGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "IdAndDescriptionGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ID."
+        },
+        "description": {
+          "type": "string",
+          "description": "The description corresponding to this ID."
+        }
+      },
+      "description": "Generic model for an object with an ID and Description.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.IdAndDescriptionGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "ETicketGetModel": {
+      "type": "object",
+      "required": [
+        "message",
+        "success"
+      ],
+      "properties": {
+        "eticket": {
+          "type": "string",
+          "description": "A Base64-encoded string of the eTicket PDF, which contains one page per eTicket."
+        },
+        "mediaType": {
+          "type": "string",
+          "description": "The media type of the returned string."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "True if the call was successful, false otherwise."
+        },
+        "message": {
+          "type": "string",
+          "description": "Informational message containing details of the success of the call."
+        }
+      },
+      "description": "A model for eTickets.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.ETicketGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "Object": {
+      "type": "object",
+      "x-type": "System.Object, mscorlib, Version\u003d4.0.0.0, Culture\u003dneutral, PublicKeyToken\u003db77a5c561934e089"
+    },
+    "QrScreenshotGetModel": {
+      "type": "object",
+      "required": [
+        "message",
+        "success"
+      ],
+      "properties": {
+        "qrScreenshot": {
+          "type": "string",
+          "description": "A Base64-encoded string of the PDF of QR screenshots for the ticket request."
+        },
+        "mediaType": {
+          "type": "string",
+          "description": "The media type of the returned string."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "True if the call was successful, false otherwise."
+        },
+        "message": {
+          "type": "string",
+          "description": "Informational message containing details of the success of the call."
+        }
+      },
+      "description": "A model for returning the QR screenshot(s) for a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.QrScreenshotGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "MobileTransferUrlV2PostModel": {
+      "type": "object",
+      "properties": {
+        "mobileTransferUrls": {
+          "type": "array",
+          "description": "The mobile transfer URL(s)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "POST model for uploading a mobile transfer URL",
+      "example": {
+        "mobileTransferUrls": [
+          "https://example.invalid/?123456789"
+        ]
+      },
+      "x-type": "TicketVaultAPI.Models.RequestModels.MobileTransferUrlV2PostModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "MobileTransferUrlV2GetModel": {
+      "type": "object",
+      "properties": {
+        "ticketRequestId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Gets or sets the ticket request identifier."
+        },
+        "mercuryTransactionId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Gets or sets the mercury transaction identifier."
+        },
+        "mobileTransferUrls": {
+          "type": "array",
+          "description": "The mobile transfer URL(s)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "GET model for retrieving mobile transfer URL(s)",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.MobileTransferUrlV2GetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "TicketRequestGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ticket request id."
+        },
+        "createDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date the ticket request was created."
+        },
+        "updateDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date the ticket request was last updated."
+        },
+        "requestStatus": {
+          "type": "string",
+          "description": "The status of the ticket request."
+        },
+        "requestSubStatus": {
+          "type": "string",
+          "description": "The sub-status of the ticket request providing additional information about the status."
+        },
+        "seller": {
+          "description": "Information about the seller for the ticket request.",
+          "$ref": "#/definitions/SellerGetModel"
+        },
+        "buyer": {
+          "description": "Information about the buyer for the ticket request.",
+          "$ref": "#/definitions/BuyerGetModel"
+        },
+        "requestedShippingMethod": {
+          "type": "string",
+          "description": "The requested shipping method."
+        },
+        "requestedTicketGroup": {
+          "description": "The ticket group associated with the order.",
+          "$ref": "#/definitions/RequestedTicketGroupGetModel"
+        },
+        "shipByDate": {
+          "type": "string",
+          "description": "The date the seller is expected to ship the tickets by."
+        },
+        "label": {
+          "description": "Information about the shipping label associated with the ticket request.",
+          "$ref": "#/definitions/LabelGetModel"
+        },
+        "_links": {
+          "type": "array",
+          "description": "The HTTP links for the resource; links are used to transition through application states by the client and identify related resources available for interaction.",
+          "items": {
+            "$ref": "#/definitions/Link"
+          }
+        }
+      },
+      "description": "A model for returning a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.TicketRequestGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "SellerGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The seller\u0027s broker id."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the seller."
+        },
+        "email": {
+          "type": "string",
+          "description": "The contact email for the seller."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The contact phone for the seller."
+        }
+      },
+      "description": "A model for returning seller information for a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.SellerGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "BuyerGetModel": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The type of the buyer. Can be \"Customer\" or \"Broker\" depending on whether the order is C2B or B2B."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the buyer, can be website customer or broker name depending on buyer type."
+        },
+        "email": {
+          "type": "string",
+          "description": "The contact email for the buyer, can be website customer or broker email depending on buyer type."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The contact phone for the buyer, can be website customer or broker phone depending on buyer type."
+        }
+      },
+      "description": "A model for returning buyer information for a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.BuyerGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "RequestedTicketGroupGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ticket group id."
+        },
+        "stdSectionName": {
+          "type": "string",
+          "description": "The ticket group\u0027s standard section name."
+        },
+        "row": {
+          "type": "string",
+          "description": "The ticket group\u0027s row."
+        },
+        "orderQuantity": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The number of tickets requested from the ticket group."
+        },
+        "event": {
+          "description": "The event the ticket group is for.",
+          "$ref": "#/definitions/EventGetModel"
+        }
+      },
+      "description": "A model for returning information associated with the ticket group on a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.RequestedTicketGroupGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "LabelGetModel": {
+      "type": "object",
+      "properties": {
+        "shippingCarrier": {
+          "type": "string",
+          "description": "The shipping carrier associated with this order\u0027s shipping label, if any."
+        },
+        "trackingNumber": {
+          "type": "string",
+          "description": "The tracking number associated with this order\u0027s shipping label, if any"
+        }
+      },
+      "description": "A model for returning shipping label information for a ticket request.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.LabelGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "href": {
+          "type": "string",
+          "description": "The URI of the link."
+        },
+        "rel": {
+          "type": "string",
+          "description": "The string representation of the set of values identifying the relationship between the current resource and the linked resource.\r\n            Each individual relationship identifier is separated by a space."
+        },
+        "type": {
+          "type": "string",
+          "description": "The media type of the linked resource."
+        },
+        "hreflang": {
+          "type": "string",
+          "description": "The language of the linked resource."
+        },
+        "title": {
+          "type": "string",
+          "description": "A natural language title of the resource, which conveys human-readable information about the link."
+        },
+        "length": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The general length of the linked content in octets."
+        }
+      },
+      "description": "An implementation of the atom link element.",
+      "x-type": "Fx.Web.Api.Core.Resources.Link, Fx.Web.Api.Core, Version\u003d3.2.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull"
+    },
+    "EventGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The event\u0027s id."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the event."
+        },
+        "date": {
+          "type": "string",
+          "description": "The day, month and year of the event."
+        },
+        "time": {
+          "type": "string",
+          "description": "The time of the event. Will be null if the time is TBA."
+        },
+        "dateTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The full date and time of the event. The time part will be zeroed if the time is TBA."
+        },
+        "dateTimeOffset": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The full date and time of the event including offset information. Should be used for any point-in-time comparisons. Will be null if the time is TBA."
+        },
+        "venue": {
+          "description": "The venue for the event.",
+          "$ref": "#/definitions/VenueGetModel"
+        }
+      },
+      "description": "A model for returning event information.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.EventGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "VenueGetModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The venue\u0027s id."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the venue."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city of the venue."
+        },
+        "state": {
+          "type": "string",
+          "description": "The state of the venue."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country code of the country of the venue."
+        }
+      },
+      "description": "A model for returning venue information.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.VenueGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    },
+    "TicketRequestBarcodeGetModel": {
+      "type": "object",
+      "properties": {
+        "ticketRequestId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The ticket request ID."
+        },
+        "barcodes": {
+          "type": "array",
+          "description": "The barcodes.",
+          "items": {
+            "$ref": "#/definitions/BarcodeGetModel"
+          }
+        }
+      },
+      "description": "A model for ticket request barcodes.",
+      "x-type": "TicketVaultAPI.Models.ResponseModels.TicketRequestBarcodeGetModel, TicketVaultAPI, Version\u003d1.0.0.0, Culture\u003dneutral, PublicKeyToken\u003dnull",
+      "x-subtype-schema": []
+    }
+  }
+}

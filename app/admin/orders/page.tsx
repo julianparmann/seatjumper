@@ -20,12 +20,13 @@ import {
 
 interface OrderData {
   id: string;
+  type?: 'spin' | 'jump';
   userId: string;
-  gameId: string;
+  gameId?: string;
   quantity: number;
   totalPrice: number;
   totalValue: number;
-  adjacentSeats: boolean;
+  adjacentSeats?: boolean;
   createdAt: string;
   paidAt: string | null;
   ticketsTransferred: boolean;
@@ -34,6 +35,8 @@ interface OrderData {
   memorabiliaShippedAt: string | null;
   trackingNumber: string | null;
   shippingCarrier: string | null;
+  mercuryOrderId?: string;
+  ticketDeliveryStatus?: string;
   user: {
     name: string | null;
     email: string;
@@ -44,7 +47,7 @@ interface OrderData {
     venue: string;
     city: string;
     state: string;
-    spinPricePerBundle: number;
+    spinPricePerBundle?: number;
   };
   bundles: Array<{
     id: string;
@@ -147,6 +150,9 @@ function OrdersPageContent() {
   };
 
   const isPending = (order: OrderData) => {
+    if (order.type === 'jump') {
+      return !order.ticketsTransferred;
+    }
     return !order.ticketsTransferred || !order.memorabiliaShipped;
   };
 
@@ -257,12 +263,21 @@ function OrdersPageContent() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-white font-medium">{order.game.eventName}</div>
-                    <div className="text-xs text-gray-400">
-                      {formatDate(order.game.eventDate)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {order.game.venue}, {order.game.city}
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="text-sm text-white font-medium">{order.game.eventName}</div>
+                        <div className="text-xs text-gray-400">
+                          {formatDate(order.game.eventDate)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {order.game.venue}, {order.game.city}
+                        </div>
+                      </div>
+                      {order.type === 'jump' && (
+                        <span className="px-2 py-1 text-xs bg-blue-600/20 text-blue-400 rounded-full">
+                          Jump
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -307,7 +322,9 @@ function OrdersPageContent() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {order.memorabiliaShipped ? (
+                    {order.type === 'jump' ? (
+                      <div className="text-sm text-gray-500">N/A (Jump)</div>
+                    ) : order.memorabiliaShipped ? (
                       <div>
                         <div className="flex items-center gap-1">
                           <CheckCircle className="w-4 h-4 text-green-400" />
@@ -373,7 +390,7 @@ function OrdersPageContent() {
                           Mark Tickets Sent
                         </button>
                       )}
-                      {!order.memorabiliaShipped && (
+                      {order.type !== 'jump' && !order.memorabiliaShipped && (
                         <>
                           {editingOrder === order.id ? (
                             <>
@@ -399,6 +416,11 @@ function OrdersPageContent() {
                             </button>
                           )}
                         </>
+                      )}
+                      {order.type === 'jump' && order.mercuryOrderId && (
+                        <span className="text-xs text-gray-500">
+                          Mercury: {order.mercuryOrderId}
+                        </span>
                       )}
                     </div>
                   </td>

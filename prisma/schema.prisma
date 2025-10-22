@@ -449,6 +449,7 @@ model User {
   spins                   Spin[]
   spinResults             SpinResult[]
   profile                 UserProfile?
+  jumpPurchases           JumpPurchase[]
 }
 
 model UserProfile {
@@ -553,4 +554,65 @@ enum TierLevel {
   VIP_ITEM
   GOLD_LEVEL
   UPPER_DECK
+}
+
+enum JumpPurchaseStatus {
+  pending
+  completed
+  failed
+  requires_fulfillment
+}
+
+// Mercury Jump Purchase tracking
+model JumpPurchase {
+  id                     String             @id @default(cuid())
+  userId                 String
+  eventId                String
+  eventName              String?            // Store event name directly for display
+  eventVenue             String?            // Store venue for display
+  eventDate              DateTime?          // Store event date for display
+  selectedSeats          Json?              // Store selected seats info as JSON
+  stripeSessionId        String             @unique
+  stripePaymentIntentId  String?
+  mercuryOrderId         String?
+  mercuryLockId          String?
+  ticketGroupId          String?
+  section                String?
+  row                    String?
+  quantity               Int
+  jumpPrice              Float
+  wholesalePrice         Float?
+
+  // Ticket delivery
+  ticketDeliveryStatus   String?            @default("pending") // pending, delivered, failed
+  ticketDeliveryData     String?            @db.Text // JSON data with barcodes, PDFs, etc
+  ticketDeliveryMethod   String?            // barcodes, pdf, transferUrls
+
+  status                 JumpPurchaseStatus @default(pending)
+  error                  String?
+  createdAt              DateTime           @default(now())
+  completedAt            DateTime?
+
+  user                   User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@index([ticketDeliveryStatus])
+}
+
+model WebhookLog {
+  id           String    @id @default(cuid())
+  source       String    // mercury, stripe, etc
+  event        String    // order.completed, delivery.ready, etc
+  payload      String    @db.Text // JSON payload
+  processed    Boolean   @default(false)
+  processedAt  DateTime?
+  error        String?
+  createdAt    DateTime  @default(now())
+
+  @@index([source])
+  @@index([event])
+  @@index([processed])
+  @@index([createdAt])
 }

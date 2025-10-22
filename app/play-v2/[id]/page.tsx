@@ -25,7 +25,9 @@ export default function EventJumpPage() {
 
   const [loading, setLoading] = useState(true);
   const [eventData, setEventData] = useState<CalculateJumpResponse | null>(null);
-  const [selectedSections, setSelectedSections] = useState<Map<string, boolean>>(new Map());
+  const [selectedSections, setSelectedSections] = useState<Map<string, boolean>>(() => {
+    return new (Map as any)();
+  });
   const [selectedQuantity, setSelectedQuantity] = useState(2);
   const [calculating, setCalculating] = useState(false);
   const [jumpPrices, setJumpPrices] = useState<CalculateJumpResponse['jumpPrices']>([]);
@@ -76,7 +78,7 @@ export default function EventJumpPage() {
       setJumpPrices(data.jumpPrices);
 
       // Initialize all sections as selected
-      const initialSelection = new Map<string, boolean>();
+      const initialSelection = new (Map as any)() as Map<string, boolean>;
       data.sections.forEach((section: any) => {
         initialSelection.set(section.section, true);
       });
@@ -153,13 +155,13 @@ export default function EventJumpPage() {
   }
 
   function toggleSection(section: string) {
-    const newSelection = new Map(selectedSections);
+    const newSelection = new (Map as any)(selectedSections) as Map<string, boolean>;
     newSelection.set(section, !newSelection.get(section));
     setSelectedSections(newSelection);
   }
 
   function selectAllSections() {
-    const newSelection = new Map<string, boolean>();
+    const newSelection = new (Map as any)() as Map<string, boolean>;
     eventData?.sections.forEach(section => {
       newSelection.set(section.section, true);
     });
@@ -167,7 +169,7 @@ export default function EventJumpPage() {
   }
 
   function deselectAllSections() {
-    const newSelection = new Map<string, boolean>();
+    const newSelection = new (Map as any)() as Map<string, boolean>;
     eventData?.sections.forEach(section => {
       newSelection.set(section.section, false);
     });

@@ -53,9 +53,9 @@ export async function GET(
     // Format event date for Seatics (yyyyMMddHHmm)
     let seaticsDateTime = '';
     if (eventDetails.date) {
-      const dateObj = typeof eventDetails.date === 'object' && eventDetails.date.datetime
-        ? new Date(eventDetails.date.datetime)
-        : new Date(eventDetails.date);
+      const dateObj = typeof eventDetails.date === 'object' && 'datetime' in eventDetails.date
+        ? new Date((eventDetails.date as any).datetime)
+        : new Date(eventDetails.date as string);
 
       // Format as yyyyMMddHHmm
       const year = dateObj.getFullYear();

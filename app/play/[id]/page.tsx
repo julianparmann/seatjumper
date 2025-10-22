@@ -136,6 +136,16 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
 
   const fetchGame = async () => {
     try {
+      // First, try to sync the event from Mercury if it doesn't exist
+      const syncRes = await fetch(`/api/events/${id}/sync`, {
+        method: 'POST'
+      });
+
+      if (!syncRes.ok) {
+        console.log('Sync failed or game already exists, continuing to fetch game data');
+      }
+
+      // Now fetch the game data
       const res = await fetch(`/api/public/games/${id}`);
       if (res.ok) {
         const data = await res.json();
